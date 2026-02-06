@@ -1,0 +1,221 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+% %\input{GrandMacros.tex}
+% %\input{Macro.tex}
+\usepackage{amsthm}
+\usepackage{xcolor}
+\newtheorem{remark}{Remark}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\usepackage{graphicx,verbatim,array,multicol, subfigure, color, lscape, mathrsfs, dsfont,url}
+%\usepackage{psfrag, amsmath, amsfonts, epsfig, fancybox, setspace,soul, cancel,biometri}
+\usepackage{psfrag, amsmath, amsfonts, epsfig, fancybox, setspace, soul, amsthm, longtable, threeparttable, threeparttablex, makecell, xcolor, pdflscape, tabu, booktabs, natbib, amssymb}
+\usepackage[normalem]{ulem}
+\usepackage{cancel}
+\usepackage[utf8]{inputenc}
+\parindent 16pt
+\include{common-defs}
+\newcommand{\PP}{\mathbb{P}}
+
+\input{typography-preamble}
+
+% \def\cor{\text{cor}}
+% \def\cF{\cF}
+
+\title{Surrogate inference via random probability distributions: evaluation of surrogate quality in future studies}
+
+
+\begin{document}
+\maketitle
+
+A central question in the evaluation of surrogate markers is whether the surrogate can replace the gold-standard outcome in future trials or in new populations. To inform this decision, a range of competing approaches have been proposed \cite{joffe2009related}. Each approach comes with assumptions that are difficult to assess in practice (e.g., no unmeasured confounding, cross-world independence) or with data requirements that limit implementation. For example, meta-analytic validation approaches \cite{buyse2000validation} rely on the existence of multiple studies that estimate both the treatment effect on the outcome and the treatment effect on the surrogate. In many instances, such studies are not available. Even when multiple studies are available, it may not be known a priori when enough studies---capturing relevant treatment effect heterogeneity---have been accumulated. 
+
+Other strategies rely on untestable assumptions on the distribution of counterfactual quantities without which point identification is not possible. 
+\begin{itemize}
+    \item Principal stratification can require strong assumptions on the joint distribution of $\{Y(1), Y(0)\}$ and $\{S(1), S(0)\}$, e.g., conditional independence of principal strata given covariates, which are often regarded as strong \cite{frangakis2002principal, kim2024bayesian}.
+    \item Other approaches to principal stratification make restrictive assumptions on the nature of the counterfactual $S(0)$ (e.g., that it is constant) as well as requiring near-perfect prediction performance of $S(1)$ \cite{elliott2023surrogate}. 
+    \item Causal mediation methods require no unobserved confounding between the surrogate and outcome \cite{vanderweele2015mediation}, which can be difficult to ensure in practice. 
+    \item Related methods based on the proportion of treatment effect (PTE) do not require such unobserved confounding assumptions, but they do require restrictive monotonicity assumptions to avoid the surrogate paradox \cite{chen2003pte}.
+\end{itemize}
+
+A central motivation for surrogate evaluation is use in future trials or in new populations. A surrogate is not needed in the current study because the gold-standard outcome is observed there; interest often lies in a future study on a new population (with unknown characteristics), where the gold standard may be unobserved. The target of inference is therefore not the current study alone, but the behavior of the surrogate--outcome relationship across such future populations.
+
+In this paper we formalize inference about surrogate quality in future studies. We treat the current study's distribution as one draw from a super-population of study-specific distributions, and we define a random probability measure $\cF$ over such distributions. We specify the law of $\cF$ via a perturbation model (future studies as mixtures of the current distribution and an innovation), establish representation and continuity results, and provide a plug-in estimator with asymptotic normality. We also give a procedure to report a distance $\varepsilon$ within which the surrogate remains ``good'' (e.g., correlation of treatment effects above a threshold). The development is primarily frequentist; a Bayesian implementation (e.g., posterior over $\phi(\cF)$) can be obtained by placing a prior on the innovation and is left for discussion.
+
+Table~\ref{tab:comparison} summarizes how this approach compares to meta-analytic validation, principal stratification, PTE-based methods, and causal mediation in terms of inferential target, main assumptions, and data requirements. Our approach targets functionals of the \emph{distribution} of studies (e.g., correlation of treatment effects across studies), requires only a single current study plus a specification of how future studies may differ (the perturbation model), and avoids cross-world and unmeasured-confounding assumptions needed for principal stratification and mediation.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of surrogate evaluation approaches.}
+\label{tab:comparison}
+\begin{tabular}{llll}
+\toprule
+Approach & Inferential target & Main assumptions & Data \\
+\midrule
+Meta-analytic \cite{buyse2000validation} & Trial-level association & Multiple trials; homogeneity & Multiple studies \\
+Principal stratification \cite{frangakis2002principal} & Principal causal effects & Principal strata structure; often strong independence & Single/multiple \\
+PTE \cite{chen2003pte} & Proportion of effect explained & Monotonicity (to avoid surrogate paradox) & Single study \\
+Mediation \cite{vanderweele2015mediation} & Natural direct/indirect effects & No unmeasured confounding (M--Y; A--M--Y) & Single study \\
+This approach & Functionals of distribution of studies & Perturbation model; finite support (estimation) & Single study \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Setting}
+Suppose we observe data $\bO = (\bX, A, S, Y) \sim \PP_0$ in the current study, where $A$ is a binary treatment, $Y$ is the outcome of interest, $S$ is a surrogate marker that may replace $Y$ in a future study, and $\bX$ are (possibly) pre-treatment covariates. The distribution $\PP_0$ is the law of the observables. We measure treatment effects on the surrogate and the outcome via
+\begin{align*}
+    &\Delta_Y = \E_{\PP_0}\{Y(1) - Y(0)\}\\
+    &\Delta_S = \E_{\PP_0}\{S(1) - S(0)\}
+\end{align*}
+We may optionally assume that $\PP_0$ is a latent mixture: $\E_{\PP_0}\{f(\bO)\} = \sum_v \pi_v\E_{\PP_v}\{f(\bO)\}$ for $0 \leq \pi_v < 1$, $\sum_v \pi_v = 1$, and $\PP_v$ the distribution for latent class $v$; this describes heterogeneity \emph{within} the current study. The remainder of the paper focuses on variation \emph{across} studies. The within-study mixture is for interpretation only; the law of $\cF$ and our estimands do not depend on the latent classes, only on $\PP_0$ as the center of the perturbation. Under randomization, or with suitable identification assumptions (e.g., no unmeasured confounding, overlap), $\Delta_S$ and $\Delta_Y$ are identified and can be estimated by standard methods (e.g., difference in means or influence-function-based estimators).
+
+As motivated above, the target of inference is surrogate quality in \emph{future} studies. Consider a future study with distribution $\PP^*$; we would observe $\Delta^*_S = \E_{\PP^*}\{S(1) - S(0)\}$ but not $Y$, and we wish to know what $\Delta^*_S$ implies about $\Delta^*_Y = \E_{\PP^*}\{Y(1) - Y(0)\}$. This is formalized as follows. We treat the study-specific distribution as a draw from a random probability measure $\cF$, so that both the current distribution $\PP_0$ and any future study distribution $\Q$ are (conceptually) draws from $\cF$.
+
+Suppose that we have a random probability measure $\cF$ such that $\PP_0 \sim \cF$ and any future study $\Q \sim \cF$. Our goal is to make inference about functionals $\phi(\cF)$ of the distribution of studies using the observed data from the current study. Examples of functionals that may be of interest include the correlation between the two treatment effects $\phi(\cF) = \frac{\Cov_{\cF}\{\Delta_S(\Q), \Delta_Y(\Q)\}}{\sqrt{\Var_\cF\{\Delta_S(\Q)\}\Var_\cF\{\Delta_Y(\Q)\}}}$; the probability that a non-small treatment effect on the surrogate implies a non-small treatment effect on the outcome $\phi(\cF; \epsilon_S, \epsilon_Y) = \E_\cF\left[ \cI\{ \Delta_S(\Q) > \epsilon_S, \Delta_Y(\Q) > \epsilon_Y\} \right] / \E_\cF\left[ \cI\{ \Delta_S(\Q) > \epsilon_S\} \right]$; or the expected outcome treatment effect for a given surrogate treatment effect $\phi(\cF; \delta) = \E_\cF\left\{\Delta_Y(\Q) | \Delta_S(\Q) = \delta\right\}$. We estimate these functionals using the observed data from the current study, thereby characterizing how the surrogate--outcome relationship may behave in future studies.
+
+\subsection{Defining the random probability measure $\cF$}
+
+These functionals are properties of the \emph{distribution} of studies, not of the current study alone. To make inference tractable, we must specify the law of $\cF$. We do so as follows.
+
+We model a future study distribution as a mixture of the current distribution and an innovation term, so that $\lambda$ controls how much the future study can differ from the current one. We specify the distribution of studies in the following way. For $\Q \sim \cF$
+\begin{align*}
+    \Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}
+\end{align*}
+for some innovation distribution $\tilde{\PP}$. The parameter $\lambda$ can be interpreted as governing the degree of expected similarity of future studies to the current study (or the transportability range). The innovation $\tilde{\PP}$ may be chosen as a Bayesian bootstrap distribution or some other Dirichlet over the observed data points, or it may be chosen as a Dirichlet process. If $\lambda$ is close to 0, then $\cF$ and future studies will be clustered closely around the current study. As $\lambda$ approaches 1, future studies may (depending on $\tilde{\PP}$) differ markedly from $\PP_0$. 
+
+\subsection{Theoretical properties}
+
+The perturbation form is general in the sense that every future-study distribution admits the representation above; the parameter $\lambda$ is linked to a concrete notion of distance (total variation), which yields an $\varepsilon$-closeness guarantee: when the new study is $\varepsilon$-close to the current study, surrogate quality as measured by $\phi$ does not degrade by more than a constant multiple of $\varepsilon$. We define the total variation distance by $d_{\mathrm{TV}}(\Q, \PP_0) = \frac{1}{2} \int |d\Q - d\PP_0|$ (or the corresponding norm for discrete spaces), so that $d_{\mathrm{TV}} \in [0,1]$ for any two probability measures.
+
+\begin{proposition}[Representation]
+Every probability measure $\Q$ on the outcome space can be written as $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$ for some $\lambda \in [0,1]$ and some probability measure $\tilde{\PP}$. Thus the perturbation model does not restrict the set of possible future-study distributions; the prior on $(\lambda, \tilde{\PP})$ encodes which future studies are plausible.
+\end{proposition}
+\begin{proof}
+Take $\lambda = 1$ and $\tilde{\PP} = \Q$.
+\end{proof}
+
+\begin{proposition}[Distance bound]
+For $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$, the total variation distance satisfies $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda$. Hence $\lambda \leq \varepsilon$ implies $d_{\mathrm{TV}}(\Q, \PP_0) \leq \varepsilon$.
+\end{proposition}
+\begin{proof}
+We have $\Q - \PP_0 = \lambda(\tilde{\PP} - \PP_0)$. For any two probability measures $P$ and $Q$, $d_{\mathrm{TV}}(P,Q) \leq 1$ under our definition. Thus $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda \, d_{\mathrm{TV}}(\tilde{\PP}, \PP_0) \leq \lambda$.
+\end{proof}
+
+\begin{lemma}[Continuity of treatment effects]\label{lemma:continuity}
+Assume $S$ and $Y$ are bounded. The maps $\Q \mapsto \Delta_S(\Q)$ and $\Q \mapsto \Delta_Y(\Q)$ are Lipschitz continuous in $\Q$ with respect to $d_{\mathrm{TV}}$: there exists a constant $L_0$ (depending on the bounds on $S$ and $Y$) such that $|\Delta_S(\Q) - \Delta_S(\PP_0)| \leq L_0 \, d_{\mathrm{TV}}(\Q, \PP_0)$ and similarly for $\Delta_Y$.
+\end{lemma}
+\begin{proof}
+Expectations of bounded functions are Lipschitz in TV: $|\E_{\Q} f - \E_{\PP_0} f| \leq (\sup f - \inf f) \, d_{\mathrm{TV}}(\Q, \PP_0)$. The estimands $\Delta_S(\Q)$ and $\Delta_Y(\Q)$ are expectations of bounded functions under $\Q$ (under SUTVA and consistency, $S(1)-S(0)$ and $Y(1)-Y(0)$ are bounded), so the claim follows.
+\end{proof}
+
+\begin{theorem}[$\varepsilon$-closeness and surrogate quality]\label{thm:epsilon}
+Suppose ``good surrogate'' is defined by $\phi(\PP_0) \geq c$ (e.g., correlation of treatment effects above a threshold $c$). There exists a constant $L$ (depending on $\PP_0$ and the functional $\phi$) such that for any $\Q$ with $d_{\mathrm{TV}}(\Q, \PP_0) \leq \varepsilon$, $|\phi(\Q) - \phi(\PP_0)| \leq L \varepsilon$. In particular, if the surrogate is good at $\PP_0$ and the new study is $\varepsilon$-close to the current study, then $\phi(\Q) \geq c - L\varepsilon$. The constant $L$ can be made explicit under additional regularity (see Remark~\ref{remark:L}).
+\end{theorem}
+\begin{proof}
+By Lemma~\ref{lemma:continuity}, $(\Delta_S(\Q), \Delta_Y(\Q))$ is Lipschitz in $\Q$ with respect to $d_{\mathrm{TV}}$. The functionals $\phi$ of interest (correlation, probability of concordance, conditional expectation) are continuous---and under bounded $S$, $Y$ and non-degenerate variances, Lipschitz---as functions of the distribution of $(\Delta_S, \Delta_Y)$. Composing yields $|\phi(\Q) - \phi(\PP_0)| \leq L \varepsilon$ for some $L$.
+\end{proof}
+
+\begin{remark}\label{remark:L}
+In practice, ``$\varepsilon$-close'' can be interpreted either as $d_{\mathrm{TV}}(\Q, \PP_0) \leq \varepsilon$ or, under the model, equivalently as $\lambda \leq \varepsilon$. The constant $L$ in Theorem~\ref{thm:epsilon} can be made explicit under additional regularity (e.g., bounded $S$, $Y$ and variances bounded away from zero).
+\end{remark}
+
+\subsection{Estimation}
+
+\subsubsection{Regularity conditions}
+We assume the following.
+
+\noindent\textbf{Assumption 1 (Finite support).}\label{ass:finite}
+The outcome space (or the joint support of $(A, S, Y)$ and covariates, if relevant) is finite, so $\PP_0$ is a probability vector $\bp_0$ on a fixed set of cells, independent of $n$.
+
+\noindent\textbf{Assumption 2 (Smoothness and non-degeneracy).}\label{ass:smooth}
+The function $H$ (such that $\phi(\PP_0) = H(\Delta_S(\PP_0), \Delta_Y(\PP_0))$) is smooth; $S$ and $Y$ are bounded; and where needed (e.g., for the correlation functional), the variances of $\Delta_S(\Q)$ and $\Delta_Y(\Q)$ under $\cF_{\PP_0}$ are bounded away from zero.
+
+Under Assumption~\ref{ass:finite}, the empirical distribution $\hat{\PP}_n$ is the vector of empirical proportions $\hat{\bp}_n$; $\sqrt{n}(\hat{\bp}_n - \bp_0)$ is asymptotically normal (multinomial). Extension to continuous or growing support is left for future work: under continuous support the law of $(\lambda, \tilde{\PP})$ and hence of $\Q$ would depend on $n$, and asymptotic theory would require a different treatment.
+
+Let $\cF_{\PP_0}$ denote the law of $\Q$ when the super-population of studies is centered at $\PP_0$: that is, $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$ with $(\lambda, \tilde{\PP})$ drawn from the specified distribution (e.g., $\lambda \sim \text{Beta}(a,b)$, $\tilde{\PP}$ Dirichlet on the same support). We estimate $\phi(\cF_{\PP_0})$ by the plug-in estimator $\hat{\phi}_n = \phi(\cF_{\hat{\PP}_n})$, i.e., the value of the functional when the current-study distribution is set to the empirical distribution. Thus we use $\hat{\PP}_n$ in place of $\PP_0$ in the model $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$ and compute $\phi$ under that law. Computation can be done by (i) Monte Carlo: draw $M$ copies of $(\lambda, \tilde{\PP})$ from the specified distribution (e.g., $\lambda \sim \text{Beta}(a,b)$, $\tilde{\PP}$ Dirichlet on the same support), form $\Q_m = (1-\lambda_m)\hat{\PP}_n + \lambda_m \tilde{\PP}_m$, compute $(\Delta_S(\Q_m), \Delta_Y(\Q_m))$ for each (from the mixture weights or by sampling from $\Q_m$), then take the empirical correlation (or other functional) over the $M$ pairs; or (ii) in closed form when available (e.g., correlation under a Dirichlet innovation, as in the commented material elsewhere in this document).
+
+Because $\Delta_S(\Q) = (1-\lambda)\Delta_S(\PP_0) + \lambda\Delta_S(\tilde{\PP})$ and similarly for $\Delta_Y$, the distribution of $(\Delta_S(\Q), \Delta_Y(\Q))$ under $\cF_{\PP_0}$ depends on $\PP_0$ only through $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$. Thus $\phi(\PP_0) = \phi(\cF_{\PP_0})$ can be written as $\phi(\PP_0) = H(\Delta_S(\PP_0), \Delta_Y(\PP_0))$ for some function $H$ determined by the law of $(\lambda, \tilde{\PP})$.
+
+Under Assumptions~\ref{ass:finite} and \ref{ass:smooth}, the plug-in estimator is $\sqrt{n}$-consistent and asymptotically normal.
+
+\begin{proposition}[Asymptotic distribution of the plug-in estimator]
+Under Assumptions~\ref{ass:finite} and \ref{ass:smooth}, $\sqrt{n}(\hat{\phi}_n - \phi(\PP_0)) \xrightarrow{d} N(0, \sigma^2)$ as $n \to \infty$, where $\sigma^2 = (\nabla H)^\top V (\nabla H)$. Here $V$ is the asymptotic variance of $(\Delta_S(\hat{\PP}_n), \Delta_Y(\hat{\PP}_n))$ (from the influence functions of the treatment-effect estimators; in observational studies, $V$ depends on the chosen estimators, e.g., IPW or AIPW), and $\nabla H$ is evaluated at $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$.
+\end{proposition}
+\begin{proof}
+The vector $(\Delta_S(\hat{\PP}_n), \Delta_Y(\hat{\PP}_n))$ is asymptotically normal with mean $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$ and variance $V/n + o(1/n)$ under standard conditions (e.g., randomized trials or IPW with bounded weights). By the delta method applied to $H$, $\sqrt{n}(\hat{\phi}_n - \phi(\PP_0)) = \sqrt{n}(H(\Delta_S(\hat{\PP}_n), \Delta_Y(\hat{\PP}_n)) - H(\Delta_S(\PP_0), \Delta_Y(\PP_0))) \xrightarrow{d} N(0, (\nabla H)^\top V (\nabla H))$.
+\end{proof}
+
+The variance $\sigma^2$ can be estimated by plug-in (replace $\PP_0$ by $\hat{\PP}_n$ and $V$ by an empirical or sandwich estimator) or by bootstrap: draw $B$ bootstrap samples from the data, recompute $\hat{\phi}_n$ on each, and use the bootstrap variance or percentile intervals for inference.
+
+\subsubsection{Procedure for $\varepsilon$-close statements}
+
+In practice we often want to report a distance within which the surrogate remains ``good.'' To do this, estimate $\hat{\phi}(\lambda)$ for a \emph{range} of $\lambda$ values (e.g., a grid $\lambda_1, \ldots, \lambda_K$), rather than marginalizing over a prior on $\lambda$. The procedure is: (1) For each $\lambda_k$, generate future studies with that fixed $\lambda$ (and the chosen innovation $\tilde{\PP}$), compute $(\widehat{\Delta}_S, \widehat{\Delta}_Y)$ for each future study, and obtain $\hat{\phi}(\lambda_k)$ (e.g., sample correlation, or the other functionals). (2) Define ``good'' surrogate quality by a threshold $c$ (e.g., correlation $\geq c$, or probability of concordance $\geq c$). (3) Identify the largest $\lambda$ in the grid for which $\hat{\phi}(\lambda) \geq c$; call this $\hat{\lambda}^*$ (or interpolate if needed). (4) Because $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda$ (Proposition 2), set $\hat{\varepsilon}^* = \hat{\lambda}^*$. Then the $\varepsilon$-close statement is: ``As long as the new study is $\hat{\varepsilon}^*$-close to the current study in total variation (equivalently, $\lambda \leq \hat{\lambda}^*$ in our model), the estimated surrogate quality remains good ($\hat{\phi}(\lambda) \geq c$).''
+
+This procedure operationalizes the guarantee from the Theorem on $\varepsilon$-closeness and surrogate quality: we estimate the maximum $\varepsilon$ (or $\lambda$) for which the surrogate stays above the chosen threshold. The quantities $\hat{\lambda}^*$ and $\hat{\varepsilon}^*$ can be reported with uncertainty (e.g., bootstrap or confidence bands for $\hat{\phi}(\lambda)$); the largest $\lambda$ for which the \emph{lower} bound of the interval is $\geq c$ gives a conservative $\varepsilon$-close radius.
+
+\subsection{Simulation study}
+
+The simulation study will compare this approach to traditional surrogate evaluation methods in settings where they can give conflicting answers: e.g., when traditional methods indicate a surrogate is good while this method shows that it is not (correlation between treatment effects across studies near 0), or when traditional methods indicate a surrogate is not good (near-zero PTE or natural indirect effect) but this method shows it is good (strong positive correlation between treatment effects). Simulations will consider both randomized and non-randomized studies, a range of sample sizes, and both binary and continuous surrogates and outcomes. Competing methods include: meta-analytic and trial-level validation methods as in the \texttt{Surrogate} R package \cite{buyse2000validation}; PTE-based methods (e.g., \texttt{Rsurrogate}); principal surrogate evaluation (e.g., \texttt{pseval}); and causal mediation methods (e.g., \texttt{mediation}) \cite{vanderweele2015mediation}. The mixture structure of the data-generating process may be used to construct scenarios where evaluating the surrogate only on $\PP_0$ conflicts with evaluating it across $\cF$. One or more of the functionals of interest (correlation, probability of concordance, conditional expectation) will be examined.
+% To operationalize this, we assume that $\PP_0 \sim \text{Dirichlet}(\balpha)$ for $\balpha = (\alpha_1, ..., \alpha_n), \alpha_k >0$, which results in a posterior distribution of $\cF | \PP_0 \sim \text{Dirichlet}(\balpha + 1).$ Choosing $\balpha$ encodes how similar new studies are expected to be to the current study on $\PP_0$. As $\balpha \rightarrow \infty$, new studies will be identical to the current study. 
+
+% To better understand how choices of $\balpha$ impact the posterior distribution, consider the toy examples in Figure \ref{fig:alpha-toy-example}. When the $\balpha$ is uniform, the distribution of future studies is centered on $\PP_0$, with the magnitude of $\balpha$ determining whether future studies are mostly similar to the current study (top right in Figure \ref{fig:alpha-toy-example}, $\balpha = (5, 5, 5)$) or more diffuse (top left in the figure). When $\balpha$ is not uniform, the posterior distribution may be systematically different from the current study, primarily including studies with certain types of individuals over-represented compared to $\PP_0$ and others under-represented (bottom row of the figure). 
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=0.8\textwidth]{dirichlet_contours_clean.png}
+%     \caption{Toy examples of $\balpha$ impact on posterior distribution $\cF | \PP_0$ when $n = 3$. Contours indicate the density of the posterior, with lighter colors indicating higher density. Areas near the middle of the triangle correspond to similar studies to the current study, while areas near the edges correspond to studies with distributions that differ more from $\PP_0$.}
+%     \label{fig:alpha-toy-example}
+% \end{figure}
+
+% \subsection{Procedure for a pre-specified $\balpha$}
+
+% Depending on the scientific context, researchers may choose a specific $\balpha$ that describes their knowledge of future studies. For example, if the current study includes both young and old patients but most future studies will be focused primarily on older patients, they may choose $\balpha$ to be weighted more toward older patients. Or $\balpha$ may be chosen to be uniform such that $\alpha_k = c$ for each $k$ and some $c > 0$, where $c$ may be chosen to control the spread in the posterior distribution. 
+
+% Let's consider some examples. We will stick with the example in \ref{tab:binary_combinations} for the moment, and we will select $\cF$ to be Dirichlet($\bpi$), where $\bpi = (\pi_{0000}, \pi_{0001}, ..., \pi_{1111})$. If we select an improper/uninformative prior on $\cF$, where the prior parameters don't contribute anything to the resulting posterior, then we obtain $\cF|\P_0 \sim \text{Dirichlet}(K\bp)$, where $\bp = (p_{0000}, ..., p_{1111})$, the observed probability masses, and $K$ is the tuning parameter controlling the spread of the distribution. 
+
+% \subsection{Using correlation as the measure}
+
+% If what we want is to estimate (I realize this doesn't fit exactly into the format of \eqref{posterior}, but let's worry about that later)
+% \begin{align*}
+%     \cor_{\cF | \P_0}\{\Delta_y(\Q), \Delta_S(\Q)\}
+% \end{align*}
+% then we can recover this in closed form, and the value doesn't depend on the tuning parameter $K$. In particular, we have that
+% \begin{align*}
+%     \cor_{\cF | \P_0}\{\Delta_y(\Q), \Delta_S(\Q)\} = \frac{\ba\trans\Sigma\bb}{\sqrt{\ba\trans\Sigma\ba \bb\trans\Sigma\bb}}
+% \end{align*}
+% where $\ba = (0, 1, -1, 0, 0, 1, -1, 0, 0, 1, -1, 0, 0, 1, -1, 0)$ such that $\ba\trans\bp = \Delta_Y$ and $\bb = (0, 0, 0, 0, 1, 1, 1, 1, -1, -1, -1, -1, 0, 0, 0, 0)$ such that $\bb\trans\bp = \Delta_S$, and 
+% \begin{align*}
+%     \Sigma = \Cov(\bp) = \inv{(K+1)} (\text{diag}(\bp) - \bp\bp\trans).
+% \end{align*}
+
+% We will put off for a moment considering other effect measures beyond correlation to consider how this can be adapted to settings on real data.
+
+% \subsection{Extending this approach to real data}
+
+% In real data, we don't have the potential outcomes. It might at first seem sensible to use the empirical means and the distribution $\bptilde = 1/n$ for each observation. Now we have $\Deltahat_Y = \ba\trans\bptilde$ where $\ba = Y\{A/\E(A) - (1-A)/\E(1-A)\}$ and $\Deltahat_S = \bb\trans\bp$ where $\bb = S\{A/\E(A) - (1-A)/\E(1-A)\}.$ However, computing
+% \begin{align*}
+%     \cor_{\cF | \P_0}\{\Deltahat_y(\Q), \Deltahat_S(\Q)\} = \frac{\ba\trans\Sigma\bb}{\sqrt{\ba\trans\Sigma\ba \bb\trans\Sigma\bb}}
+% \end{align*}
+% will be inflated by the correlation induced by $A$, and it doesn't immediately seem apparent how to avoid this.
+
+% % Instead, we can acknowledge that we can't observe $\bp$ directly, but we can bound it given the data we observe. Specifically, we require that
+% % \begin{align}
+% %     \Omega\bp = \obar\label{constraint}
+% % \end{align}
+% % where $\obar$ is a vector containing values of $\Phat_n(A = a, S = s, Y = y)$, and $\Omega_{8\times16}$ is a binary constraint matrix that indicates which of the 16 counterfactual types is consistent with each of the eight observed $(A, S, Y)$ tuples and ensures that the distribution of the counterfactuals is consistent with the empirical distribution $\obar$. We may then compute $\cor_{\cF | \P_0}\{\Deltahat_y(\Q), \Deltahat_S(\Q)\}$ under the constraint \eqref{constraint}.
+
+% Instead, we can write down the likelihood for the observed data in terms of $\bp$, which is
+% \begin{align*}
+%     \cL(\bp) = \prod_{s = 0}^1\prod_{y=0}^1 \left\{(1-\pi)\sum_{s' = 0}^1\sum_{y'=0}^1 p_{ss'yy'}\right\}^{n_{0sy}}\left\{\pi\sum_{s' = 0}^1\sum_{y'=0}^1 p_{s'sy'y}\right\}^{n_{1sy}}
+% \end{align*}
+% where $\pi= \P_0(A = 1)$ and $n_{asy} = \sum_{i=1}^n\cI\{S = s, Y = y, A = a\}$.
+% Recalling that $\bp \sim$ Dirichlet($\bpi$), we put a prior on the entries in $\bpi$
+% \begin{align*}
+%     \pi_{ss'yy'} \sim \text{Gamma}(\alpha_{ss'yy'}, \beta_{ss'yy'}),
+% \end{align*}
+% and we compute the posterior distribution of $\bpi$.
+
+\bibliography{refs}
+\bibliographystyle{plain}
+\end{document}
