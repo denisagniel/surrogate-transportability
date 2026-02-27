@@ -1,0 +1,69 @@
+# R package files
+package/.Rproj.user/
+package/.Rhistory
+package/.RData
+package/.Ruserdata
+package/*.tar.gz
+package/*.zip
+package/inst/doc/
+package/vignettes/*.html
+package/vignettes/*.pdf
+
+# Simulation results and data
+sims/data/
+sims/results/
+sims/*.rds
+sims/*.png
+sims/*.pdf
+
+# R session files
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*~
+*.tmp
+*.temp
+
+# Log files
+*.log
+
+# Backup files
+*.bak
+*.backup
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# LaTeX files
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+
+# Agent-assisted workflow
+quality_reports/
+explorations/tmp/
+MEMORY.md
+.claude/settings.local.json
+
+

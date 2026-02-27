@@ -1,0 +1,15 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.Rhistory$
+^\.RData$
+^\.Ruserdata$
+^README\.Rmd$
+^\.git$
+^\.gitignore$
+^\.travis\.yml$
+^\.codecov\.yml$
+^\.github$
+^\.vscode$
+^\.DS_Store$
+^Thumbs\.db$
+
