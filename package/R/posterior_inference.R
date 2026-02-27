@@ -7,7 +7,10 @@
 #' @param current_data A tibble with the current study data.
 #' @param n_draws_from_F Integer. Number of draws from super-population F (resampling P₀).
 #' @param n_future_studies_per_draw Integer. Number of future studies Q generated per draw from F.
-#' @param lambda_params List with elements 'a' and 'b' for Beta(a,b) prior on λ.
+#' @param lambda Numeric value in [0,1] controlling the perturbation distance from P₀.
+#'   When λ = 0, future studies equal current study.
+#'   When λ = 1, future studies are purely from innovation distribution.
+#'   Default: 0.3 for moderate perturbation.
 #' @param innovation_type Character. Type of innovation distribution.
 #' @param functional_type Character. Type of functional to compute.
 #' @param epsilon_s Numeric. Threshold for probability functional.
@@ -35,19 +38,21 @@
 #' # Generate current study data
 #' current_data <- generate_study_data(n = 500)
 #'
-#' # Run inference for correlation functional
+#' # Run inference for correlation functional with moderate perturbation
 #' result <- posterior_inference(
 #'   current_data,
-#'   n_outer = 100,
-#'   n_inner = 50,
+#'   n_draws_from_F = 100,
+#'   n_future_studies_per_draw = 50,
+#'   lambda = 0.3,
 #'   functional_type = "correlation"
 #' )
 #'
-#' # Run inference for probability functional
+#' # Run inference for probability functional with high perturbation
 #' result_prob <- posterior_inference(
 #'   current_data,
-#'   n_outer = 100,
-#'   n_inner = 50,
+#'   n_draws_from_F = 100,
+#'   n_future_studies_per_draw = 50,
+#'   lambda = 0.5,
 #'   functional_type = "probability",
 #'   epsilon_s = 0.2,
 #'   epsilon_y = 0.1
@@ -57,7 +62,7 @@
 posterior_inference <- function(current_data,
                               n_draws_from_F = 500,
                               n_future_studies_per_draw = 200,
-                              lambda_params = list(a = 2, b = 5),
+                              lambda = 0.3,
                               innovation_type = c("bayesian_bootstrap", "dirichlet_process"),
                               functional_type = c("correlation", "probability", "conditional_mean", "all"),
                               epsilon_s = 0.2,
@@ -104,7 +109,7 @@ posterior_inference <- function(current_data,
     future_studies <- generate_multiple_future_studies(
       resampled_current_data,
       n_future_studies = n_future_studies_per_draw,
-      lambda_params = lambda_params,
+      lambda = lambda,
       innovation_type = innovation_type,
       seed = NULL
     )
@@ -155,7 +160,7 @@ posterior_inference <- function(current_data,
     parameters = list(
       n_draws_from_F = n_draws_from_F,
       n_future_studies_per_draw = n_future_studies_per_draw,
-      lambda_params = lambda_params,
+      lambda = lambda,
       innovation_type = innovation_type,
       functional_type = functional_type,
       epsilon_s = epsilon_s,
@@ -208,7 +213,7 @@ compute_summary_stats <- function(samples) {
 #' @param current_data A tibble with the current study data.
 #' @param n_outer Integer. Number of outer bootstrap samples for innovation approach.
 #' @param n_inner Integer. Number of inner bootstrap samples for innovation approach.
-#' @param lambda_params List. Parameters for λ distribution.
+#' @param lambda Numeric value in [0,1]. Fixed perturbation distance.
 #' @param epsilon_s Numeric. Threshold for probability functional.
 #' @param epsilon_y Numeric. Threshold for probability functional.
 #' @param seed Integer. Random seed.
@@ -233,7 +238,7 @@ compute_summary_stats <- function(samples) {
 compare_surrogate_methods <- function(current_data,
                                     n_outer = 100,
                                     n_inner = 50,
-                                    lambda_params = list(a = 2, b = 5),
+                                    lambda = 0.3,
                                     epsilon_s = 0.2,
                                     epsilon_y = 0.1,
                                     seed = NULL) {
@@ -243,9 +248,9 @@ compare_surrogate_methods <- function(current_data,
   # Innovation approach
   innovation_result <- posterior_inference(
     current_data,
-    n_outer = n_outer,
-    n_inner = n_inner,
-    lambda_params = lambda_params,
+    n_draws_from_F = n_outer,
+    n_future_studies_per_draw = n_inner,
+    lambda = lambda,
     functional_type = "all",
     epsilon_s = epsilon_s,
     epsilon_y = epsilon_y,

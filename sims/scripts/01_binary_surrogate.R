@@ -54,11 +54,12 @@ cat("\nTreatment effects in current study:\n")
 current_effects <- compute_multiple_treatment_effects(sim$data, c("S", "Y"))
 print(current_effects)
 
-# Run simulation
-cat("\nRunning innovation approach simulation...\n")
+# Run simulation with fixed lambda
+cat("\nRunning innovation approach simulation with fixed lambda = 0.3...\n")
 sim$run(
   n_draws_from_F = 500,
   n_future_studies_per_draw = 200,
+  lambda = 0.3,  # Fixed perturbation distance
   functional_type = "all",
   epsilon_s = 0.1,
   epsilon_y = 0.05
@@ -84,6 +85,7 @@ comparison_sim$data <- sim$data  # Use same data
 comparison_sim$run_comparison(
   n_draws_from_F = 500,
   n_future_studies_per_draw = 200,
+  lambda = 0.3,  # Fixed perturbation distance
   traditional_methods = c("pte", "correlation", "mediation")
 )
 

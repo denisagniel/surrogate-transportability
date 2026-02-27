@@ -7,15 +7,17 @@
 #' @param current_data A tibble or data.frame with the current study data.
 #'   Must contain columns: A (treatment), S (surrogate), Y (outcome), and
 #'   optionally X (covariates).
-#' @param lambda_params List with elements 'a' and 'b' for Beta(a,b) prior on λ.
-#'   Default: list(a = 2, b = 5) for moderate innovation.
+#' @param lambda Numeric value in [0,1] controlling the perturbation distance from P₀.
+#'   When λ = 0, future study equals current study.
+#'   When λ = 1, future study is purely from innovation distribution.
+#'   Default: 0.3 for moderate perturbation.
 #' @param innovation_type Character. Type of innovation distribution:
 #'   "bayesian_bootstrap" (default) or "dirichlet_process".
 #' @param future_n Integer. Sample size for the future study. Default: same as current study.
 #' @param seed Integer. Random seed for reproducibility.
 #'
 #' @return A list with elements:
-#'   \item{lambda}{The sampled closeness parameter}
+#'   \item{lambda}{The fixed closeness parameter}
 #'   \item{future_data}{A tibble with the generated future study data}
 #'   \item{innovation_weights}{The innovation distribution weights}
 #'
@@ -26,10 +28,15 @@
 #' where:
 #' - P₀ is the current study distribution (empirical distribution)
 #' - P̃ is the innovation distribution (Bayesian bootstrap or Dirichlet process)
-#' - λ ~ Beta(a,b) controls how similar future studies are to the current study
+#' - λ is a fixed design parameter controlling the total variation distance
 #'
 #' When λ ≈ 0, future studies are very similar to the current study.
 #' When λ ≈ 1, future studies may differ substantially from the current study.
+#'
+#' This implementation follows the fixed-λ framework from the methods paper (Section 3).
+#' For grid search over multiple λ values, see \code{\link{grid_search_lambda}}.
+#'
+#' @seealso \code{\link{grid_search_lambda}} for evaluating surrogate quality across λ values
 #'
 #' @examples
 #' # Generate current study data
@@ -39,30 +46,29 @@
 #'   treatment_effect_outcome = c(0.3, 0.7)
 #' )
 #'
-#' # Generate future study with moderate innovation
-#' future_study <- generate_future_study(current_data)
+#' # Generate future study with moderate perturbation
+#' future_study <- generate_future_study(current_data, lambda = 0.3)
 #'
-#' # Generate future study with high innovation
-#' future_study_high <- generate_future_study(
-#'   current_data,
-#'   lambda_params = list(a = 1, b = 2)  # Higher λ on average
-#' )
+#' # Generate future study with high perturbation
+#' future_study_high <- generate_future_study(current_data, lambda = 0.8)
 #'
 #' @export
 generate_future_study <- function(current_data,
-                                 lambda_params = list(a = 2, b = 5),
+                                 lambda = 0.3,
                                  innovation_type = c("bayesian_bootstrap", "dirichlet_process"),
                                  future_n = nrow(current_data),
                                  seed = NULL) {
-  
+
   if (!is.null(seed)) set.seed(seed)
-  
+
   innovation_type <- match.arg(innovation_type)
-  
+
   n <- nrow(current_data)
-  
-  # Step 1: Sample closeness parameter λ ~ Beta(a, b)
-  lambda <- rbeta(1, lambda_params$a, lambda_params$b)
+
+  # Step 1: Validate lambda parameter
+  if (!is.numeric(lambda) || length(lambda) != 1 || lambda < 0 || lambda > 1) {
+    stop("lambda must be a single numeric value in [0, 1]")
+  }
   
   # Step 2: Generate innovation distribution weights
   innovation_weights <- switch(innovation_type,
@@ -104,11 +110,13 @@ generate_future_study <- function(current_data,
 #' Generate multiple future studies
 #'
 #' Convenience function to generate multiple future studies from the same
-#' current study, useful for Monte Carlo estimation of functionals.
+#' current study with a fixed lambda value. Useful for Monte Carlo estimation
+#' of functionals phi(F_lambda).
 #'
 #' @param current_data A tibble with the current study data.
 #' @param n_future_studies Integer. Number of future studies to generate.
-#' @param lambda_params List with elements 'a' and 'b' for Beta(a,b) prior on λ.
+#' @param lambda Numeric value in [0,1] controlling the perturbation distance.
+#'   Default: 0.3. All generated studies use the same lambda value.
 #' @param innovation_type Character. Type of innovation distribution.
 #' @param future_n Integer. Sample size for each future study.
 #' @param seed Integer. Random seed for reproducibility.
@@ -116,16 +124,26 @@ generate_future_study <- function(current_data,
 #'   Default: FALSE.
 #'
 #' @return A list of length n_future_studies, where each element is the
-#'   result of generate_future_study().
+#'   result of generate_future_study(). All studies have the same lambda.
+#'
+#' @details
+#' This function generates multiple future studies Q_m for m=1,...,M, where each
+#' Q_m = (1-lambda)*P_0 + lambda*P_m and P_m ~ mu. All studies use the same
+#' fixed lambda value, which is required for estimating phi(F_lambda) as described
+#' in Section 3 of the methods paper.
+#'
+#' @seealso \code{\link{generate_future_study}} for generating a single study
+#' @seealso \code{\link{grid_search_lambda}} for evaluating across multiple lambda values
 #'
 #' @examples
 #' # Generate current study
 #' current_data <- generate_study_data(n = 500)
 #'
-#' # Generate 100 future studies
+#' # Generate 100 future studies with lambda = 0.3
 #' future_studies <- generate_multiple_future_studies(
 #'   current_data,
-#'   n_future_studies = 100
+#'   n_future_studies = 100,
+#'   lambda = 0.3
 #' )
 #'
 #' # Extract treatment effects from all future studies
@@ -138,7 +156,7 @@ generate_future_study <- function(current_data,
 #' @export
 generate_multiple_future_studies <- function(current_data,
                                            n_future_studies = 100,
-                                           lambda_params = list(a = 2, b = 5),
+                                           lambda = 0.3,
                                            innovation_type = c("bayesian_bootstrap", "dirichlet_process"),
                                            future_n = nrow(current_data),
                                            seed = NULL,
@@ -160,7 +178,7 @@ generate_multiple_future_studies <- function(current_data,
       function(i) {
         generate_future_study(
           current_data = current_data,
-          lambda_params = lambda_params,
+          lambda = lambda,
           innovation_type = innovation_type,
           future_n = future_n,
           seed = NULL  # Don't set seed in parallel
@@ -177,7 +195,7 @@ generate_multiple_future_studies <- function(current_data,
       function(i) {
         generate_future_study(
           current_data = current_data,
-          lambda_params = lambda_params,
+          lambda = lambda,
           innovation_type = innovation_type,
           future_n = future_n,
           seed = NULL

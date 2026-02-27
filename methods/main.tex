@@ -8,6 +8,7 @@
 \newtheorem{lemma}{Lemma}
 \newtheorem{theorem}{Theorem}
 \newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
 \usepackage{graphicx,verbatim,array,multicol, subfigure, color, lscape, mathrsfs, dsfont,url}
 %\usepackage{psfrag, amsmath, amsfonts, epsfig, fancybox, setspace,soul, cancel,biometri}
 \usepackage{psfrag, amsmath, amsfonts, epsfig, fancybox, setspace, soul, amsthm, longtable, threeparttable, threeparttablex, makecell, xcolor, pdflscape, tabu, booktabs, natbib, amssymb}
@@ -62,101 +63,367 @@ This approach & Functionals of distribution of studies & Perturbation model; fin
 \end{tabular}
 \end{table}
 
-\section{Setting}
-Suppose we observe data $\bO = (\bX, A, S, Y) \sim \PP_0$ in the current study, where $A$ is a binary treatment, $Y$ is the outcome of interest, $S$ is a surrogate marker that may replace $Y$ in a future study, and $\bX$ are (possibly) pre-treatment covariates. The distribution $\PP_0$ is the law of the observables. We measure treatment effects on the surrogate and the outcome via
+\section{Setting}\label{sec:setting}
+Suppose we observe $n$ iid realizations of $\bO = (\bX, A, S, Y) \sim \PP_0$ in the current study, where $A \in \{0, 1\}$ is a binary treatment, $Y \in \cY \subset \R$ is the outcome of interest, $S \in \cS \subset \R$ is a surrogate marker that may replace $Y$ in a future study, and $\bX \in \cX \subset \R^p$ are pre-treatment covariates ($\bX$ may be omitted in a randomized trial). The distribution $\PP_0$ is the law of the observables. We measure treatment effects on the surrogate and the outcome via
 \begin{align*}
     &\Delta_Y = \E_{\PP_0}\{Y(1) - Y(0)\}\\
     &\Delta_S = \E_{\PP_0}\{S(1) - S(0)\}
 \end{align*}
-We may optionally assume that $\PP_0$ is a latent mixture: $\E_{\PP_0}\{f(\bO)\} = \sum_v \pi_v\E_{\PP_v}\{f(\bO)\}$ for $0 \leq \pi_v < 1$, $\sum_v \pi_v = 1$, and $\PP_v$ the distribution for latent class $v$; this describes heterogeneity \emph{within} the current study. The remainder of the paper focuses on variation \emph{across} studies. The within-study mixture is for interpretation only; the law of $\cF$ and our estimands do not depend on the latent classes, only on $\PP_0$ as the center of the perturbation. Under randomization, or with suitable identification assumptions (e.g., no unmeasured confounding, overlap), $\Delta_S$ and $\Delta_Y$ are identified and can be estimated by standard methods (e.g., difference in means or influence-function-based estimators).
+This all describes (the population of) the current study. Under suitable identification assumptions, $\Delta_S$ and $\Delta_Y$ are identified and can be estimated by standard methods (e.g., difference in means or influence-function-based estimators). However, for the purposes of determining surrogate quality, we wish to know how the surrogate would perform in \emph{future} studies. Consider a future study with distribution $\PP^*$; we would observe $\Delta^*_S = \E_{\PP^*}\{S(1) - S(0)\}$ but not $Y$, and we wish to know what $\Delta^*_S$ implies about $\Delta^*_Y = \E_{\PP^*}\{Y(1) - Y(0)\}$. 
 
-As motivated above, the target of inference is surrogate quality in \emph{future} studies. Consider a future study with distribution $\PP^*$; we would observe $\Delta^*_S = \E_{\PP^*}\{S(1) - S(0)\}$ but not $Y$, and we wish to know what $\Delta^*_S$ implies about $\Delta^*_Y = \E_{\PP^*}\{Y(1) - Y(0)\}$. This is formalized as follows. We treat the study-specific distribution as a draw from a random probability measure $\cF$, so that both the current distribution $\PP_0$ and any future study distribution $\Q$ are (conceptually) draws from $\cF$.
+To formalize this, we must begin to characterize a class of future studies to which we might wish to generalize. We treat the study-specific distribution as a draw from a random probability measure $\cF$, so that both the current distribution $\PP_0$ and any future study distribution $\Q$ are (conceptually) draws from $\cF$.
 
-Suppose that we have a random probability measure $\cF$ such that $\PP_0 \sim \cF$ and any future study $\Q \sim \cF$. Our goal is to make inference about functionals $\phi(\cF)$ of the distribution of studies using the observed data from the current study. Examples of functionals that may be of interest include the correlation between the two treatment effects $\phi(\cF) = \frac{\Cov_{\cF}\{\Delta_S(\Q), \Delta_Y(\Q)\}}{\sqrt{\Var_\cF\{\Delta_S(\Q)\}\Var_\cF\{\Delta_Y(\Q)\}}}$; the probability that a non-small treatment effect on the surrogate implies a non-small treatment effect on the outcome $\phi(\cF; \epsilon_S, \epsilon_Y) = \E_\cF\left[ \cI\{ \Delta_S(\Q) > \epsilon_S, \Delta_Y(\Q) > \epsilon_Y\} \right] / \E_\cF\left[ \cI\{ \Delta_S(\Q) > \epsilon_S\} \right]$; or the expected outcome treatment effect for a given surrogate treatment effect $\phi(\cF; \delta) = \E_\cF\left\{\Delta_Y(\Q) | \Delta_S(\Q) = \delta\right\}$. We estimate these functionals using the observed data from the current study, thereby characterizing how the surrogate--outcome relationship may behave in future studies.
+Suppose that we have a random probability measure $\cF$ such that $\PP_0 \sim \cF$ and any future study $\Q \sim \cF$. Our goal is to make inference about functionals $\phi(\cF)$ of the distribution of studies using the observed data from the current study. Examples of functionals that may be of interest include the correlation between the two treatment effects $\phi(\cF) = \frac{\Cov_{\cF}\{\Delta_S(\Q), \Delta_Y(\Q)\}}{\sqrt{\Var_\cF\{\Delta_S(\Q)\}\Var_\cF\{\Delta_Y(\Q)\}}}$; the probability that a non-small treatment effect on the surrogate implies a non-small treatment effect on the outcome $\phi(\cF; \epsilon_S, \epsilon_Y) = \E_\cF\left[ \cI\{ \Delta_S(\Q) > \epsilon_S, \Delta_Y(\Q) > \epsilon_Y\} \right] / \E_\cF\left[ \cI\{ \Delta_S(\Q) > \epsilon_S\} \right]$; or the expected outcome treatment effect for a given surrogate treatment effect $\phi(\cF; \delta) = \E_\cF\left\{\Delta_Y(\Q) | \Delta_S(\Q) = \delta\right\}$. Our goal is to estimate these functionals, thereby characterizing how the surrogate--outcome relationship may behave in future studies.
 
 \subsection{Defining the random probability measure $\cF$}
 
-These functionals are properties of the \emph{distribution} of studies, not of the current study alone. To make inference tractable, we must specify the law of $\cF$. We do so as follows.
+Let $\Omega = \cX \times \{0,1\} \times \cS \times \cY$ denote the observed data space, and let $\cM_1(\Omega)$ denote the space of all probability measures on $\Omega$. The current study distribution $\PP_0$ is one element of $\cM_1(\Omega)$; future study distributions $\Q$ are also elements of this space.
 
-We model a future study distribution as a mixture of the current distribution and an innovation term, so that $\lambda$ controls how much the future study can differ from the current one. We specify the distribution of studies in the following way. For $\Q \sim \cF$
+We operate under the assumption that future studies are likely to bear \emph{some} resemblance to the current study -- if the current study is to be informative of the future study, they should have some similarity. We encode this future similarity by modelling future studies via a perturbation of $\PP_0$. For a fixed perturbation level $\lambda \in [0,1]$, define the $\lambda$-perturbation family
 \begin{align*}
-    \Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}
+    \cF_\lambda(\PP_0) = \{\Q \in \cM_1(\Omega) : \Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP} \text{ for some } \tilde{\PP} \in \cM_1(\Omega)\}.
 \end{align*}
-for some innovation distribution $\tilde{\PP}$. The parameter $\lambda$ can be interpreted as governing the degree of expected similarity of future studies to the current study (or the transportability range). The innovation $\tilde{\PP}$ may be chosen as a Bayesian bootstrap distribution or some other Dirichlet over the observed data points, or it may be chosen as a Dirichlet process. If $\lambda$ is close to 0, then $\cF$ and future studies will be clustered closely around the current study. As $\lambda$ approaches 1, future studies may (depending on $\tilde{\PP}$) differ markedly from $\PP_0$. 
+This is the set of all convex combinations of $\PP_0$ with weight $(1-\lambda)$, where the innovation $\tilde{\PP}$ can be any probability measure. The parameter $\lambda$ controls how far future studies can deviate from $\PP_0$: when $\lambda = 0$, only $\Q = \PP_0$ is possible; when $\lambda = 1$, any distribution is reachable.
 
-\subsection{Theoretical properties}
+To make $\cF_\lambda$ a random probability measure, we endow it with a probability distribution by specifying a law $\mu$ on the innovation $\tilde{\PP}$. Given such a distribution $\mu$ on $\cM_1(\Omega)$, we write
+\begin{align*}
+    \Q \sim \cF_\lambda \quad\Leftrightarrow\quad \Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}, \quad \tilde{\PP} \sim \mu.
+\end{align*}
+The choice of $\mu$ encodes which directions of deviation from $\PP_0$ are plausible. We discuss the choice of $\mu$ and justify finite support below; the default choice is $\mu = \text{Dirichlet}(1, \ldots, 1)$ (uniform on the simplex) when $\Omega$ has finite support. If $\lambda$ is close to 0, then $\Q$ is concentrated near $\PP_0$ regardless of $\mu$; as $\lambda$ approaches 1, the distribution of $\Q$ approaches that of $\tilde{\PP}$ and may differ substantially from $\PP_0$. 
 
-The perturbation form is general in the sense that every future-study distribution admits the representation above; the parameter $\lambda$ is linked to a concrete notion of distance (total variation), which yields an $\varepsilon$-closeness guarantee: when the new study is $\varepsilon$-close to the current study, surrogate quality as measured by $\phi$ does not degrade by more than a constant multiple of $\varepsilon$. We define the total variation distance by $d_{\mathrm{TV}}(\Q, \PP_0) = \frac{1}{2} \int |d\Q - d\PP_0|$ (or the corresponding norm for discrete spaces), so that $d_{\mathrm{TV}} \in [0,1]$ for any two probability measures.
+The perturbation form is general in the sense that every future-study distribution admits the representation above. For any probability measure $\Q \in \cM_1(\Omega)$, there exists $\lambda \in [0,1]$ such that $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$ for some $\tilde{\PP} \in \cM_1(\Omega)$. Equivalently, $\bigcup_{\lambda \in [0,1]} \cF_\lambda(\PP_0) = \cM_1(\Omega)$.
+To see this, note that, for any $\Q \in \cM_1(\Omega)$, take $\lambda = 1$ and $\tilde{\PP} = \Q$. Then $\Q = (1-1)\PP_0 + 1 \cdot \Q = \Q$, so $\Q \in \cF_1(\PP_0)$.
 
-\begin{proposition}[Representation]
-Every probability measure $\Q$ on the outcome space can be written as $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$ for some $\lambda \in [0,1]$ and some probability measure $\tilde{\PP}$. Thus the perturbation model does not restrict the set of possible future-study distributions; the prior on $(\lambda, \tilde{\PP})$ encodes which future studies are plausible.
-\end{proposition}
-\begin{proof}
-Take $\lambda = 1$ and $\tilde{\PP} = \Q$.
-\end{proof}
+However, the parameter $\lambda$ controls the distance between future studies and the current study. For any $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$, we have
+\begin{align}\label{eq:distance-bound}
+    d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda \, d_{\mathrm{TV}}(\tilde{\PP}, \PP_0) \leq \lambda
+\end{align}
+since $d_{\mathrm{TV}}(\tilde{\PP}, \PP_0) \leq 1$ for any two probability measures. Thus, fixing $\lambda$ restricts attention to distributions within total variation distance $\lambda$ of $\PP_0$: $\cF_\lambda(\PP_0) = \{\Q \in \cM_1(\Omega) : d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda\}$. For any specific $\Q \neq \PP_0$, the minimal $\lambda$ required to represent $\Q$ is $\lambda^*(\Q) = d_{\mathrm{TV}}(\Q, \PP_0)$.
 
-\begin{proposition}[Distance bound]
-For $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$, the total variation distance satisfies $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda$. Hence $\lambda \leq \varepsilon$ implies $d_{\mathrm{TV}}(\Q, \PP_0) \leq \varepsilon$.
-\end{proposition}
-\begin{proof}
-We have $\Q - \PP_0 = \lambda(\tilde{\PP} - \PP_0)$. For any two probability measures $P$ and $Q$, $d_{\mathrm{TV}}(P,Q) \leq 1$ under our definition. Thus $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda \, d_{\mathrm{TV}}(\tilde{\PP}, \PP_0) \leq \lambda$.
-\end{proof}
+When $\lambda$ is close to 0, the distribution on $\cF_\lambda$ induced by $\mu$ concentrates tightly around $\PP_0$; when $\lambda = 0$, $\Q = \PP_0$ with probability 1. As $\lambda$ approaches 1, the distribution of $\Q$ approaches that of $\tilde{\PP}$ and may differ substantially from $\PP_0$. For intermediate $\lambda$, $\Q$ interpolates between $\PP_0$ and $\tilde{\PP}$. Thus, the choice of $\lambda$ and the distribution $\mu$ on $\tilde{\PP}$ jointly encode which future studies are plausible and how far they may deviate from the current study.
 
-\begin{lemma}[Continuity of treatment effects]\label{lemma:continuity}
-Assume $S$ and $Y$ are bounded. The maps $\Q \mapsto \Delta_S(\Q)$ and $\Q \mapsto \Delta_Y(\Q)$ are Lipschitz continuous in $\Q$ with respect to $d_{\mathrm{TV}}$: there exists a constant $L_0$ (depending on the bounds on $S$ and $Y$) such that $|\Delta_S(\Q) - \Delta_S(\PP_0)| \leq L_0 \, d_{\mathrm{TV}}(\Q, \PP_0)$ and similarly for $\Delta_Y$.
-\end{lemma}
-\begin{proof}
-Expectations of bounded functions are Lipschitz in TV: $|\E_{\Q} f - \E_{\PP_0} f| \leq (\sup f - \inf f) \, d_{\mathrm{TV}}(\Q, \PP_0)$. The estimands $\Delta_S(\Q)$ and $\Delta_Y(\Q)$ are expectations of bounded functions under $\Q$ (under SUTVA and consistency, $S(1)-S(0)$ and $Y(1)-Y(0)$ are bounded), so the claim follows.
-\end{proof}
+\subsubsection{Choosing the innovation distribution $\mu$}
 
-\begin{theorem}[$\varepsilon$-closeness and surrogate quality]\label{thm:epsilon}
-Suppose ``good surrogate'' is defined by $\phi(\PP_0) \geq c$ (e.g., correlation of treatment effects above a threshold $c$). There exists a constant $L$ (depending on $\PP_0$ and the functional $\phi$) such that for any $\Q$ with $d_{\mathrm{TV}}(\Q, \PP_0) \leq \varepsilon$, $|\phi(\Q) - \phi(\PP_0)| \leq L \varepsilon$. In particular, if the surrogate is good at $\PP_0$ and the new study is $\varepsilon$-close to the current study, then $\phi(\Q) \geq c - L\varepsilon$. The constant $L$ can be made explicit under additional regularity (see Remark~\ref{remark:L}).
+The interpretation of surrogate quality depends critically on the choice of $\mu$, not just $\lambda$. If $\mu$ concentrates mass near $\PP_0$ (e.g., $\mu = \text{Dirichlet}(\alpha \bp_0)$ with large $\alpha$), then finding $\phi(\cF_\lambda) \geq c$ for large $\lambda$ provides only weak evidence---it merely says the surrogate performs well for future studies that closely resemble $\PP_0$. A more stringent test uses a non-informative $\mu$ that treats all innovations $\tilde{\PP} \in \cM_1(\Omega)$ equally, providing no favored direction of deviation from $\PP_0$.
+
+For computational tractability and to define a natural non-informative prior, we assume finite support:
+
+\noindent\textbf{Assumption (Finite support).}\label{ass:finite}
+The outcome space $\Omega$ has finite support. Equivalently, the observed data naturally partitions into a finite number of cells (e.g., based on observed covariate values, treatment, surrogate, and outcome levels).
+
+This assumption is reasonable in practice: with $n$ observations, empirical distributions are inherently discrete; many applications involve categorical or discretized outcomes; and finite support makes inference tractable. Under finite support, $\cM_1(\Omega)$ is a $(k-1)$-simplex (where $k = |\Omega|$), and we can define a canonical non-informative prior.
+
+Under finite support, the natural choice for a non-informative $\mu$ is the uniform Dirichlet:
+\begin{align}
+    \mu = \text{Dirichlet}(1, \ldots, 1).
+\end{align}
+This distribution is uniform on the simplex $\cM_1(\Omega)$, treating all probability vectors equally. It is the maximum entropy prior given no constraints, providing the most conservative (stringent) assessment of surrogate quality. When $\phi(\cF_\lambda) \geq c$ under this choice of $\mu$, the surrogate performs well across a broad, evenly-distributed set of future studies within distance $\lambda$ of $\PP_0$.
+
+\subsubsection{How similar must a future study be for the surrogate to remain good?}
+
+A central question is: \emph{how different can a future study be from the current study while the surrogate remains good?} We formalize this by asking for what values of $\lambda$ the functional $\phi(\cF_\lambda)$ stays above a desired threshold. For example, if we define ``good surrogate'' as correlation of treatment effects above 0.8, we want to find the largest $\lambda$ for which $\phi(\cF_\lambda) \geq 0.8$. This $\lambda$ tells us how far a future study can deviate from the current study (in total variation distance) while maintaining adequate surrogate quality.
+
+To make this operational, we need to understand how functionals $\phi(\cF_\lambda)$ behave as $\lambda$ varies. The key insight is that the treatment effects $\Delta_S(\Q)$ and $\Delta_Y(\Q)$ depend continuously on $\Q$ (in the sense that small changes in $\Q$ produce small changes in the treatment effects), and thus functionals of the treatment effects also vary smoothly with $\lambda$. The following assumptions and result formalize this.
+
+\noindent\textbf{Assumption 3 (Bounded outcomes).}
+$S \in [s_{\min}, s_{\max}]$ and $Y \in [y_{\min}, y_{\max}]$ are bounded.
+
+Under this assumption, treatment effects are Lipschitz continuous in $\Q$. For any $\Q, \Q'$,
+\begin{align}\label{eq:lipschitz}
+    |\Delta_S(\Q) - \Delta_S(\Q')| &\leq 2(s_{\max} - s_{\min}) \, d_{\mathrm{TV}}(\Q, \Q')\\
+    |\Delta_Y(\Q) - \Delta_Y(\Q')| &\leq 2(y_{\max} - y_{\min}) \, d_{\mathrm{TV}}(\Q, \Q'). \nonumber
+\end{align}
+This follows because expectations of bounded functions are Lipschitz in total variation: $|\E_{\Q} f - \E_{\Q'} f| \leq (\sup f - \inf f) \, d_{\mathrm{TV}}(\Q, \Q')$. Under SUTVA and consistency, $S(1) - S(0)$ ranges over $[-(s_{\max} - s_{\min}), (s_{\max} - s_{\min})]$, yielding the constant $2(s_{\max} - s_{\min})$, and similarly for $Y$.
+
+\begin{theorem}[Surrogate quality under perturbations]\label{thm:epsilon}
+Suppose ``good surrogate'' is defined by $\phi(\cF_\lambda) \geq c$ for some threshold $c$ (e.g., $\phi$ is the correlation of treatment effects and $c = 0.8$). Under Assumption 3, the functional $\phi(\cF_\lambda)$ varies continuously with $\lambda$. If $\phi(\cF_\lambda) \geq c$ for some $\lambda$, then any future study $\Q$ with $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda$ will have $|\phi(\Q) - \phi(\cF_\lambda)| \leq L \lambda$ for some constant $L$ depending on $\phi$ and regularity conditions (e.g., non-degenerate variances for correlation).
 \end{theorem}
 \begin{proof}
-By Lemma~\ref{lemma:continuity}, $(\Delta_S(\Q), \Delta_Y(\Q))$ is Lipschitz in $\Q$ with respect to $d_{\mathrm{TV}}$. The functionals $\phi$ of interest (correlation, probability of concordance, conditional expectation) are continuous---and under bounded $S$, $Y$ and non-degenerate variances, Lipschitz---as functions of the distribution of $(\Delta_S, \Delta_Y)$. Composing yields $|\phi(\Q) - \phi(\PP_0)| \leq L \varepsilon$ for some $L$.
+By \eqref{eq:lipschitz}, the treatment effects $(\Delta_S(\Q), \Delta_Y(\Q))$ are Lipschitz continuous in $\Q$ with respect to $d_{\mathrm{TV}}$. The functionals $\phi$ of interest (correlation, probability of concordance, conditional expectation) are continuous---and under bounded $S$, $Y$ and non-degenerate variances, Lipschitz---as functions of the bivariate distribution of treatment effects. Since $\Q \in \cF_\lambda(\PP_0)$ implies $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda$ by \eqref{eq:distance-bound}, the distribution of $(\Delta_S(\Q), \Delta_Y(\Q))$ varies continuously with $\lambda$, and composing the Lipschitz maps yields continuity of $\phi(\cF_\lambda)$ in $\lambda$.
 \end{proof}
 
-\begin{remark}\label{remark:L}
-In practice, ``$\varepsilon$-close'' can be interpreted either as $d_{\mathrm{TV}}(\Q, \PP_0) \leq \varepsilon$ or, under the model, equivalently as $\lambda \leq \varepsilon$. The constant $L$ in Theorem~\ref{thm:epsilon} can be made explicit under additional regularity (e.g., bounded $S$, $Y$ and variances bounded away from zero).
+\begin{remark}[Operationalizing the threshold]\label{remark:operational}
+In practice, we estimate $\phi(\cF_\lambda)$ for a range of $\lambda$ values (e.g., $\lambda \in \{0.05, 0.1, 0.15, \ldots, 0.5\}$) by generating future studies $\Q = (1-\lambda)\hat{\PP}_n + \lambda\tilde{\PP}$ with $\tilde{\PP} \sim \mu$ (e.g., $\mu = \text{Dirichlet}(1, \ldots, 1)$), computing $(\Delta_S(\Q), \Delta_Y(\Q))$ for each, and calculating the empirical correlation (or other functional). The largest $\lambda$ for which $\hat{\phi}(\cF_\lambda) \geq c$ provides an assessment: \emph{when future studies are drawn from $\cF_\lambda$ (within distance $\lambda$ and distributed according to $\mu$), the surrogate performs well on average.} This operationalizes ``how different future studies can be while maintaining adequate surrogate quality.''
+
+Importantly, $\phi(\cF_\lambda) \geq c$ is a statement about the \emph{average} surrogate performance over the distribution $\mu$, not a guarantee for every individual study within distance $\lambda$. With uniform $\mu = \text{Dirichlet}(1, \ldots, 1)$, this average represents a stringent, conservative test.
 \end{remark}
 
-\subsection{Estimation}
+\begin{remark}[Sensitivity to $\mu$]\label{remark:mu-sensitivity}
+We recommend reporting $\hat{\phi}(\cF_\lambda)$ under multiple choices of $\mu$ to assess sensitivity. For example:
+\begin{itemize}
+    \item $\mu_{\text{uniform}} = \text{Dirichlet}(1, \ldots, 1)$ (non-informative, most stringent)
+    \item $\mu_{\text{moderate}} = \text{Dirichlet}(\alpha \bp_0)$ with moderate $\alpha$ (e.g., $\alpha = 5$)
+    \item $\mu_{\text{concentrated}} = \text{Dirichlet}(\alpha \bp_0)$ with large $\alpha$ (e.g., $\alpha = 50$)
+\end{itemize}
+If $\hat{\phi}(\cF_\lambda) \geq c$ for large $\lambda$ even under $\mu_{\text{uniform}}$, this provides strong evidence of robust surrogate quality. If this holds only under $\mu_{\text{concentrated}}$, the evidence is weaker (surrogate is good only for futures resembling $\PP_0$).
+\end{remark}
+
+\subsection{Estimation}\label{sec:estimation}
+
+\subsubsection{Setup for fixed $\lambda$}
+
+For a fixed value $\lambda \in [0,1]$, we define the perturbation family
+$\cF_\lambda(\PP_0)$ as in Section~\ref{sec:setting}. The estimand is the functional
+$\phi(\cF_\lambda)$ evaluated at this fixed $\lambda$. We treat $\lambda$
+as a design parameter—analogous to choosing a significance level—that
+controls how far future studies may deviate from $\PP_0$.
+
+In this section, we develop asymptotic theory for estimating $\phi(\cF_\lambda)$
+for a single fixed $\lambda$. Section~\ref{sec:grid} addresses the practical
+question of searching over multiple $\lambda$ values to find the largest
+$\lambda^*$ for which $\phi(\cF_{\lambda^*}) \geq c$.
 
 \subsubsection{Regularity conditions}
 We assume the following.
 
-\noindent\textbf{Assumption 1 (Finite support).}\label{ass:finite}
-The outcome space (or the joint support of $(A, S, Y)$ and covariates, if relevant) is finite, so $\PP_0$ is a probability vector $\bp_0$ on a fixed set of cells, independent of $n$.
+\noindent\textbf{Assumption 1 (Bounded outcomes).}\label{ass:bounded}
+$S \in [s_{\min}, s_{\max}]$ and $Y \in [y_{\min}, y_{\max}]$ almost surely
+under $\PP_0$ and all $\Q \in \cF_\lambda(\PP_0)$, with
+$0 < s_{\max} - s_{\min} < \infty$ and $0 < y_{\max} - y_{\min} < \infty$.
 
-\noindent\textbf{Assumption 2 (Smoothness and non-degeneracy).}\label{ass:smooth}
-The function $H$ (such that $\phi(\PP_0) = H(\Delta_S(\PP_0), \Delta_Y(\PP_0))$) is smooth; $S$ and $Y$ are bounded; and where needed (e.g., for the correlation functional), the variances of $\Delta_S(\Q)$ and $\Delta_Y(\Q)$ under $\cF_{\PP_0}$ are bounded away from zero.
+\noindent\textbf{Assumption 2 (Identification and estimability).}\label{ass:identification}
+The treatment effects $\Delta_S(\Q)$ and $\Delta_Y(\Q)$ are identified from
+observables under standard causal identification conditions (e.g., randomization,
+unconfoundedness, or instrumental variables), and admit $\sqrt{n}$-consistent
+estimators with influence functions satisfying $\E[\psi^2] < \infty$.
 
-Under Assumption~\ref{ass:finite}, the empirical distribution $\hat{\PP}_n$ is the vector of empirical proportions $\hat{\bp}_n$; $\sqrt{n}(\hat{\bp}_n - \bp_0)$ is asymptotically normal (multinomial). Extension to continuous or growing support is left for future work: under continuous support the law of $(\lambda, \tilde{\PP})$ and hence of $\Q$ would depend on $n$, and asymptotic theory would require a different treatment.
+\noindent\textbf{Assumption 3 (Functional smoothness).}\label{ass:smoothness}
+For the correlation functional, the function
+$H(\delta_S, \delta_Y) = \E_\mu[\rho(\Delta_S(\Q), \Delta_Y(\Q))]$
+(where the expectation is over $\tilde{\PP} \sim \mu$ in
+$\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$, and $\rho$ denotes correlation)
+is continuously differentiable in $(\delta_S, \delta_Y)$ with bounded gradient
+$\|\nabla H\| < \infty$ in a neighborhood of $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$.
 
-Let $\cF_{\PP_0}$ denote the law of $\Q$ when the super-population of studies is centered at $\PP_0$: that is, $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$ with $(\lambda, \tilde{\PP})$ drawn from the specified distribution (e.g., $\lambda \sim \text{Beta}(a,b)$, $\tilde{\PP}$ Dirichlet on the same support). We estimate $\phi(\cF_{\PP_0})$ by the plug-in estimator $\hat{\phi}_n = \phi(\cF_{\hat{\PP}_n})$, i.e., the value of the functional when the current-study distribution is set to the empirical distribution. Thus we use $\hat{\PP}_n$ in place of $\PP_0$ in the model $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$ and compute $\phi$ under that law. Computation can be done by (i) Monte Carlo: draw $M$ copies of $(\lambda, \tilde{\PP})$ from the specified distribution (e.g., $\lambda \sim \text{Beta}(a,b)$, $\tilde{\PP}$ Dirichlet on the same support), form $\Q_m = (1-\lambda_m)\hat{\PP}_n + \lambda_m \tilde{\PP}_m$, compute $(\Delta_S(\Q_m), \Delta_Y(\Q_m))$ for each (from the mixture weights or by sampling from $\Q_m$), then take the empirical correlation (or other functional) over the $M$ pairs; or (ii) in closed form when available (e.g., correlation under a Dirichlet innovation, as in the commented material elsewhere in this document).
+For the probability and conditional mean functionals, $H$ is Lipschitz continuous
+with constant $L_H < \infty$.
 
-Because $\Delta_S(\Q) = (1-\lambda)\Delta_S(\PP_0) + \lambda\Delta_S(\tilde{\PP})$ and similarly for $\Delta_Y$, the distribution of $(\Delta_S(\Q), \Delta_Y(\Q))$ under $\cF_{\PP_0}$ depends on $\PP_0$ only through $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$. Thus $\phi(\PP_0) = \phi(\cF_{\PP_0})$ can be written as $\phi(\PP_0) = H(\Delta_S(\PP_0), \Delta_Y(\PP_0))$ for some function $H$ determined by the law of $(\lambda, \tilde{\PP})$.
+\noindent\textbf{Assumption 4 (Non-degeneracy).}\label{ass:nondegeneracy}
+For the correlation functional, there exists $\epsilon > 0$ such that
+\begin{align*}
+    \inf_{\Q \in \cF_\lambda(\PP_0)} \Var_\mu[\Delta_S(\Q)] &\geq \epsilon\\
+    \inf_{\Q \in \cF_\lambda(\PP_0)} \Var_\mu[\Delta_Y(\Q)] &\geq \epsilon
+\end{align*}
+where the variance is taken over the innovation distribution $\mu$
+(not within a single study).
 
-Under Assumptions~\ref{ass:finite} and \ref{ass:smooth}, the plug-in estimator is $\sqrt{n}$-consistent and asymptotically normal.
+\begin{remark}[On finite support]
+Assumption~\ref{ass:finite} (finite support, stated in Section~\ref{sec:setting}) is restrictive
+and primarily computational. It enables tractable simulation and a natural uniform
+prior $\mu = \text{Dirichlet}(1,\ldots,1)$. In practice, continuous outcomes can be
+discretized into a fine grid (trading bias for computational feasibility), or
+replaced by kernel-based methods (left for future work). The asymptotic theory
+extends to growing support $k=k_n$ under additional rate conditions, but we do not
+pursue that here.
+\end{remark}
 
-\begin{proposition}[Asymptotic distribution of the plug-in estimator]
-Under Assumptions~\ref{ass:finite} and \ref{ass:smooth}, $\sqrt{n}(\hat{\phi}_n - \phi(\PP_0)) \xrightarrow{d} N(0, \sigma^2)$ as $n \to \infty$, where $\sigma^2 = (\nabla H)^\top V (\nabla H)$. Here $V$ is the asymptotic variance of $(\Delta_S(\hat{\PP}_n), \Delta_Y(\hat{\PP}_n))$ (from the influence functions of the treatment-effect estimators; in observational studies, $V$ depends on the chosen estimators, e.g., IPW or AIPW), and $\nabla H$ is evaluated at $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$.
+Under Assumption~\ref{ass:finite}, the empirical distribution $\hat{\PP}_n$ is the vector of empirical proportions $\hat{\bp}_n$; $\sqrt{n}(\hat{\bp}_n - \bp_0)$ is asymptotically normal (multinomial).
+
+\subsubsection{Asymptotic theory}
+
+\paragraph{The plug-in estimator.}
+For fixed $\lambda$, define the plug-in estimator
+\[
+    \hat{\phi}_n(\lambda) = \phi(\cF_\lambda(\hat{\PP}_n))
+\]
+where $\cF_\lambda(\hat{\PP}_n)$ is the perturbation family centered at the
+empirical distribution $\hat{\PP}_n$ instead of $\PP_0$. Operationally, we:
+\begin{enumerate}
+    \item Generate $M$ innovations $\tilde{\PP}_m \sim \mu$ (e.g., Dirichlet)
+    \item Form $\Q_m = (1-\lambda)\hat{\PP}_n + \lambda\tilde{\PP}_m$
+    \item Compute $(\hat{\Delta}_S(\Q_m), \hat{\Delta}_Y(\Q_m))$ for each $\Q_m$
+    \item Compute $\hat{\phi}_n(\lambda)$ as the sample correlation (or other functional)
+          of the $M$ pairs
+\end{enumerate}
+
+\paragraph{Variance decomposition.}
+The variance of $\hat{\phi}_n(\lambda)$ arises from three sources:
+\begin{enumerate}
+    \item \textbf{Estimation error in $\hat{\PP}_n$:} The empirical distribution
+          differs from $\PP_0$ by $O_p(n^{-1/2})$.
+    \item \textbf{Monte Carlo error in simulating $\cF_\lambda$:} We use $M$ draws
+          from $\mu$ to approximate $\E_\mu[\cdot]$, contributing error $O_p(M^{-1/2})$.
+    \item \textbf{Treatment effect estimation error:} Within each $\Q_m$, we estimate
+          $\Delta_S(\Q_m)$ and $\Delta_Y(\Q_m)$ from finite samples (if sampling
+          from $\Q_m$ rather than using mixture weights directly).
+\end{enumerate}
+
+Under Assumptions~\ref{ass:bounded}--\ref{ass:smoothness}, the dominant term is
+(1) when $M \to \infty$.
+
+\paragraph{Asymptotic normality.}
+Because $\Delta_S(\Q) = (1-\lambda)\Delta_S(\PP_0) + \lambda\Delta_S(\tilde{\PP})$ and similarly for $\Delta_Y$, the distribution of $(\Delta_S(\Q), \Delta_Y(\Q))$ under $\cF_\lambda$ depends on $\PP_0$ only through $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$. Thus $\phi(\cF_\lambda)$ can be written as $\phi(\cF_\lambda) = H(\Delta_S(\PP_0), \Delta_Y(\PP_0))$ for some function $H$ determined by the fixed $\lambda$ and the distribution $\mu$.
+
+\begin{proposition}\label{prop:asymptotic}
+Under Assumptions~\ref{ass:bounded}--\ref{ass:nondegeneracy}, for fixed $\lambda$
+and $M \to \infty$,
+\[
+    \sqrt{n}(\hat{\phi}_n(\lambda) - \phi(\cF_\lambda))
+    \xrightarrow{d} N(0, \sigma^2(\lambda))
+\]
+where
+\[
+    \sigma^2(\lambda) = (\nabla H)^\top V(\lambda) (\nabla H)
+\]
+and:
+\begin{itemize}
+    \item $H$ is the function such that $\phi(\cF_\lambda) = H(\Delta_S(\PP_0), \Delta_Y(\PP_0))$
+    \item $\nabla H$ is the gradient of $H$ evaluated at $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$
+    \item $V(\lambda)$ is the $2 \times 2$ asymptotic covariance matrix of
+          $\sqrt{n}(\hat{\Delta}_S(\hat{\PP}_n) - \Delta_S(\PP_0),
+                    \hat{\Delta}_Y(\hat{\PP}_n) - \Delta_Y(\PP_0))^\top$
+\end{itemize}
 \end{proposition}
+
 \begin{proof}
-The vector $(\Delta_S(\hat{\PP}_n), \Delta_Y(\hat{\PP}_n))$ is asymptotically normal with mean $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$ and variance $V/n + o(1/n)$ under standard conditions (e.g., randomized trials or IPW with bounded weights). By the delta method applied to $H$, $\sqrt{n}(\hat{\phi}_n - \phi(\PP_0)) = \sqrt{n}(H(\Delta_S(\hat{\PP}_n), \Delta_Y(\hat{\PP}_n)) - H(\Delta_S(\PP_0), \Delta_Y(\PP_0))) \xrightarrow{d} N(0, (\nabla H)^\top V (\nabla H))$.
+By Assumption~\ref{ass:identification}, the treatment effect estimators satisfy
+\[
+    \sqrt{n}\begin{pmatrix} \hat{\Delta}_S(\hat{\PP}_n) - \Delta_S(\PP_0) \\
+                            \hat{\Delta}_Y(\hat{\PP}_n) - \Delta_Y(\PP_0)
+    \end{pmatrix}
+    \xrightarrow{d} N(0, V(\lambda))
+\]
+where $V(\lambda)$ is the influence-function-based variance (standard in
+semiparametric theory).
+
+By Assumption~\ref{ass:smoothness}, the delta method applies:
+\[
+    \sqrt{n}(\hat{\phi}_n(\lambda) - \phi(\cF_\lambda))
+    = (\nabla H)^\top \sqrt{n}\begin{pmatrix} \hat{\Delta}_S - \Delta_S \\
+                                              \hat{\Delta}_Y - \Delta_Y
+                      \end{pmatrix} + o_p(1)
+    \xrightarrow{d} N(0, (\nabla H)^\top V(\lambda) (\nabla H))
+\]
 \end{proof}
 
-The variance $\sigma^2$ can be estimated by plug-in (replace $\PP_0$ by $\hat{\PP}_n$ and $V$ by an empirical or sandwich estimator) or by bootstrap: draw $B$ bootstrap samples from the data, recompute $\hat{\phi}_n$ on each, and use the bootstrap variance or percentile intervals for inference.
+\paragraph{Bootstrap inference.}
+Direct computation of $V(\lambda)$ requires influence functions and may be
+unstable in small samples. We recommend the \textit{nested bootstrap}:
+\begin{enumerate}
+    \item For $b = 1, \ldots, B$ bootstrap replicates:
+          \begin{enumerate}
+              \item Resample the data with replacement to get $\hat{\PP}_n^{(b)}$
+              \item Generate $M$ future studies $\Q_m^{(b)} = (1-\lambda)\hat{\PP}_n^{(b)} + \lambda\tilde{\PP}_m$
+              \item Compute $\hat{\phi}_n^{(b)}(\lambda)$
+          \end{enumerate}
+    \item Use the bootstrap distribution $\{\hat{\phi}_n^{(b)}(\lambda)\}_{b=1}^B$
+          for inference (percentile intervals or standard errors)
+\end{enumerate}
 
-\subsubsection{Procedure for $\varepsilon$-close statements}
+\begin{remark}[Bootstrap validity]
+The nested bootstrap is valid under the conditions of Proposition~\ref{prop:asymptotic}.
+The two-layer randomness (resampling data + drawing innovations) correctly
+mimics the two-layer structure of the plug-in estimator. Standard bootstrap
+theory applies.
+\end{remark}
 
-In practice we often want to report a distance within which the surrogate remains ``good.'' To do this, estimate $\hat{\phi}(\lambda)$ for a \emph{range} of $\lambda$ values (e.g., a grid $\lambda_1, \ldots, \lambda_K$), rather than marginalizing over a prior on $\lambda$. The procedure is: (1) For each $\lambda_k$, generate future studies with that fixed $\lambda$ (and the chosen innovation $\tilde{\PP}$), compute $(\widehat{\Delta}_S, \widehat{\Delta}_Y)$ for each future study, and obtain $\hat{\phi}(\lambda_k)$ (e.g., sample correlation, or the other functionals). (2) Define ``good'' surrogate quality by a threshold $c$ (e.g., correlation $\geq c$, or probability of concordance $\geq c$). (3) Identify the largest $\lambda$ in the grid for which $\hat{\phi}(\lambda) \geq c$; call this $\hat{\lambda}^*$ (or interpolate if needed). (4) Because $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda$ (Proposition 2), set $\hat{\varepsilon}^* = \hat{\lambda}^*$. Then the $\varepsilon$-close statement is: ``As long as the new study is $\hat{\varepsilon}^*$-close to the current study in total variation (equivalently, $\lambda \leq \hat{\lambda}^*$ in our model), the estimated surrogate quality remains good ($\hat{\phi}(\lambda) \geq c$).''
+\section{Inference for $\varepsilon$-close statements}\label{sec:grid}
 
-This procedure operationalizes the guarantee from the Theorem on $\varepsilon$-closeness and surrogate quality: we estimate the maximum $\varepsilon$ (or $\lambda$) for which the surrogate stays above the chosen threshold. The quantities $\hat{\lambda}^*$ and $\hat{\varepsilon}^*$ can be reported with uncertainty (e.g., bootstrap or confidence bands for $\hat{\phi}(\lambda)$); the largest $\lambda$ for which the \emph{lower} bound of the interval is $\geq c$ gives a conservative $\varepsilon$-close radius.
+The asymptotic theory in Section~\ref{sec:estimation} applies to a single fixed
+$\lambda$. In practice, we want to find the largest $\lambda^*$ such that
+$\phi(\cF_\lambda) \geq c$ (where $c$ is a chosen threshold, e.g., correlation
+$\geq 0.8$). This requires evaluating $\phi(\cF_\lambda)$ over a grid of $\lambda$
+values, raising multiple testing concerns.
 
-\subsection{Simulation study}
+\subsection{Grid search algorithm}
 
-The simulation study will compare this approach to traditional surrogate evaluation methods in settings where they can give conflicting answers: e.g., when traditional methods indicate a surrogate is good while this method shows that it is not (correlation between treatment effects across studies near 0), or when traditional methods indicate a surrogate is not good (near-zero PTE or natural indirect effect) but this method shows it is good (strong positive correlation between treatment effects). Simulations will consider both randomized and non-randomized studies, a range of sample sizes, and both binary and continuous surrogates and outcomes. Competing methods include: meta-analytic and trial-level validation methods as in the \texttt{Surrogate} R package \cite{buyse2000validation}; PTE-based methods (e.g., \texttt{Rsurrogate}); principal surrogate evaluation (e.g., \texttt{pseval}); and causal mediation methods (e.g., \texttt{mediation}) \cite{vanderweele2015mediation}. The mixture structure of the data-generating process may be used to construct scenarios where evaluating the surrogate only on $\PP_0$ conflicts with evaluating it across $\cF$. One or more of the functionals of interest (correlation, probability of concordance, conditional expectation) will be examined.
+To find $\lambda^*$:
+
+\begin{enumerate}
+    \item \textbf{Choose grid:} Select $\lambda_1 < \lambda_2 < \cdots < \lambda_K$
+          (e.g., $\{0.05, 0.10, \ldots, 0.50\}$).
+
+    \item \textbf{For each} $k = 1, \ldots, K$:
+          \begin{enumerate}
+              \item Fix $\lambda = \lambda_k$
+              \item Generate $M$ innovations $\tilde{\PP}_m \sim \mu$
+              \item Form $\Q_m = (1-\lambda_k)\hat{\PP}_n + \lambda_k\tilde{\PP}_m$
+              \item Compute $(\hat{\Delta}_S(\Q_m), \hat{\Delta}_Y(\Q_m))$
+              \item Compute $\hat{\phi}(\lambda_k)$ (e.g., sample correlation)
+              \item Bootstrap to get confidence interval $[\ell_k, u_k]$
+          \end{enumerate}
+
+    \item \textbf{Find crossing point:} Define
+          \[
+              \hat{\lambda}^* = \max\{\lambda_k : \ell_k \geq c\}
+          \]
+          where $\ell_k$ is the lower confidence bound. This ensures
+          $\phi(\cF_{\lambda^*}) \geq c$ with confidence $1-\alpha$.
+\end{enumerate}
+
+Because $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda$ (equation~\eqref{eq:distance-bound}),
+we set $\hat{\varepsilon}^* = \hat{\lambda}^*$. The $\varepsilon$-close statement is:
+``the surrogate remains good (correlation $\geq c$) as long as future studies are
+within total variation distance $\hat{\varepsilon}^*$ of the current study.''
+
+\subsection{Multiple testing adjustment}
+
+Evaluating $\hat{\phi}(\lambda_k) \geq c$ at $K$ values raises multiplicity concerns.
+We recommend one of:
+
+\begin{enumerate}
+    \item \textbf{Bonferroni correction:} Use significance level $\alpha/K$ for
+          each bootstrap confidence interval. Conservative but simple.
+
+    \item \textbf{Simultaneous confidence bands:} Construct bands for
+          $\{\phi(\lambda_k)\}_{k=1}^K$ using multiplicity-adjusted bootstrap:
+          resample data $B$ times; for each resample, compute $\{\hat{\phi}^{(b)}(\lambda_k)\}_{k=1}^K$;
+          take pointwise percentiles adjusted by $\sup_{k} |\hat{\phi}^{(b)}(\lambda_k) - \hat{\phi}(\lambda_k)|$.
+          Computationally intensive but controls familywise error exactly.
+
+    \item \textbf{Sequential testing:} If $\phi(\lambda)$ is known or verified to be
+          monotone decreasing in $\lambda$, test sequentially from smallest to largest
+          $\lambda_k$ until $\hat{\phi}(\lambda_k) < c$. Stops at first crossing.
+\end{enumerate}
+
+We recommend option (2) for formal inference, or (1) for simplicity.
+
+\subsection{Practical recommendations}
+
+\begin{itemize}
+    \item \textbf{Grid spacing:} Use finer spacing (e.g., 0.025) near the expected
+          crossing point; coarser spacing (0.05 or 0.1) elsewhere.
+    \item \textbf{Monotonicity:} Check empirically whether $\hat{\phi}(\lambda)$
+          is monotone. Under uniform $\mu = \text{Dirichlet}(1,\ldots,1)$,
+          correlation typically decreases with $\lambda$, but verify.
+    \item \textbf{Computational cost:} Each $\lambda_k$ requires $M$ Monte Carlo
+          draws and $B$ bootstrap replicates. Total cost: $O(KMB)$. Parallelize
+          over $k$.
+\end{itemize}
+
+\section{Simulation study}
+
+\subsection{Design}
+
+The simulation study evaluates:
+\begin{enumerate}
+    \item \textbf{Finite-sample performance:} Coverage of bootstrap confidence
+          intervals for $\phi(\lambda)$ under correctly specified models.
+
+    \item \textbf{Comparison with traditional methods:} Scenarios where
+          within-study correlation differs from across-study correlation. DGPs include:
+          \begin{itemize}
+              \item Strong within-study S-Y correlation but weak treatment effect
+                    correlation (spurious surrogate)
+              \item Weak within-study correlation but strong treatment effect
+                    correlation (good but non-obvious surrogate)
+          \end{itemize}
+
+    \item \textbf{Sensitivity to $\mu$:} Compare $\hat{\phi}(\lambda)$ under
+          $\mu = \text{Dirichlet}(1,\ldots,1)$ vs. $\mu = \text{Dirichlet}(\alpha\bp_0)$.
+
+    \item \textbf{Grid search performance:} Evaluate multiple testing adjustments
+          from Section~\ref{sec:grid}; compare Bonferroni vs. simultaneous bands.
+\end{enumerate}
+
+Settings: Sample sizes $n \in \{250, 500, 1000\}$, functionals (correlation,
+probability, conditional mean), study types (randomized, observational with
+moderate confounding), $B = 500$ bootstrap replicates, $M = 1000$ Monte Carlo draws,
+grid spacing $\Delta\lambda = 0.05$.
+
+\subsection{Results}
+
+[To be added after simulations are run]
 % To operationalize this, we assume that $\PP_0 \sim \text{Dirichlet}(\balpha)$ for $\balpha = (\alpha_1, ..., \alpha_n), \alpha_k >0$, which results in a posterior distribution of $\cF | \PP_0 \sim \text{Dirichlet}(\balpha + 1).$ Choosing $\balpha$ encodes how similar new studies are expected to be to the current study on $\PP_0$. As $\balpha \rightarrow \infty$, new studies will be identical to the current study. 
 
 % To better understand how choices of $\balpha$ impact the posterior distribution, consider the toy examples in Figure \ref{fig:alpha-toy-example}. When the $\balpha$ is uniform, the distribution of future studies is centered on $\PP_0$, with the magnitude of $\balpha$ determining whether future studies are mostly similar to the current study (top right in Figure \ref{fig:alpha-toy-example}, $\balpha = (5, 5, 5)$) or more diffuse (top left in the figure). When $\balpha$ is not uniform, the posterior distribution may be systematically different from the current study, primarily including studies with certain types of individuals over-represented compared to $\PP_0$ and others under-represented (bottom row of the figure). 

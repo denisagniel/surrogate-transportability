@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
 
-#' Lambda Range Analysis Simulation
+#' Lambda Grid Search Simulation
 #'
-#' Analyzes how surrogate functionals change when λ is constrained to different ranges.
-#' This helps understand how the level of innovation affects surrogate quality assessment.
+#' Evaluates how surrogate functionals change across a grid of fixed lambda values.
+#' Implements the grid search procedure from Section 4 of the methods paper.
 
 # Load required packages
 library(devtools)
@@ -42,127 +42,182 @@ cat("Current study treatment effects:\n")
 current_effects <- compute_multiple_treatment_effects(current_data, c("S", "Y"))
 print(current_effects)
 
-# Define λ ranges to analyze
-lambda_ranges <- list(
-  list(min = 0, max = 0.1),   # Very low innovation
-  list(min = 0, max = 0.2),   # Low innovation
-  list(min = 0, max = 0.3),   # Moderate-low innovation
-  list(min = 0, max = 0.5),   # Moderate innovation
-  list(min = 0, max = 0.7),   # Moderate-high innovation
-  list(min = 0, max = 0.9),   # High innovation
-  list(min = 0, max = 1.0)    # Full innovation
-)
+# Define λ grid to analyze (fixed values)
+lambda_grid <- seq(0, 1.0, by = 0.1)
 
-cat("\nAnalyzing functionals across λ ranges...\n")
-cat("λ ranges:", paste(sapply(lambda_ranges, function(x) paste0("[", x$min, ", ", x$max, "]")), collapse = ", "), "\n\n")
+cat("\nAnalyzing functionals across λ grid...\n")
+cat("λ values:", paste(lambda_grid, collapse = ", "), "\n\n")
 
-# Run λ range analysis
-lambda_analysis <- analyze_lambda_ranges(
+# Run grid search for correlation functional
+cat("Running grid search for correlation functional...\n")
+lambda_analysis_corr <- grid_search_lambda(
   current_data = current_data,
-  lambda_ranges = lambda_ranges,
-  n_draws_from_F = 200,        # Reduced for faster execution
+  lambda_grid = lambda_grid,
+  threshold = 0.7,              # Minimum acceptable correlation
+  functional_type = "correlation",
+  confidence_level = 0.95,
+  multiplicity_adjustment = "bonferroni",
+  n_draws_from_F = 200,         # Reduced for faster execution
   n_future_studies_per_draw = 100,  # Reduced for faster execution
-  functional_type = "all",
   epsilon_s = 0.2,
   epsilon_y = 0.1,
-  delta_s_values = c(0.3, 0.5, 0.7),
+  seed = 12345
+)
+
+# Run grid search for probability functional
+cat("\nRunning grid search for probability functional...\n")
+lambda_analysis_prob <- grid_search_lambda(
+  current_data = current_data,
+  lambda_grid = lambda_grid,
+  threshold = 0.8,              # Minimum acceptable probability
+  functional_type = "probability",
+  confidence_level = 0.95,
+  multiplicity_adjustment = "bonferroni",
+  n_draws_from_F = 200,
+  n_future_studies_per_draw = 100,
+  epsilon_s = 0.2,
+  epsilon_y = 0.1,
   seed = 12345
 )
 
 # Display results
-cat("Lambda Range Analysis Results\n")
-cat("============================\n")
-print(lambda_analysis$summary_table)
+cat("\nGrid Search Results\n")
+cat("===================\n\n")
+
+cat("Correlation Functional:\n")
+print(lambda_analysis_corr)
+
+cat("\nProbability Functional:\n")
+print(lambda_analysis_prob)
 
 # Create visualizations
 cat("\nCreating visualizations...\n")
 
-# Correlation functional across λ ranges
-p1 <- plot_lambda_range_analysis(lambda_analysis, "correlation")
-ggsave("sims/results/plots/correlation_by_lambda_range.png", p1, width = 10, height = 6, dpi = 300)
+# Ensure plots directory exists
+if (!dir.exists("sims/results/plots")) {
+  dir.create("sims/results/plots", recursive = TRUE)
+}
 
-# Probability functional across λ ranges
-p2 <- plot_lambda_range_analysis(lambda_analysis, "probability")
-ggsave("sims/results/plots/probability_by_lambda_range.png", p2, width = 10, height = 6, dpi = 300)
+# Correlation functional across λ values
+p1 <- plot(lambda_analysis_corr) +
+  ggplot2::labs(subtitle = paste0("Lambda* = ",
+    if (is.na(lambda_analysis_corr$lambda_star)) "None found"
+    else sprintf("%.2f", lambda_analysis_corr$lambda_star)))
+ggsave("sims/results/plots/correlation_by_lambda_grid.png", p1, width = 10, height = 6, dpi = 300)
 
-# Create a combined plot
-combined_data <- lambda_analysis$summary_table %>%
-  dplyr::select(lambda_range, lambda_max, correlation_mean, probability_mean) %>%
-  tidyr::pivot_longer(cols = c(correlation_mean, probability_mean),
-                     names_to = "functional",
-                     values_to = "value") %>%
-  dplyr::mutate(functional = dplyr::case_when(
-    functional == "correlation_mean" ~ "Correlation",
-    functional == "probability_mean" ~ "Probability"
-  ))
+# Probability functional across λ values
+p2 <- plot(lambda_analysis_prob) +
+  ggplot2::labs(subtitle = paste0("Lambda* = ",
+    if (is.na(lambda_analysis_prob$lambda_star)) "None found"
+    else sprintf("%.2f", lambda_analysis_prob$lambda_star)))
+ggsave("sims/results/plots/probability_by_lambda_grid.png", p2, width = 10, height = 6, dpi = 300)
 
-p3 <- ggplot2::ggplot(combined_data, ggplot2::aes(x = lambda_max, y = value, color = functional)) +
-  ggplot2::geom_point(size = 3) +
-  ggplot2::geom_line() +
+# Create a combined plot comparing both functionals
+combined_data <- rbind(
+  lambda_analysis_corr$phi_estimates %>% dplyr::mutate(functional = "Correlation"),
+  lambda_analysis_prob$phi_estimates %>% dplyr::mutate(functional = "Probability")
+)
+
+p3 <- ggplot2::ggplot(combined_data, ggplot2::aes(x = lambda, y = phi_hat, color = functional)) +
+  ggplot2::geom_ribbon(
+    ggplot2::aes(ymin = lower_ci, ymax = upper_ci, fill = functional),
+    alpha = 0.2,
+    color = NA
+  ) +
+  ggplot2::geom_line(linewidth = 1) +
+  ggplot2::geom_point(size = 2) +
+  ggplot2::geom_hline(yintercept = 0.7, linetype = "dashed", color = "#2E86AB", alpha = 0.5) +
+  ggplot2::geom_hline(yintercept = 0.8, linetype = "dashed", color = "#A23B72", alpha = 0.5) +
   ggplot2::scale_color_manual(values = c("Correlation" = "#2E86AB", "Probability" = "#A23B72")) +
+  ggplot2::scale_fill_manual(values = c("Correlation" = "#2E86AB", "Probability" = "#A23B72")) +
   ggplot2::labs(
-    title = "Surrogate Functionals Across λ Ranges",
-    subtitle = "How innovation level affects surrogate quality assessment",
-    x = "Maximum λ (Innovation Level)",
-    y = "Functional Value",
-    color = "Functional"
+    title = "Surrogate Functionals Across Lambda Grid (Fixed-Lambda Framework)",
+    subtitle = "Dashed lines show thresholds; shaded areas show 95% CIs with Bonferroni adjustment",
+    x = expression(lambda ~ "(Perturbation Distance)"),
+    y = expression(hat(phi)(F[lambda])),
+    color = "Functional",
+    fill = "Functional"
   ) +
   ggplot2::theme_minimal() +
   ggplot2::theme(
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(size = 10),
+    plot.title = ggplot2::element_text(face = "bold", size = 14),
+    plot.subtitle = ggplot2::element_text(size = 10),
     legend.position = "top"
   )
 
-ggsave("sims/results/plots/functionals_by_lambda_range.png", p3, width = 10, height = 6, dpi = 300)
+ggsave("sims/results/plots/functionals_by_lambda_grid.png", p3, width = 10, height = 6, dpi = 300)
 
 # Save results
 cat("\nSaving results...\n")
-saveRDS(lambda_analysis, "sims/results/lambda_range_analysis.rds")
-write.csv(lambda_analysis$summary_table, "sims/results/lambda_range_analysis_summary.csv", row.names = FALSE)
+saveRDS(lambda_analysis_corr, "sims/results/lambda_grid_search_correlation.rds")
+saveRDS(lambda_analysis_prob, "sims/results/lambda_grid_search_probability.rds")
+write.csv(lambda_analysis_corr$phi_estimates,
+          "sims/results/lambda_grid_correlation_estimates.csv",
+          row.names = FALSE)
+write.csv(lambda_analysis_prob$phi_estimates,
+          "sims/results/lambda_grid_probability_estimates.csv",
+          row.names = FALSE)
 
 # Analysis summary
 cat("\nAnalysis Summary\n")
-cat("================\n")
+cat("================\n\n")
 
-# Find the range with highest and lowest correlation
-max_corr_idx <- which.max(lambda_analysis$summary_table$correlation_mean)
-min_corr_idx <- which.min(lambda_analysis$summary_table$correlation_mean)
+# Correlation functional summary
+corr_estimates <- lambda_analysis_corr$phi_estimates
+max_corr_idx <- which.max(corr_estimates$phi_hat)
+min_corr_idx <- which.min(corr_estimates$phi_hat)
 
-cat("Highest correlation functional:", 
-    round(lambda_analysis$summary_table$correlation_mean[max_corr_idx], 3),
-    "at λ ∈", lambda_analysis$summary_table$lambda_range[max_corr_idx], "\n")
+cat("CORRELATION FUNCTIONAL:\n")
+cat("Highest phi(F_lambda):",
+    round(corr_estimates$phi_hat[max_corr_idx], 3),
+    "at lambda =", corr_estimates$lambda[max_corr_idx], "\n")
+cat("Lowest phi(F_lambda):",
+    round(corr_estimates$phi_hat[min_corr_idx], 3),
+    "at lambda =", corr_estimates$lambda[min_corr_idx], "\n")
 
-cat("Lowest correlation functional:", 
-    round(lambda_analysis$summary_table$correlation_mean[min_corr_idx], 3),
-    "at λ ∈", lambda_analysis$summary_table$lambda_range[min_corr_idx], "\n")
+corr_range <- max(corr_estimates$phi_hat) - min(corr_estimates$phi_hat)
+cat("Range:", round(corr_range, 3), "\n")
 
-# Calculate correlation range
-corr_range <- max(lambda_analysis$summary_table$correlation_mean) - 
-              min(lambda_analysis$summary_table$correlation_mean)
-cat("Correlation functional range:", round(corr_range, 3), "\n")
+cat("Lambda* (threshold = 0.7):",
+    if (is.na(lambda_analysis_corr$lambda_star)) "None found"
+    else sprintf("%.2f", lambda_analysis_corr$lambda_star), "\n")
 
-# Check if there's a clear trend
-correlation_trend <- cor(lambda_analysis$summary_table$lambda_max, 
-                        lambda_analysis$summary_table$correlation_mean)
-cat("Correlation between λ_max and correlation functional:", round(correlation_trend, 3), "\n")
+# Check trend
+correlation_trend <- cor(corr_estimates$lambda, corr_estimates$phi_hat)
+cat("Trend (cor with lambda):", round(correlation_trend, 3))
 
 if (abs(correlation_trend) > 0.5) {
   if (correlation_trend > 0) {
-    cat("→ Strong positive trend: Higher innovation → Higher correlation functional\n")
+    cat(" → Positive: Higher lambda → Higher phi\n")
   } else {
-    cat("→ Strong negative trend: Higher innovation → Lower correlation functional\n")
+    cat(" → Negative: Higher lambda → Lower phi\n")
   }
 } else {
-  cat("→ Weak trend: Innovation level has limited effect on correlation functional\n")
+  cat(" → Weak: Lambda has limited effect\n")
 }
 
-# Probability functional analysis
-prob_range <- max(lambda_analysis$summary_table$probability_mean) - 
-              min(lambda_analysis$summary_table$probability_mean)
-cat("Probability functional range:", round(prob_range, 3), "\n")
+# Probability functional summary
+cat("\nPROBABILITY FUNCTIONAL:\n")
+prob_estimates <- lambda_analysis_prob$phi_estimates
+max_prob_idx <- which.max(prob_estimates$phi_hat)
+min_prob_idx <- which.min(prob_estimates$phi_hat)
 
-cat("\nLambda range analysis completed!\n")
+cat("Highest phi(F_lambda):",
+    round(prob_estimates$phi_hat[max_prob_idx], 3),
+    "at lambda =", prob_estimates$lambda[max_prob_idx], "\n")
+cat("Lowest phi(F_lambda):",
+    round(prob_estimates$phi_hat[min_prob_idx], 3),
+    "at lambda =", prob_estimates$lambda[min_prob_idx], "\n")
+
+prob_range <- max(prob_estimates$phi_hat, na.rm = TRUE) -
+              min(prob_estimates$phi_hat, na.rm = TRUE)
+cat("Range:", round(prob_range, 3), "\n")
+
+cat("Lambda* (threshold = 0.8):",
+    if (is.na(lambda_analysis_prob$lambda_star)) "None found"
+    else sprintf("%.2f", lambda_analysis_prob$lambda_star), "\n")
+
+cat("\nLambda grid search completed!\n")
 cat("Results saved to sims/results/\n")
 cat("Plots saved to sims/results/plots/\n")
 
