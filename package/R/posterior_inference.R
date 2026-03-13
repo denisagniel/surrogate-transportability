@@ -7,6 +7,9 @@
 #' @param current_data A tibble with the current study data.
 #' @param n_draws_from_F Integer. Number of draws from super-population F (resampling P₀).
 #' @param n_future_studies_per_draw Integer. Number of future studies Q generated per draw from F.
+#' @param n_baseline_resamples Integer. Number of times to resample baseline for proper CI.
+#'   When n_baseline_resamples > 1, implements nested bootstrap for valid inference.
+#'   Default: 1 (single baseline, quantiles only).
 #' @param lambda Numeric value in [0,1] controlling the perturbation distance from P₀.
 #'   When λ = 0, future studies equal current study.
 #'   When λ = 1, future studies are purely from innovation distribution.
@@ -62,6 +65,7 @@
 posterior_inference <- function(current_data,
                               n_draws_from_F = 500,
                               n_future_studies_per_draw = 200,
+                              n_baseline_resamples = 1,
                               lambda = 0.3,
                               innovation_type = c("bayesian_bootstrap", "dirichlet_process"),
                               functional_type = c("correlation", "probability", "conditional_mean", "all"),
@@ -74,12 +78,31 @@ posterior_inference <- function(current_data,
                               parallel = FALSE) {
   
   if (!is.null(seed)) set.seed(seed)
-  
+
   innovation_type <- match.arg(innovation_type)
   functional_type <- match.arg(functional_type)
   study_type <- match.arg(study_type)
-  
+
   n <- nrow(current_data)
+
+  # If n_baseline_resamples > 1, implement proper nested bootstrap
+  if (n_baseline_resamples > 1) {
+    return(posterior_inference_nested(
+      current_data = current_data,
+      n_draws_from_F = n_draws_from_F,
+      n_future_studies_per_draw = n_future_studies_per_draw,
+      n_baseline_resamples = n_baseline_resamples,
+      lambda = lambda,
+      innovation_type = innovation_type,
+      functional_type = functional_type,
+      epsilon_s = epsilon_s,
+      epsilon_y = epsilon_y,
+      delta_s_values = delta_s_values,
+      study_type = study_type,
+      covariates = covariates,
+      parallel = parallel
+    ))
+  }
   
   # Compute treatment effects in current study
   current_effects <- compute_multiple_treatment_effects(
@@ -160,6 +183,7 @@ posterior_inference <- function(current_data,
     parameters = list(
       n_draws_from_F = n_draws_from_F,
       n_future_studies_per_draw = n_future_studies_per_draw,
+      n_baseline_resamples = n_baseline_resamples,
       lambda = lambda,
       innovation_type = innovation_type,
       functional_type = functional_type,
@@ -172,34 +196,255 @@ posterior_inference <- function(current_data,
   )
 }
 
+#' Nested bootstrap for proper confidence intervals
+#'
+#' Implements proper nested bootstrap to separate uncertainty in baseline P0
+#' from variability across future studies Q ~ F_lambda.
+#'
+#' @inheritParams posterior_inference
+#' @keywords internal
+posterior_inference_nested <- function(current_data,
+                                      n_draws_from_F,
+                                      n_future_studies_per_draw,
+                                      n_baseline_resamples,
+                                      lambda,
+                                      innovation_type,
+                                      functional_type,
+                                      epsilon_s,
+                                      epsilon_y,
+                                      delta_s_values,
+                                      study_type,
+                                      covariates,
+                                      parallel) {
+
+  n <- nrow(current_data)
+
+  # Compute treatment effects in current study (original data)
+  current_effects <- compute_multiple_treatment_effects(
+    current_data, c("S", "Y"), study_type, covariates
+  )
+
+  # Storage for nested bootstrap results
+  if (functional_type == "all") {
+    mean_estimates <- list(
+      correlation = numeric(n_baseline_resamples),
+      probability = numeric(n_baseline_resamples),
+      conditional_means = matrix(NA, nrow = n_baseline_resamples, ncol = length(delta_s_values))
+    )
+    all_samples <- list(
+      correlation = numeric(n_baseline_resamples * n_draws_from_F),
+      probability = numeric(n_baseline_resamples * n_draws_from_F),
+      conditional_means = matrix(NA, nrow = n_baseline_resamples * n_draws_from_F, ncol = length(delta_s_values))
+    )
+  } else {
+    mean_estimates <- numeric(n_baseline_resamples)
+    all_samples <- numeric(n_baseline_resamples * n_draws_from_F)
+  }
+
+  # Outer loop: resample baseline M times
+  # This is where parallelization would go
+  run_one_baseline_resample <- function(m) {
+    # Resample baseline once (completely new P0*)
+    baseline_weights <- as.numeric(MCMCpack::rdirichlet(1, rep(1, n)))
+    baseline_indices <- sample(1:n, size = n, replace = TRUE, prob = baseline_weights)
+    resampled_baseline <- current_data[baseline_indices, ]
+
+    # Run standard posterior inference on this resampled baseline
+    # (with n_baseline_resamples=1 to avoid recursion)
+    result <- posterior_inference(
+      current_data = resampled_baseline,
+      n_draws_from_F = n_draws_from_F,
+      n_future_studies_per_draw = n_future_studies_per_draw,
+      n_baseline_resamples = 1,  # Important: no further nesting
+      lambda = lambda,
+      innovation_type = innovation_type,
+      functional_type = functional_type,
+      epsilon_s = epsilon_s,
+      epsilon_y = epsilon_y,
+      delta_s_values = delta_s_values,
+      study_type = study_type,
+      covariates = covariates,
+      seed = NULL,
+      parallel = FALSE
+    )
+
+    list(
+      mean_estimate = result$summary$mean,
+      samples = result$functionals
+    )
+  }
+
+  # Run outer loop (potentially in parallel)
+  if (parallel && requireNamespace("parallel", quietly = TRUE)) {
+    n_cores <- parallel::detectCores() - 1
+    cl <- parallel::makeCluster(n_cores)
+    parallel::clusterEvalQ(cl, library(dplyr))
+    parallel::clusterExport(cl, varlist = ls(envir = environment()), envir = environment())
+
+    results_list <- parallel::parLapply(cl, 1:n_baseline_resamples, run_one_baseline_resample)
+    parallel::stopCluster(cl)
+  } else {
+    results_list <- lapply(1:n_baseline_resamples, run_one_baseline_resample)
+  }
+
+  # Aggregate results
+  if (functional_type == "all") {
+    for (m in 1:n_baseline_resamples) {
+      mean_estimates$correlation[m] <- results_list[[m]]$mean_estimate$correlation
+      mean_estimates$probability[m] <- results_list[[m]]$mean_estimate$probability
+      mean_estimates$conditional_means[m, ] <- results_list[[m]]$mean_estimate$conditional_means
+
+      idx_start <- (m - 1) * n_draws_from_F + 1
+      idx_end <- m * n_draws_from_F
+      all_samples$correlation[idx_start:idx_end] <- results_list[[m]]$samples$correlation
+      all_samples$probability[idx_start:idx_end] <- results_list[[m]]$samples$probability
+      all_samples$conditional_means[idx_start:idx_end, ] <- results_list[[m]]$samples$conditional_means
+    }
+
+    summary_stats <- list(
+      correlation = compute_summary_stats_nested(mean_estimates$correlation, all_samples$correlation),
+      probability = compute_summary_stats_nested(mean_estimates$probability, all_samples$probability),
+      conditional_means = apply(mean_estimates$conditional_means, 2, function(col_means) {
+        col_idx <- which(mean_estimates$conditional_means[1,] == col_means[1])
+        compute_summary_stats_nested(col_means, all_samples$conditional_means[, col_idx])
+      })
+    )
+    names(summary_stats$conditional_means) <- paste0("delta_s_", delta_s_values)
+  } else {
+    for (m in 1:n_baseline_resamples) {
+      mean_estimates[m] <- results_list[[m]]$mean_estimate
+      idx_start <- (m - 1) * n_draws_from_F + 1
+      idx_end <- m * n_draws_from_F
+      all_samples[idx_start:idx_end] <- results_list[[m]]$samples
+    }
+
+    summary_stats <- compute_summary_stats_nested(mean_estimates, all_samples)
+  }
+
+  # Return results
+  list(
+    functionals = all_samples,
+    summary = summary_stats,
+    current_effects = current_effects,
+    mean_estimates = mean_estimates,  # New: M estimates of E[phi]
+    parameters = list(
+      n_draws_from_F = n_draws_from_F,
+      n_future_studies_per_draw = n_future_studies_per_draw,
+      n_baseline_resamples = n_baseline_resamples,
+      lambda = lambda,
+      innovation_type = innovation_type,
+      functional_type = functional_type,
+      epsilon_s = epsilon_s,
+      epsilon_y = epsilon_y,
+      delta_s_values = delta_s_values,
+      study_type = study_type,
+      covariates = covariates
+    )
+  )
+}
+
+#' Compute summary statistics for nested bootstrap
+#'
+#' Computes both CI for E[phi] and prediction interval for phi(Q).
+#'
+#' @param mean_estimates Numeric vector. M estimates of E[phi(F_lambda)]
+#' @param all_samples Numeric vector. All M*B samples of phi(Q)
+#' @keywords internal
+compute_summary_stats_nested <- function(mean_estimates, all_samples) {
+  # Remove NAs
+  mean_estimates <- mean_estimates[!is.na(mean_estimates)]
+  all_samples <- all_samples[!is.na(all_samples)]
+
+  if (length(mean_estimates) == 0 || length(all_samples) == 0) {
+    return(list(
+      mean = NA_real_,
+      median = NA_real_,
+      sd = NA_real_,
+      se = NA_real_,
+      ci_lower = NA_real_,
+      ci_upper = NA_real_,
+      q025 = NA_real_,
+      q975 = NA_real_
+    ))
+  }
+
+  # CI for E[phi(F_lambda)]: based on M estimates of the mean
+  grand_mean <- mean(mean_estimates)
+  se_mean <- sd(mean_estimates) / sqrt(length(mean_estimates))
+  ci_lower <- quantile(mean_estimates, 0.025)
+  ci_upper <- quantile(mean_estimates, 0.975)
+
+  # Prediction interval: based on all M*B samples
+  q025 <- quantile(all_samples, 0.025)
+  q975 <- quantile(all_samples, 0.975)
+
+  list(
+    mean = grand_mean,
+    median = median(all_samples),
+    sd = sd(all_samples),
+    se = se_mean,
+    ci_lower = as.numeric(ci_lower),
+    ci_upper = as.numeric(ci_upper),
+    q025 = q025,
+    q975 = q975
+  )
+}
+
 #' Compute summary statistics for posterior samples
 #'
 #' Helper function to compute summary statistics from posterior samples.
+#' Returns both quantiles (describing the distribution of phi across different Q)
+#' and confidence intervals (for the mean E[phi(F_lambda)]).
 #'
 #' @param samples Numeric vector. Posterior samples.
 #'
-#' @return A list with summary statistics.
+#' @return A list with summary statistics:
+#'   \itemize{
+#'     \item mean: Point estimate of E[phi(F_lambda)]
+#'     \item median: Median of the distribution
+#'     \item sd: Standard deviation of phi(Q) across Q ~ F_lambda
+#'     \item se: Standard error of the mean estimate
+#'     \item ci_lower: Lower 95% CI for E[phi(F_lambda)] (mean - 1.96*SE)
+#'     \item ci_upper: Upper 95% CI for E[phi(F_lambda)] (mean + 1.96*SE)
+#'     \item q025: 2.5th percentile (prediction interval, not CI)
+#'     \item q975: 97.5th percentile (prediction interval, not CI)
+#'   }
 #'
 #' @export
 compute_summary_stats <- function(samples) {
-  
+
   # Remove NA values
   samples <- samples[!is.na(samples)]
-  
+
   if (length(samples) == 0) {
     return(list(
       mean = NA_real_,
       median = NA_real_,
       sd = NA_real_,
+      se = NA_real_,
+      ci_lower = NA_real_,
+      ci_upper = NA_real_,
       q025 = NA_real_,
       q975 = NA_real_
     ))
   }
-  
+
+  n <- length(samples)
+  mean_val <- mean(samples)
+  sd_val <- sd(samples)
+  se_val <- sd_val / sqrt(n)
+
+  # 95% CI for the mean (normal approximation)
+  ci_lower <- mean_val - qnorm(0.975) * se_val
+  ci_upper <- mean_val + qnorm(0.975) * se_val
+
   list(
-    mean = mean(samples),
+    mean = mean_val,
     median = median(samples),
-    sd = sd(samples),
+    sd = sd_val,
+    se = se_val,
+    ci_lower = ci_lower,
+    ci_upper = ci_upper,
     q025 = quantile(samples, 0.025),
     q975 = quantile(samples, 0.975)
   )

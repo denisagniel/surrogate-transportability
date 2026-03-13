@@ -162,9 +162,12 @@ simulation_settings:
   n_outer: 500  # Increased from 100
   n_inner: 200  # Increased from 50
   functional_type: "all"
-  lambda_params:
-    a: 2
-    b: 5
+  # lambda_params: ARCHIVED - not used in current fixed-lambda framework
+  # In active code, lambda is treated as fixed design parameter (see methods paper Section 3.2.1)
+  # These parameters were used in earlier random-lambda approach (see sims/archive/)
+  # lambda_params:
+  #   a: 2
+  #   b: 5
   innovation_type: "bayesian_bootstrap"
   study_type: "randomized"
   traditional_methods: ["pte", "correlation", "mediation"]

@@ -16,13 +16,10 @@
 #'   "correlation", "probability", or "conditional_mean".
 #' @param confidence_level Numeric in (0,1). Confidence level for intervals.
 #'   Default: 0.95 for 95% confidence intervals.
-#' @param multiplicity_adjustment Character. Method for multiple testing correction:
-#'   \itemize{
-#'     \item "none" - No adjustment (not recommended)
-#'     \item "bonferroni" - Bonferroni correction (conservative)
-#'     \item "sidak" - Šidák correction (slightly less conservative)
-#'   }
-#'   Default: "bonferroni".
+#' @param multiplicity_adjustment Character. Method for multiple testing correction.
+#'   Options: "none" (no adjustment, not recommended), "bonferroni" (Bonferroni
+#'   correction, conservative), or "sidak" (Sidak correction, slightly less
+#'   conservative). See Details section for formulas. Default: "bonferroni".
 #' @param n_draws_from_F Integer. Number of outer bootstrap samples for
 #'   estimating phi. Larger values give more stable estimates but increase
 #'   computation time. Default: 500.
@@ -66,7 +63,7 @@
 #' **Multiple testing adjustments:**
 #' When evaluating K lambda values, the familywise error rate is controlled by:
 #' - Bonferroni: Use alpha/K for each test (conservative)
-#' - Šidák: Use 1-(1-alpha)^(1/K) for each test (exact under independence)
+#' - Sidak: Use 1-(1-alpha)^(1/K) for each test (exact under independence)
 #' - None: Use alpha for each test (not recommended, inflates Type I error)
 #'
 #' @seealso \code{\link{posterior_inference}} for single-lambda inference

@@ -10,8 +10,20 @@ compute_summary_stats(samples)
 \item{samples}{Numeric vector. Posterior samples.}
 }
 \value{
-A list with summary statistics.
+A list with summary statistics:
+  \itemize{
+    \item mean: Point estimate of E[phi(F_lambda)]
+    \item median: Median of the distribution
+    \item sd: Standard deviation of phi(Q) across Q ~ F_lambda
+    \item se: Standard error of the mean estimate
+    \item ci_lower: Lower 95% CI for E[phi(F_lambda)] (mean - 1.96*SE)
+    \item ci_upper: Upper 95% CI for E[phi(F_lambda)] (mean + 1.96*SE)
+    \item q025: 2.5th percentile (prediction interval, not CI)
+    \item q975: 97.5th percentile (prediction interval, not CI)
+  }
 }
 \description{
 Helper function to compute summary statistics from posterior samples.
+Returns both quantiles (describing the distribution of phi across different Q)
+and confidence intervals (for the mean E[phi(F_lambda)]).
 }
