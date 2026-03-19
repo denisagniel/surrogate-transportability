@@ -24,8 +24,8 @@ export O2_HOME="${HOME}"
 echo "Loading O2 environment..."
 
 # Load gcc first (required for R on O2)
-echo "  Loading gcc..."
-module load gcc/9.2.0 2>/dev/null || module load gcc 2>/dev/null || true
+echo "  Loading gcc/14.2.0..."
+module load gcc/14.2.0
 
 # Load R (try versions in order of preference)
 # Run 'module spider R' to see available versions on your cluster
