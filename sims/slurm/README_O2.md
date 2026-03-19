@@ -165,6 +165,48 @@ ls -lh sims/scripts/
 
 ## Testing Workflow
 
+### Phase 0: Interactive Testing (Optional, Recommended)
+
+Before submitting any jobs, test interactively:
+
+```bash
+# Start interactive session (1 hour, 6 GB)
+srun --pty -p interactive -t 0-01:00 --mem 6G bash
+
+# Load modules
+module load gcc/14.2.0
+module load R/4.4.2
+
+# Navigate to project
+cd ~/surrogate-transportability
+
+# Test a single replication with reduced parameters
+Rscript sims/scripts/run_single_replication.R \
+  --study-type covariate_shift \
+  --scenario small \
+  --replication 1 \
+  --output-dir /n/scratch3/users/d/dma12/surrogate-transportability/results/reps/covariate_shift \
+  --n-baseline 300 \
+  --n-true-studies 100 \
+  --n-baseline-resamples 50 \
+  --n-bootstrap 20 \
+  --n-mc-draws 10
+
+# Exit interactive session
+exit
+```
+
+**Expected:**
+- Script completes in 2-5 minutes
+- Output file created in scratch storage
+- No errors
+
+**Interactive session options:**
+- `-p interactive` - Interactive partition (faster scheduling)
+- `-p short` - Alternative partition for testing
+- `-t 0-01:00` - Time limit (days-hours:minutes)
+- `--mem 6G` - Memory (match SLURM scripts)
+
 ### Phase 1: Single Job Test (5 minutes)
 
 ```bash
@@ -401,6 +443,31 @@ rm -rf /n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/
 
 ## Troubleshooting
 
+### Interactive Session for Debugging
+
+To debug issues interactively:
+
+```bash
+# Start interactive session
+srun --pty -p interactive -t 0-01:00 --mem 6G bash
+
+# Load environment
+cd ~/surrogate-transportability
+source sims/slurm/o2_config.sh
+
+# Test R package loading
+R -e "devtools::load_all('package/')"
+
+# Test single replication
+Rscript sims/scripts/run_single_replication.R \
+  --study-type covariate_shift --scenario small --replication 1 \
+  --output-dir /n/scratch3/users/d/dma12/surrogate-transportability/results/reps/covariate_shift \
+  --n-baseline 300 --n-bootstrap 20 --n-mc-draws 10
+
+# Exit when done
+exit
+```
+
 ### Module Loading Fails
 
 **Error:** `R: command not found` or module load fails
@@ -410,11 +477,12 @@ rm -rf /n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/
 # Check available R versions
 module spider R
 
-# Load specific version
-module load R/4.4.2  # or R/4.5.2
+# Check what R/4.4.2 requires
+module spider R/4.4.2
 
-# Add to ~/.bashrc for automatic loading
-echo "module load R/4.5.2" >> ~/.bashrc
+# Load gcc first, then R
+module load gcc/14.2.0
+module load R/4.4.2
 ```
 
 ### Missing R Packages
