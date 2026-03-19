@@ -74,17 +74,24 @@ echo "  R library: $R_LIBS_USER"
 # Scratch Directory Setup
 # ============================================
 
-# Create scratch directories for results
-if [ ! -d "$O2_SCRATCH" ]; then
-    echo "Creating scratch directory: $O2_SCRATCH"
-    mkdir -p "$O2_SCRATCH"
-fi
+# Set project scratch path
+PROJECT_SCRATCH="$O2_SCRATCH/surrogate-transportability"
 
 # Create project scratch directories
-PROJECT_SCRATCH="$O2_SCRATCH/surrogate-transportability"
-mkdir -p "$PROJECT_SCRATCH/results/reps/covariate_shift"
-mkdir -p "$PROJECT_SCRATCH/results/reps/selection_bias"
-mkdir -p "$PROJECT_SCRATCH/results/reps/dirichlet_misspec"
+# Note: Parent directories (/n/scratch3/users/d/dma12) should already exist on O2
+# We only create our project subdirectories
+mkdir -p "$PROJECT_SCRATCH/results/reps/covariate_shift" 2>/dev/null
+mkdir -p "$PROJECT_SCRATCH/results/reps/selection_bias" 2>/dev/null
+mkdir -p "$PROJECT_SCRATCH/results/reps/dirichlet_misspec" 2>/dev/null
+
+# Verify we can write to scratch
+if [ ! -w "$PROJECT_SCRATCH" ]; then
+    echo ""
+    echo "ERROR: Cannot write to scratch storage: $PROJECT_SCRATCH"
+    echo "Please check that your scratch directory exists and is writable."
+    echo "Contact RC help (rchelp@hms.harvard.edu) if this persists."
+    exit 1
+fi
 
 echo "  Scratch storage: $PROJECT_SCRATCH"
 
