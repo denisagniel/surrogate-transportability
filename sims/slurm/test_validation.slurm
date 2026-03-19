@@ -47,6 +47,9 @@ if ! command -v R &> /dev/null; then
     exit 1
 fi
 
+# Set R library path to user library
+export R_LIBS_USER="${HOME}/R/library"
+
 # Navigate to project directory
 cd $SLURM_SUBMIT_DIR
 
