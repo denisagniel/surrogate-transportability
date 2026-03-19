@@ -51,7 +51,7 @@ fi
 cd $SLURM_SUBMIT_DIR
 
 # Set output directory to scratch (not home directory!)
-OUTPUT_DIR="/n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/$STUDY_TYPE"
+OUTPUT_DIR="/n/scratch/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/$STUDY_TYPE"
 mkdir -p "$OUTPUT_DIR"
 
 # Build Rscript command with conditional lambda parameter

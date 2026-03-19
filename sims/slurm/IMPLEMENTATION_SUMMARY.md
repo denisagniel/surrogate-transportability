@@ -49,7 +49,7 @@
 8. **`o2_config.sh`** (89 lines)
    - **Critical O2 environment configuration**
    - Loads R/4.5.2 module
-   - Sets up scratch storage paths (`/n/scratch3/`)
+   - Sets up scratch storage paths (`/n/scratch/`)
    - Configures R library path
    - Creates necessary directories
    - Exports PROJECT_SCRATCH for SLURM scripts
@@ -109,7 +109,7 @@
 ### 1. O2 Storage Strategy
 **Problem:** Limited home directory space (~100 GB), large number of results files
 **Solution:**
-- Individual replications → scratch storage (`/n/scratch3/`, 10 TB quota)
+- Individual replications → scratch storage (`/n/scratch/`, 10 TB quota)
 - Final aggregated results → home directory
 - Configured automatically by `o2_config.sh`
 - 30-day auto-deletion on scratch (adequate for workflow)

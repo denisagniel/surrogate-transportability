@@ -25,7 +25,7 @@ Complete guide for running surrogate transportability validation studies on HMS 
 - Use for: Code, documentation, final aggregated results
 - **Do NOT store:** Individual replication .rds files
 
-**Scratch Storage** (`/n/scratch3/users/...`): 10 TB quota, 30-day auto-deletion
+**Scratch Storage** (`/n/scratch/users/...`): 10 TB quota, 30-day auto-deletion
 - Use for: Individual replication .rds files (sims/results/reps/)
 - Files deleted 30 days after last access
 - Reference: https://harvardmed.atlassian.net/wiki/spaces/O2/pages/2652045313/Scratch+Storage
@@ -37,7 +37,7 @@ Complete guide for running surrogate transportability validation studies on HMS 
 $HOME/surrogate-transportability/
 
 # Individual replications in scratch
-/n/scratch3/users/d/dagniel/surrogate-transportability/results/reps/
+/n/scratch/users/d/dagniel/surrogate-transportability/results/reps/
 
 # Final aggregated results back in home
 $HOME/surrogate-transportability/sims/results/
@@ -85,7 +85,7 @@ rsync -avz --progress \
 
 # Or download everything including individual reps (large, ~5-7 GB)
 rsync -avz --progress \
-  USERNAME@transfer.rc.hms.harvard.edu:/n/scratch3/users/d/dagniel/surrogate-transportability/results/ \
+  USERNAME@transfer.rc.hms.harvard.edu:/n/scratch/users/d/dagniel/surrogate-transportability/results/ \
   ./local/all-results/
 ```
 
@@ -185,7 +185,7 @@ Rscript sims/scripts/run_single_replication.R \
   --study-type covariate_shift \
   --scenario small \
   --replication 1 \
-  --output-dir /n/scratch3/users/d/dma12/surrogate-transportability/results/reps/covariate_shift \
+  --output-dir /n/scratch/users/d/dma12/surrogate-transportability/results/reps/covariate_shift \
   --n-baseline 300 \
   --n-true-studies 100 \
   --n-baseline-resamples 50 \
@@ -224,7 +224,7 @@ squeue -u $USER
 scontrol show job <JOBID>
 
 # When complete, check output
-ls -lh /n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/covariate_shift/
+ls -lh /n/scratch/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/covariate_shift/
 
 # View logs
 cat logs/test_*.out
@@ -370,7 +370,7 @@ tail -f logs/covariate_shift_*_*.out
 grep -i error logs/*.err
 
 # Count completed replications
-ls -1 /n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/*/*.rds | wc -l
+ls -1 /n/scratch/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/*/*.rds | wc -l
 ```
 
 ---
@@ -383,17 +383,17 @@ ls -1 /n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/r
 # After all jobs complete, aggregate each study
 Rscript sims/scripts/aggregate_results.R \
   --study-type covariate_shift \
-  --input-dir /n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/covariate_shift \
+  --input-dir /n/scratch/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/covariate_shift \
   --output-dir sims/results
 
 Rscript sims/scripts/aggregate_results.R \
   --study-type selection_bias \
-  --input-dir /n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/selection_bias \
+  --input-dir /n/scratch/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/selection_bias \
   --output-dir sims/results
 
 Rscript sims/scripts/aggregate_results.R \
   --study-type dirichlet_misspec \
-  --input-dir /n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/dirichlet_misspec \
+  --input-dir /n/scratch/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/dirichlet_misspec \
   --output-dir sims/results
 
 # Generate combined validation report
@@ -413,7 +413,7 @@ rsync -avz --progress \
 
 # Or download everything including individual reps (large, ~5-7 GB)
 rsync -avz --progress \
-  USERNAME@transfer.rc.hms.harvard.edu:/n/scratch3/users/d/dagniel/surrogate-transportability/results/ \
+  USERNAME@transfer.rc.hms.harvard.edu:/n/scratch/users/d/dagniel/surrogate-transportability/results/ \
   ./local/all-results/
 ```
 
@@ -436,7 +436,7 @@ git pull
 # (Files auto-delete after 30 days, but manual cleanup frees space)
 
 # Remove individual replications (keep aggregated results)
-rm -rf /n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/
+rm -rf /n/scratch/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/
 ```
 
 ---
@@ -461,7 +461,7 @@ R -e "devtools::load_all('package/')"
 # Test single replication
 Rscript sims/scripts/run_single_replication.R \
   --study-type covariate_shift --scenario small --replication 1 \
-  --output-dir /n/scratch3/users/d/dma12/surrogate-transportability/results/reps/covariate_shift \
+  --output-dir /n/scratch/users/d/dma12/surrogate-transportability/results/reps/covariate_shift \
   --n-baseline 300 --n-bootstrap 20 --n-mc-draws 10
 
 # Exit when done
@@ -557,7 +557,7 @@ quota
 rm logs/*.out logs/*.err
 
 # Verify scratch usage
-du -sh /n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/
+du -sh /n/scratch/users/${USER:0:1}/${USER}/surrogate-transportability/
 ```
 
 ---

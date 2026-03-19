@@ -12,13 +12,13 @@ if [ $# -lt 1 ]; then
     echo "  dirichlet_misspec  - 6 scenarios, 1000 reps each"
     echo ""
     echo "Optional: Specify results directory"
-    echo "  (defaults to /n/scratch3/users/\${USER:0:1}/\${USER}/surrogate-transportability/results/reps/<study_type>)"
+    echo "  (defaults to /n/scratch/users/\${USER:0:1}/\${USER}/surrogate-transportability/results/reps/<study_type>)"
     exit 1
 fi
 
 STUDY_TYPE=$1
 # Default to scratch storage location
-RESULTS_DIR=${2:-"/n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/$STUDY_TYPE"}
+RESULTS_DIR=${2:-"/n/scratch/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/$STUDY_TYPE"}
 
 # Define scenarios and expected counts
 case $STUDY_TYPE in

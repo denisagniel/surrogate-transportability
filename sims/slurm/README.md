@@ -27,7 +27,7 @@ bash sims/slurm/submit_all_studies.sh
 ```
 
 **Key O2 features:**
-- Uses scratch storage (`/n/scratch3/`) for individual replications
+- Uses scratch storage (`/n/scratch/`) for individual replications
 - Uses R/4.5.2 module
 - Includes completeness checking and resubmission scripts
 - See [README_O2.md](README_O2.md) for file transfer, monitoring, troubleshooting

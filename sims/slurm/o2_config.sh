@@ -11,7 +11,7 @@
 
 # Scratch storage: 10 TB quota, 30-day auto-deletion after last access
 # Use for: Individual replication .rds files (sims/results/reps/)
-export O2_SCRATCH="/n/scratch3/users/${USER:0:1}/${USER}"
+export O2_SCRATCH="/n/scratch/users/${USER:0:1}/${USER}"
 
 # Home directory: Limited space
 # Use for: Final aggregated results, plots, summaries
@@ -78,7 +78,7 @@ echo "  R library: $R_LIBS_USER"
 PROJECT_SCRATCH="$O2_SCRATCH/surrogate-transportability"
 
 # Create project scratch directories
-# Note: Parent directories (/n/scratch3/users/d/dma12) should already exist on O2
+# Note: Parent directories (/n/scratch/users/d/dma12) should already exist on O2
 # We only create our project subdirectories
 mkdir -p "$PROJECT_SCRATCH/results/reps/covariate_shift" 2>/dev/null
 mkdir -p "$PROJECT_SCRATCH/results/reps/selection_bias" 2>/dev/null

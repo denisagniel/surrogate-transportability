@@ -49,7 +49,7 @@ fi
 cd $SLURM_SUBMIT_DIR
 
 # Set output directory to scratch (not home directory!)
-OUTPUT_DIR="/n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/selection_bias"
+OUTPUT_DIR="/n/scratch/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/selection_bias"
 mkdir -p "$OUTPUT_DIR"
 
 # Run single replication
