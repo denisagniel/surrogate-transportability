@@ -1,29 +1,28 @@
 #!/bin/bash
-#SBATCH --job-name=cov_shift
-#SBATCH --output=logs/covariate_shift_%A_%a.out
-#SBATCH --error=logs/covariate_shift_%A_%a.err
+#SBATCH --job-name=dirichlet
+#SBATCH --output=logs/dirichlet_%A_%a.out
+#SBATCH --error=logs/dirichlet_%A_%a.err
 #SBATCH --array=1-1000
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=6G
 #SBATCH --time=00:45:00
 #SBATCH --partition=short
 
-# Covariate Shift Validation Study
-# Run as: sbatch --export=SCENARIO=small sims/slurm/covariate_shift_validation.slurm
+# Dirichlet Misspecification Validation Study
+# Run as: sbatch --export=SCENARIO=sparse sims/slurm/dirichlet_misspecification.slurm
 #
-# SCENARIO must be one of: small, moderate, large, extreme
+# SCENARIO must be one of: very_sparse, sparse, uniform, concentrated, highly_concentrated, very_concentrated
 # Runs 1000 replications for the specified scenario
 #
 # O2-specific configuration:
 # - partition=short: 12 hour limit, faster scheduling
 # - mem=6G: Conservative for O2 environment
 # - R/4.5.2: Latest stable R version on O2
-# - array=1-500: Override with --array for testing (e.g., --array=1-10)
 
 # Check that SCENARIO is set
 if [ -z "$SCENARIO" ]; then
     echo "ERROR: SCENARIO environment variable not set"
-    echo "Usage: sbatch --export=SCENARIO=small sims/slurm/covariate_shift_validation.slurm"
+    echo "Usage: sbatch --export=SCENARIO=sparse sims/slurm/dirichlet_misspecification.slurm"
     exit 1
 fi
 
@@ -40,14 +39,15 @@ fi
 cd $SLURM_SUBMIT_DIR
 
 # Create output directory if needed
-mkdir -p sims/results/reps/covariate_shift
+mkdir -p sims/results/reps/dirichlet_misspec
 
-# Run single replication
+# Run single replication with fixed lambda=0.2
 Rscript sims/scripts/run_single_replication.R \
-  --study-type covariate_shift \
+  --study-type dirichlet_misspec \
   --scenario $SCENARIO \
   --replication $SLURM_ARRAY_TASK_ID \
-  --output-dir sims/results/reps/covariate_shift \
+  --output-dir sims/results/reps/dirichlet_misspec \
+  --lambda 0.2 \
   --n-baseline 1000 \
   --n-true-studies 500 \
   --n-baseline-resamples 100 \

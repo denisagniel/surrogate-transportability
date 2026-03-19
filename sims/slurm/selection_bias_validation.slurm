@@ -1,29 +1,28 @@
 #!/bin/bash
-#SBATCH --job-name=cov_shift
-#SBATCH --output=logs/covariate_shift_%A_%a.out
-#SBATCH --error=logs/covariate_shift_%A_%a.err
+#SBATCH --job-name=sel_bias
+#SBATCH --output=logs/selection_bias_%A_%a.out
+#SBATCH --error=logs/selection_bias_%A_%a.err
 #SBATCH --array=1-1000
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=6G
 #SBATCH --time=00:45:00
 #SBATCH --partition=short
 
-# Covariate Shift Validation Study
-# Run as: sbatch --export=SCENARIO=small sims/slurm/covariate_shift_validation.slurm
+# Selection Bias Validation Study
+# Run as: sbatch --export=SCENARIO=weak_outcome sims/slurm/selection_bias_validation.slurm
 #
-# SCENARIO must be one of: small, moderate, large, extreme
+# SCENARIO must be one of: weak_outcome, moderate_outcome, strong_outcome, moderate_responders
 # Runs 1000 replications for the specified scenario
 #
 # O2-specific configuration:
 # - partition=short: 12 hour limit, faster scheduling
 # - mem=6G: Conservative for O2 environment
 # - R/4.5.2: Latest stable R version on O2
-# - array=1-500: Override with --array for testing (e.g., --array=1-10)
 
 # Check that SCENARIO is set
 if [ -z "$SCENARIO" ]; then
     echo "ERROR: SCENARIO environment variable not set"
-    echo "Usage: sbatch --export=SCENARIO=small sims/slurm/covariate_shift_validation.slurm"
+    echo "Usage: sbatch --export=SCENARIO=weak_outcome sims/slurm/selection_bias_validation.slurm"
     exit 1
 fi
 
@@ -40,14 +39,14 @@ fi
 cd $SLURM_SUBMIT_DIR
 
 # Create output directory if needed
-mkdir -p sims/results/reps/covariate_shift
+mkdir -p sims/results/reps/selection_bias
 
 # Run single replication
 Rscript sims/scripts/run_single_replication.R \
-  --study-type covariate_shift \
+  --study-type selection_bias \
   --scenario $SCENARIO \
   --replication $SLURM_ARRAY_TASK_ID \
-  --output-dir sims/results/reps/covariate_shift \
+  --output-dir sims/results/reps/selection_bias \
   --n-baseline 1000 \
   --n-true-studies 500 \
   --n-baseline-resamples 100 \

@@ -1,0 +1,67 @@
+#!/bin/bash
+#SBATCH --job-name=test_val
+#SBATCH --output=logs/test_%A_%a.out
+#SBATCH --error=logs/test_%A_%a.err
+#SBATCH --array=1-10
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=6G
+#SBATCH --time=00:15:00
+#SBATCH --partition=short
+
+# Test Validation Study (Quick Verification)
+# Run as: sbatch --export=STUDY_TYPE=covariate_shift,SCENARIO=small sims/slurm/test_validation.slurm
+#
+# STUDY_TYPE must be one of: covariate_shift, selection_bias, dirichlet_misspec
+# SCENARIO must be appropriate for the study type
+# Runs 10 replications with reduced parameters for quick testing
+#
+# Reduced parameters for testing:
+# - n-baseline: 300 (vs 1000 in production)
+# - n-bootstrap: 20 (vs 100 in production)
+# - n-mc-draws: 10 (vs 50 in production)
+# - Expected runtime: 3-5 minutes per replication
+
+# Check that both STUDY_TYPE and SCENARIO are set
+if [ -z "$STUDY_TYPE" ] || [ -z "$SCENARIO" ]; then
+    echo "ERROR: STUDY_TYPE and SCENARIO environment variables must be set"
+    echo "Usage: sbatch --export=STUDY_TYPE=covariate_shift,SCENARIO=small sims/slurm/test_validation.slurm"
+    exit 1
+fi
+
+# Load R module (O2-specific)
+module load R/4.5.2
+
+# Verify R loaded successfully
+if ! command -v R &> /dev/null; then
+    echo "ERROR: R module failed to load"
+    exit 1
+fi
+
+# Navigate to project directory
+cd $SLURM_SUBMIT_DIR
+
+# Create output directory based on study type
+mkdir -p sims/results/reps/$STUDY_TYPE
+
+# Build Rscript command with conditional lambda parameter
+RSCRIPT_CMD="Rscript sims/scripts/run_single_replication.R \
+  --study-type $STUDY_TYPE \
+  --scenario $SCENARIO \
+  --replication $SLURM_ARRAY_TASK_ID \
+  --output-dir sims/results/reps/$STUDY_TYPE \
+  --n-baseline 300 \
+  --n-true-studies 100 \
+  --n-baseline-resamples 50 \
+  --n-bootstrap 20 \
+  --n-mc-draws 10"
+
+# Add lambda parameter for dirichlet_misspec study
+if [ "$STUDY_TYPE" = "dirichlet_misspec" ]; then
+    RSCRIPT_CMD="$RSCRIPT_CMD --lambda 0.2"
+fi
+
+# Run the command
+eval $RSCRIPT_CMD
+
+# Exit with script's exit code
+exit $?

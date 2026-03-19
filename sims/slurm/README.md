@@ -2,9 +2,41 @@
 
 This directory contains SLURM batch scripts for running validation studies on HPC clusters.
 
+---
+
+## **HMS O2 Users: Start Here**
+
+**For complete O2 setup instructions, see [README_O2.md](README_O2.md)**
+
+Quick O2 workflow:
+```bash
+# 1. Clone from GitHub on O2
+ssh USERNAME@o2.hms.harvard.edu
+git clone https://github.com/denisagniel/surrogate-transportability.git
+cd surrogate-transportability
+
+# 2. Setup environment
+source sims/slurm/o2_config.sh
+R -e "install.packages(c('devtools', 'dplyr', 'tibble', 'optparse', 'ggplot2', 'purrr'))"
+
+# 3. Test (10 reps × 14 scenarios = 140 jobs)
+bash sims/slurm/submit_test_run.sh
+
+# 4. Full deployment (14,000 replications)
+bash sims/slurm/submit_all_studies.sh
+```
+
+**Key O2 features:**
+- Uses scratch storage (`/n/scratch3/`) for individual replications
+- Uses R/4.5.2 module
+- Includes completeness checking and resubmission scripts
+- See [README_O2.md](README_O2.md) for file transfer, monitoring, troubleshooting
+
+---
+
 ## Overview
 
-Each validation study runs 1000 replications × N scenarios as independent SLURM array jobs. Results from individual replications are saved to separate files, then aggregated afterward.
+Each validation study runs 1,000 replications × N scenarios as independent SLURM array jobs. Results from individual replications are saved to separate files, then aggregated afterward.
 
 **Advantages:**
 - Embarrassingly parallel (no communication between tasks)
@@ -14,9 +46,27 @@ Each validation study runs 1000 replications × N scenarios as independent SLURM
 
 ## Files
 
-- `covariate_shift_validation.slurm` - Main batch script for covariate shift validation
-- `submit_all_covariate_shift.sh` - Helper to submit all 4 scenarios
-- `README.md` - This file
+**Validation Scripts (Production):**
+- `covariate_shift_validation.slurm` - Covariate shift (4 scenarios × 1,000 reps)
+- `selection_bias_validation.slurm` - Selection bias (4 scenarios × 1,000 reps)
+- `dirichlet_misspecification.slurm` - Dirichlet misspec (6 scenarios × 1,000 reps)
+- `test_validation.slurm` - Testing template (10 reps, reduced parameters)
+
+**Submission Helpers:**
+- `submit_all_covariate_shift.sh` - Submit covariate shift study
+- `submit_all_selection_bias.sh` - Submit selection bias study
+- `submit_all_dirichlet_misspec.sh` - Submit Dirichlet misspec study
+- `submit_all_studies.sh` - **Master script: submit all three studies**
+- `submit_test_run.sh` - Submit test run (140 jobs for quick verification)
+
+**Utilities:**
+- `o2_config.sh` - O2 environment configuration (module loading, paths)
+- `check_completeness.sh` - Check which replications completed
+- `resubmit_failed.sh` - Resubmit specific failed replications
+
+**Documentation:**
+- `README.md` - This file (general SLURM guide)
+- `README_O2.md` - **Complete HMS O2 guide** (setup, transfer, monitoring)
 
 ## Quick Start
 
@@ -110,7 +160,11 @@ Default validation parameters (full scale):
 
 **Estimated time per replication:** ~5-10 minutes (depends on cluster)
 
-**Total compute:** 1000 reps × 4 scenarios × 8 min = ~533 CPU-hours
+**Total compute (all three studies):**
+- Covariate shift: 4,000 reps × 6 min = ~400 CPU-hours
+- Selection bias: 4,000 reps × 6 min = ~400 CPU-hours
+- Dirichlet misspec: 6,000 reps × 6 min = ~600 CPU-hours
+- **Total: ~1,400 CPU-hours**
 
 ## Rerunning Failed Jobs
 

@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Submit all covariate shift validation scenarios to SLURM
+# Submit all selection bias validation scenarios to SLURM
 # Each scenario runs 1000 replications as an array job
 
 # Source O2 configuration
 source sims/slurm/o2_config.sh
 
 echo "=========================================="
-echo "Submitting Covariate Shift Validation"
+echo "Submitting Selection Bias Validation"
 echo "=========================================="
 echo ""
 
@@ -15,19 +15,19 @@ echo ""
 mkdir -p logs
 
 # Define scenarios
-SCENARIOS=("small" "moderate" "large" "extreme")
+SCENARIOS=("weak_outcome" "moderate_outcome" "strong_outcome" "moderate_responders")
 
 # Submit each scenario
 for SCENARIO in "${SCENARIOS[@]}"; do
     echo "Submitting scenario: $SCENARIO"
-    JOB_ID=$(sbatch --export=SCENARIO=$SCENARIO --parsable sims/slurm/covariate_shift_validation.slurm)
+    JOB_ID=$(sbatch --export=SCENARIO=$SCENARIO --parsable sims/slurm/selection_bias_validation.slurm)
     echo "  Job ID: $JOB_ID"
     echo "  Array: 1-1000 replications"
     echo ""
 done
 
 echo "=========================================="
-echo "All covariate shift jobs submitted"
+echo "All selection bias jobs submitted"
 echo "=========================================="
 echo ""
 echo "Monitor with:"
@@ -35,6 +35,6 @@ echo "  squeue -u \$USER"
 echo "  watch -n 30 'squeue -u \$USER | wc -l'"
 echo ""
 echo "Check completeness:"
-echo "  bash sims/slurm/check_completeness.sh covariate_shift"
+echo "  bash sims/slurm/check_completeness.sh selection_bias"
 echo ""
-echo "Logs in: logs/covariate_shift_*.out"
+echo "Logs in: logs/selection_bias_*.out"
