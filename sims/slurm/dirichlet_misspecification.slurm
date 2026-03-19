@@ -48,15 +48,16 @@ fi
 # Navigate to project directory
 cd $SLURM_SUBMIT_DIR
 
-# Create output directory if needed
-mkdir -p sims/results/reps/dirichlet_misspec
+# Set output directory to scratch (not home directory!)
+OUTPUT_DIR="/n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/dirichlet_misspec"
+mkdir -p "$OUTPUT_DIR"
 
 # Run single replication with fixed lambda=0.2
 Rscript sims/scripts/run_single_replication.R \
   --study-type dirichlet_misspec \
   --scenario $SCENARIO \
   --replication $SLURM_ARRAY_TASK_ID \
-  --output-dir sims/results/reps/dirichlet_misspec \
+  --output-dir "$OUTPUT_DIR" \
   --lambda 0.2 \
   --n-baseline 1000 \
   --n-true-studies 500 \

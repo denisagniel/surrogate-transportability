@@ -48,15 +48,16 @@ fi
 # Navigate to project directory
 cd $SLURM_SUBMIT_DIR
 
-# Create output directory if needed
-mkdir -p sims/results/reps/selection_bias
+# Set output directory to scratch (not home directory!)
+OUTPUT_DIR="/n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/selection_bias"
+mkdir -p "$OUTPUT_DIR"
 
 # Run single replication
 Rscript sims/scripts/run_single_replication.R \
   --study-type selection_bias \
   --scenario $SCENARIO \
   --replication $SLURM_ARRAY_TASK_ID \
-  --output-dir sims/results/reps/selection_bias \
+  --output-dir "$OUTPUT_DIR" \
   --n-baseline 1000 \
   --n-true-studies 500 \
   --n-baseline-resamples 100 \

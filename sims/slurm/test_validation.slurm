@@ -50,15 +50,16 @@ fi
 # Navigate to project directory
 cd $SLURM_SUBMIT_DIR
 
-# Create output directory based on study type
-mkdir -p sims/results/reps/$STUDY_TYPE
+# Set output directory to scratch (not home directory!)
+OUTPUT_DIR="/n/scratch3/users/${USER:0:1}/${USER}/surrogate-transportability/results/reps/$STUDY_TYPE"
+mkdir -p "$OUTPUT_DIR"
 
 # Build Rscript command with conditional lambda parameter
 RSCRIPT_CMD="Rscript sims/scripts/run_single_replication.R \
   --study-type $STUDY_TYPE \
   --scenario $SCENARIO \
   --replication $SLURM_ARRAY_TASK_ID \
-  --output-dir sims/results/reps/$STUDY_TYPE \
+  --output-dir \"$OUTPUT_DIR\" \
   --n-baseline 300 \
   --n-true-studies 100 \
   --n-baseline-resamples 50 \
