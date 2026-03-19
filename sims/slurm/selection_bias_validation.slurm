@@ -26,6 +26,9 @@ if [ -z "$SCENARIO" ]; then
     exit 1
 fi
 
+# Load gcc first (required for R on O2)
+module load gcc/9.2.0 2>/dev/null || module load gcc 2>/dev/null || true
+
 # Load R module (O2-specific)
 # Try multiple R versions in order of preference
 for R_VERSION in R/4.4.2 R/4.4.1 R/4.3.1 R/4.2.2 R; do
