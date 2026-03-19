@@ -27,11 +27,18 @@ if [ -z "$SCENARIO" ]; then
 fi
 
 # Load R module (O2-specific)
-module load R/4.5.2
+# Try multiple R versions in order of preference
+for R_VERSION in R/4.4.2 R/4.4.1 R/4.3.1 R/4.2.2 R; do
+    if module load $R_VERSION 2>/dev/null; then
+        echo "Loaded $R_VERSION"
+        break
+    fi
+done
 
 # Verify R loaded successfully
 if ! command -v R &> /dev/null; then
     echo "ERROR: R module failed to load"
+    echo "Available versions: module spider R"
     exit 1
 fi
 

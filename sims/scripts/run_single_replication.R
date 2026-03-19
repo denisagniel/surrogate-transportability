@@ -29,7 +29,9 @@ option_list <- list(
   make_option(c("--n-mc-draws"), type = "integer", default = 50,
               help = "Number of MC draws per bootstrap", metavar = "number"),
   make_option(c("--seed"), type = "integer", default = NULL,
-              help = "Random seed (if NULL, uses replication number)", metavar = "number")
+              help = "Random seed (if NULL, uses replication number)", metavar = "number"),
+  make_option(c("--lambda"), type = "double", default = NULL,
+              help = "Fixed lambda value (for dirichlet_misspec study)", metavar = "number")
 )
 
 opt_parser <- OptionParser(option_list = option_list)
@@ -147,8 +149,8 @@ if (opt$`study-type` == "covariate_shift") {
 
 } else if (opt$`study-type` == "dirichlet_misspec") {
   # Dirichlet misspecification
-  # For this, lambda is fixed (will need to add as parameter)
-  lambda_empirical <- 0.2  # Default
+  # Use provided lambda or default to 0.2
+  lambda_empirical <- if (!is.null(opt$lambda)) opt$lambda else 0.2
 
   multiple_futures <- replicate(opt$`n-true-studies`, {
     future <- generate_future_study(

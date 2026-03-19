@@ -23,13 +23,29 @@ export O2_HOME="${HOME}"
 
 echo "Loading O2 environment..."
 
-# Load R (prefer latest stable version)
-# Available versions on O2: R/4.4.2, R/4.5.2
-module load R/4.5.2
+# Load R (try versions in order of preference)
+# Run 'module spider R' to see available versions on your cluster
+R_VERSIONS=("R/4.4.2" "R/4.4.1" "R/4.3.1" "R/4.2.2" "R")
+
+R_LOADED=false
+for R_VERSION in "${R_VERSIONS[@]}"; do
+    echo "  Trying to load $R_VERSION..."
+    if module load $R_VERSION 2>/dev/null; then
+        R_LOADED=true
+        echo "  Successfully loaded $R_VERSION"
+        break
+    fi
+done
 
 # Verify R loaded successfully
-if ! command -v R &> /dev/null; then
-    echo "ERROR: R module failed to load"
+if ! command -v R &> /dev/null || [ "$R_LOADED" = false ]; then
+    echo ""
+    echo "ERROR: No R module could be loaded"
+    echo ""
+    echo "To see available R versions on O2, run:"
+    echo "  module spider R"
+    echo ""
+    echo "Then edit sims/slurm/o2_config.sh and update R_VERSIONS array"
     exit 1
 fi
 
