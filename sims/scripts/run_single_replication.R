@@ -159,7 +159,7 @@ if (opt$`study-type` == "covariate_shift") {
       innovation_type = "bayesian_bootstrap",
       alpha = scenario_config$alpha
     )
-    effects <- compute_multiple_treatment_effects(future, c("S", "Y"))
+    effects <- compute_multiple_treatment_effects(future$future_data, c("S", "Y"))
     c(delta_s = effects["S"], delta_y = effects["Y"])
   }, simplify = FALSE)
 }
