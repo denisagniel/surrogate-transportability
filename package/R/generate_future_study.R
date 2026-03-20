@@ -13,6 +13,10 @@
 #'   Default: 0.3 for moderate perturbation.
 #' @param innovation_type Character. Type of innovation distribution:
 #'   "bayesian_bootstrap" (default) or "dirichlet_process".
+#' @param alpha Numeric. Concentration parameter for the Dirichlet innovation distribution.
+#'   Default: 1 (uniform over simplex, equivalent to Bayesian bootstrap).
+#'   Values < 1: concentrated toward boundaries (sparse).
+#'   Values > 1: concentrated toward center (diffuse).
 #' @param future_n Integer. Sample size for the future study. Default: same as current study.
 #' @param seed Integer. Random seed for reproducibility.
 #'
@@ -27,11 +31,17 @@
 #'
 #' where:
 #' - P₀ is the current study distribution (empirical distribution)
-#' - P̃ is the innovation distribution (Bayesian bootstrap or Dirichlet process)
+#' - P̃ is the innovation distribution ~ Dirichlet(α, α, ..., α)
 #' - λ is a fixed design parameter controlling the total variation distance
+#' - α controls the concentration of the innovation distribution
 #'
 #' When λ ≈ 0, future studies are very similar to the current study.
 #' When λ ≈ 1, future studies may differ substantially from the current study.
+#'
+#' The concentration parameter α controls the innovation distribution properties:
+#' - α = 1: uniform over simplex (Bayesian bootstrap, default)
+#' - α < 1: concentrated toward boundaries (sparse, favors extreme weights)
+#' - α > 1: concentrated toward center (diffuse, more uniform weights)
 #'
 #' This implementation follows the fixed-λ framework from the methods paper (Section 3).
 #' For grid search over multiple λ values, see \code{\link{grid_search_lambda}}.
@@ -56,6 +66,7 @@
 generate_future_study <- function(current_data,
                                  lambda = 0.3,
                                  innovation_type = c("bayesian_bootstrap", "dirichlet_process"),
+                                 alpha = 1,
                                  future_n = nrow(current_data),
                                  seed = NULL) {
 
@@ -71,18 +82,8 @@ generate_future_study <- function(current_data,
   }
   
   # Step 2: Generate innovation distribution weights
-  innovation_weights <- switch(innovation_type,
-    "bayesian_bootstrap" = {
-      # Bayesian bootstrap: Dirichlet(1, 1, ..., 1)
-      as.numeric(MCMCpack::rdirichlet(1, rep(1, n)))
-    },
-    "dirichlet_process" = {
-      # Dirichlet process: more concentrated weights
-      # Use Dirichlet with concentration parameter
-      concentration <- 1.0
-      as.numeric(MCMCpack::rdirichlet(1, rep(concentration, n)))
-    }
-  )
+  # Use Dirichlet(alpha, alpha, ..., alpha) where alpha controls concentration
+  innovation_weights <- as.numeric(MCMCpack::rdirichlet(1, rep(alpha, n)))
   
   # Step 3: Current study weights (uniform empirical distribution)
   p0_weights <- rep(1/n, n)
@@ -118,6 +119,7 @@ generate_future_study <- function(current_data,
 #' @param lambda Numeric value in [0,1] controlling the perturbation distance.
 #'   Default: 0.3. All generated studies use the same lambda value.
 #' @param innovation_type Character. Type of innovation distribution.
+#' @param alpha Numeric. Concentration parameter for the Dirichlet distribution. Default: 1.
 #' @param future_n Integer. Sample size for each future study.
 #' @param seed Integer. Random seed for reproducibility.
 #' @param parallel Logical. Whether to use parallel processing (future package).
@@ -158,6 +160,7 @@ generate_multiple_future_studies <- function(current_data,
                                            n_future_studies = 100,
                                            lambda = 0.3,
                                            innovation_type = c("bayesian_bootstrap", "dirichlet_process"),
+                                           alpha = 1,
                                            future_n = nrow(current_data),
                                            seed = NULL,
                                            parallel = FALSE) {
@@ -180,6 +183,7 @@ generate_multiple_future_studies <- function(current_data,
           current_data = current_data,
           lambda = lambda,
           innovation_type = innovation_type,
+          alpha = alpha,
           future_n = future_n,
           seed = NULL  # Don't set seed in parallel
         )
@@ -197,6 +201,7 @@ generate_multiple_future_studies <- function(current_data,
           current_data = current_data,
           lambda = lambda,
           innovation_type = innovation_type,
+          alpha = alpha,
           future_n = future_n,
           seed = NULL
         )
