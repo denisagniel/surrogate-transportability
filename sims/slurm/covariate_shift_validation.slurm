@@ -5,8 +5,8 @@
 #SBATCH --array=1-1000
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=6G
-#SBATCH --time=00:45:00
-#SBATCH --partition=short
+#SBATCH --time=20:00:00
+#SBATCH --partition=medium
 
 # Covariate Shift Validation Study
 # Run as: sbatch --export=SCENARIO=small sims/slurm/covariate_shift_validation.slurm
@@ -15,10 +15,11 @@
 # Runs 1000 replications for the specified scenario
 #
 # O2-specific configuration:
-# - partition=short: 12 hour limit, faster scheduling
+# - partition=medium: 5 day limit (needed for 500/500/200 bootstrap)
 # - mem=6G: Conservative for O2 environment
-# - R/4.5.2: Latest stable R version on O2
-# - array=1-500: Override with --array for testing (e.g., --array=1-10)
+# - time=20:00:00: ~14 hours expected per replication
+# - Bootstrap parameters: 500 baseline resamples, 500 F_λ draws, 200 MC draws
+# - array=1-1000: Override with --array for testing (e.g., --array=1-10)
 
 # Check that SCENARIO is set
 if [ -z "$SCENARIO" ]; then
@@ -64,9 +65,9 @@ Rscript sims/scripts/run_single_replication.R \
   --output-dir "$OUTPUT_DIR" \
   --n-baseline 1000 \
   --n-true-studies 500 \
-  --n-baseline-resamples 100 \
-  --n-bootstrap 100 \
-  --n-mc-draws 50
+  --n-baseline-resamples 500 \
+  --n-bootstrap 500 \
+  --n-mc-draws 200
 
 # Exit with script's exit code
 exit $?

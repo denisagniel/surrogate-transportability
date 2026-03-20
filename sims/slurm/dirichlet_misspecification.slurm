@@ -5,8 +5,8 @@
 #SBATCH --array=1-1000
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=6G
-#SBATCH --time=00:45:00
-#SBATCH --partition=short
+#SBATCH --time=20:00:00
+#SBATCH --partition=medium
 
 # Dirichlet Misspecification Validation Study
 # Run as: sbatch --export=SCENARIO=sparse sims/slurm/dirichlet_misspecification.slurm
@@ -15,9 +15,10 @@
 # Runs 1000 replications for the specified scenario
 #
 # O2-specific configuration:
-# - partition=short: 12 hour limit, faster scheduling
+# - partition=medium: 5 day limit (needed for 500/500/200 bootstrap)
 # - mem=6G: Conservative for O2 environment
-# - R/4.5.2: Latest stable R version on O2
+# - time=20:00:00: ~14 hours expected per replication
+# - Bootstrap parameters: 500 baseline resamples, 500 F_λ draws, 200 MC draws
 
 # Check that SCENARIO is set
 if [ -z "$SCENARIO" ]; then
@@ -64,9 +65,9 @@ Rscript sims/scripts/run_single_replication.R \
   --lambda 0.2 \
   --n-baseline 1000 \
   --n-true-studies 500 \
-  --n-baseline-resamples 100 \
-  --n-bootstrap 100 \
-  --n-mc-draws 50
+  --n-baseline-resamples 500 \
+  --n-bootstrap 500 \
+  --n-mc-draws 200
 
 # Exit with script's exit code
 exit $?
