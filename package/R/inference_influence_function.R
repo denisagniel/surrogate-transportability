@@ -220,6 +220,12 @@ compute_functional_from_effects <- function(delta_s_vec, delta_y_vec,
                                            functional_type,
                                            epsilon_s, epsilon_y) {
   if (functional_type == "correlation") {
+    # Handle zero variance case (e.g., all values identical)
+    if (sd(delta_s_vec) == 0 || sd(delta_y_vec) == 0) {
+      # If no variation in one variable, correlation is undefined
+      # Return 0 as a reasonable default (no linear relationship detectable)
+      return(0)
+    }
     cor(delta_s_vec, delta_y_vec)
   } else if (functional_type == "probability") {
     mean((delta_s_vec > epsilon_s) & (delta_y_vec > epsilon_y)) /

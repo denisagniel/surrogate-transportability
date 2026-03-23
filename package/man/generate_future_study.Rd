@@ -8,6 +8,7 @@ generate_future_study(
   current_data,
   lambda = 0.3,
   innovation_type = c("bayesian_bootstrap", "dirichlet_process"),
+  alpha = 1,
   future_n = nrow(current_data),
   seed = NULL
 )
@@ -24,6 +25,11 @@ Default: 0.3 for moderate perturbation.}
 
 \item{innovation_type}{Character. Type of innovation distribution:
 "bayesian_bootstrap" (default) or "dirichlet_process".}
+
+\item{alpha}{Numeric. Concentration parameter for the Dirichlet innovation distribution.
+Default: 1 (uniform over simplex, equivalent to Bayesian bootstrap).
+Values < 1: concentrated toward boundaries (sparse).
+Values > 1: concentrated toward center (diffuse).}
 
 \item{future_n}{Integer. Sample size for the future study. Default: same as current study.}
 
@@ -46,11 +52,17 @@ Q = (1-λ)P₀ + λP̃
 
 where:
 - P₀ is the current study distribution (empirical distribution)
-- P̃ is the innovation distribution (Bayesian bootstrap or Dirichlet process)
+- P̃ is the innovation distribution ~ Dirichlet(α, α, ..., α)
 - λ is a fixed design parameter controlling the total variation distance
+- α controls the concentration of the innovation distribution
 
 When λ ≈ 0, future studies are very similar to the current study.
 When λ ≈ 1, future studies may differ substantially from the current study.
+
+The concentration parameter α controls the innovation distribution properties:
+- α = 1: uniform over simplex (Bayesian bootstrap, default)
+- α < 1: concentrated toward boundaries (sparse, favors extreme weights)
+- α > 1: concentrated toward center (diffuse, more uniform weights)
 
 This implementation follows the fixed-λ framework from the methods paper (Section 3).
 For grid search over multiple λ values, see \code{\link{grid_search_lambda}}.

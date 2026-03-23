@@ -9,6 +9,7 @@ generate_multiple_future_studies(
   n_future_studies = 100,
   lambda = 0.3,
   innovation_type = c("bayesian_bootstrap", "dirichlet_process"),
+  alpha = 1,
   future_n = nrow(current_data),
   seed = NULL,
   parallel = FALSE
@@ -23,6 +24,8 @@ generate_multiple_future_studies(
 Default: 0.3. All generated studies use the same lambda value.}
 
 \item{innovation_type}{Character. Type of innovation distribution.}
+
+\item{alpha}{Numeric. Concentration parameter for the Dirichlet distribution. Default: 1.}
 
 \item{future_n}{Integer. Sample size for each future study.}
 

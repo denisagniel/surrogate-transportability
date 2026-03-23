@@ -8,6 +8,7 @@ posterior_inference(
   current_data,
   n_draws_from_F = 500,
   n_future_studies_per_draw = 200,
+  n_baseline_resamples = 1,
   lambda = 0.3,
   innovation_type = c("bayesian_bootstrap", "dirichlet_process"),
   functional_type = c("correlation", "probability", "conditional_mean", "all"),
@@ -26,6 +27,10 @@ posterior_inference(
 \item{n_draws_from_F}{Integer. Number of draws from super-population F (resampling P₀).}
 
 \item{n_future_studies_per_draw}{Integer. Number of future studies Q generated per draw from F.}
+
+\item{n_baseline_resamples}{Integer. Number of times to resample baseline for proper CI.
+When n_baseline_resamples > 1, implements nested bootstrap for valid inference.
+Default: 1 (single baseline, quantiles only).}
 
 \item{lambda}{Numeric value in [0,1] controlling the perturbation distance from P₀.
 When λ = 0, future studies equal current study.
