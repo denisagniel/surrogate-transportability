@@ -6,7 +6,7 @@
 \usage{
 compute_functional_with_ci(
   treatment_effects,
-  functional_type = c("correlation", "probability", "conditional_mean"),
+  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv"),
   n_bootstrap = 1000,
   confidence_level = 0.95,
   ...
@@ -15,7 +15,7 @@ compute_functional_with_ci(
 \arguments{
 \item{treatment_effects}{A tibble with columns delta_s and delta_y.}
 
-\item{functional_type}{Character. Type of functional: "correlation", "probability", or "conditional_mean".}
+\item{functional_type}{Character. Type of functional: "correlation", "probability", "conditional_mean", or "ppv".}
 
 \item{n_bootstrap}{Integer. Number of bootstrap samples.}
 
@@ -43,8 +43,8 @@ treatment_effects <- extract_treatment_effects(future_studies)
 
 # Compute correlation with CI
 correlation_ci <- compute_functional_with_ci(
-  treatment_effects, 
-  "correlation", 
+  treatment_effects,
+  "correlation",
   n_bootstrap = 1000
 )
 

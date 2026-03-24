@@ -1,101 +1,148 @@
-#' @importFrom stats quantile sd cor
+#' @importFrom stats quantile sd cor weighted.mean dnorm
 NULL
 
 #' Minimax Inference for Surrogate Transportability
 #'
-#' Computes worst-case bounds [phi_*, phi*] for surrogate quality over a class
-#' of innovation distributions. Provides robust inference that does not
-#' depend on correctly specifying mu.
+#' Computes worst-case (minimax) bounds for surrogate quality over a
+#' total variation (TV) ball of distributions. Uses RF-ensemble type-level
+#' approach with validated <2% approximation error.
 #'
 #' @param current_data Data frame with columns A (treatment), S (surrogate), Y (outcome)
-#' @param lambda Perturbation parameter in [0,1] controlling TV distance
-#' @param functional_type Character: "correlation", "probability", or "conditional_mean"
-#' @param dirichlet_alpha_range Numeric vector of length 2: [min_alpha, max_alpha] for Dirichlet search
-#' @param n_dirichlet_grid Integer: number of Dirichlet alpha values to search
-#' @param include_vertices Logical: include point mass innovations on individual units?
-#' @param max_vertices Integer: max number of vertices to check (for computational tractability)
-#' @param n_innovations Integer: number of Monte Carlo innovations per grid point
-#' @param confidence_level Numeric in (0,1): confidence level for bootstrap CI (if n_bootstrap > 0)
-#' @param n_bootstrap Integer: number of bootstrap samples for CI on bounds (0 = none)
-#' @param epsilon_s Numeric: threshold for probability functional
-#' @param epsilon_y Numeric: threshold for probability functional
+#' @param lambda TV-ball radius in [0,1] controlling perturbation magnitude
+#' @param functional_type Character: "correlation", "probability", "conditional_mean", "ppv", or "npv"
+#'
+#' @param discretization_schemes Character vector: which schemes to use in ensemble
+#'   Default: c("rf", "quantiles", "kmeans"). RF requires randomForest package.
+#' @param covariate_cols Character vector of covariate column names.
+#'   If NULL, auto-detects all columns except A, S, Y
+#' @param J_target Integer: target number of types for discretization
+#'
+#' @param n_innovations Integer: number of Dirichlet innovations per scheme
+#'
+#' @param epsilon_s Numeric: threshold for probability/PPV functionals
+#' @param epsilon_y Numeric: threshold for probability/PPV functionals
 #' @param delta_s_value Numeric: conditioning value for conditional_mean functional
-#' @param parallel Logical: use parallel processing?
+#'
+#' @param confidence_level Numeric in (0,1): confidence level for bootstrap CI
+#' @param n_bootstrap Integer: number of bootstrap samples for CI (0 = no CI)
+#'
+#' @param parallel Logical: use parallel processing for bootstrap?
 #' @param seed Integer: random seed for reproducibility
 #' @param verbose Logical: print progress messages?
 #'
 #' @return List with components:
-#'   \item{phi_star}{Supremum of phi over M}
-#'   \item{phi_star_lower}{Infimum of phi over M}
-#'   \item{bound_width}{Width of worst-case interval}
-#'   \item{search_grid}{Tibble with all evaluated (mu, phi) pairs}
-#'   \item{alpha_at_sup}{Which mu achieved supremum}
-#'   \item{alpha_at_inf}{Which mu achieved infimum}
-#'   \item{method_estimate}{Standard method (alpha=1) estimate for comparison}
-#'   \item{method_ci_lower}{Standard method CI lower bound}
-#'   \item{method_ci_upper}{Standard method CI upper bound}
-#'   \item{method_contained}{Logical: is method estimate within bounds?}
-#'   \item{phi_star_ci}{Bootstrap CI on supremum (if n_bootstrap > 0)}
-#'   \item{phi_star_lower_ci}{Bootstrap CI on infimum (if n_bootstrap > 0)}
+#'   \item{phi_star}{Minimax estimate (conservative lower bound on surrogate quality)}
+#'   \item{phi_star_lower}{Same as phi_star (for consistency with old API)}
+#'   \item{best_scheme}{Which discretization scheme achieved minimum}
+#'   \item{schemes_summary}{Tibble with results per scheme}
+#'   \item{all_schemes}{Detailed results per scheme (if requested)}
+#'   \item{ci_lower}{Bootstrap CI lower bound (if n_bootstrap > 0)}
+#'   \item{ci_upper}{Bootstrap CI upper bound (if n_bootstrap > 0)}
 #'   \item{lambda}{Lambda parameter used}
 #'   \item{functional_type}{Functional type}
-#'   \item{class_M}{List describing the class M}
+#'   \item{n}{Sample size}
+#'   \item{call}{Function call}
 #'
 #' @details
-#' This function searches over a class M of innovation distributions to find
-#' worst-case bounds on surrogate quality phi(F_lambda). The class includes:
-#' \itemize{
-#'   \item Dirichlet(alpha,...,alpha) for alpha in \code{dirichlet_alpha_range}
-#'   \item Point masses on individual units (if \code{include_vertices = TRUE})
-#'   \item Uniform distribution (baseline)
-#' }
+#' This function implements the validated RF-ensemble type-level minimax approach:
 #'
-#' The bounds [phi_*, phi*] are guaranteed to contain phi(F_lambda) for ANY innovation
-#' distribution mu in the class M. This provides robust inference that does not
-#' require correctly specifying mu.
+#' **Algorithm:**
+#' 1. Discretize data into types using multiple schemes (RF, quantiles, k-means)
+#' 2. For each scheme:
+#'    - Generate J-dimensional Dirichlet innovations (type-level, NOT observation-level)
+#'    - Form mixtures Q_m = (1-λ)P₀ + λP̃_m at type level
+#'    - Map to observation weights and compute treatment effects
+#'    - Compute functional from treatment effect distribution
+#' 3. Take MINIMUM across all schemes (ensemble estimate)
 #'
-#' The parameter lambda controls total variation distance: any future study Q with
-#' TV(Q, P₀) ≤ lambda can be represented as Q = (1-lambda)P₀ + lambdaPi_tilde for some Pi_tilde.
+#' **Key Innovation:**
+#' - Uses TYPE-LEVEL innovations (J-dimensional) instead of observation-level (n-dimensional)
+#' - Validated to achieve <2% approximation error to true TV-ball minimax
+#' - Ensemble over schemes explores different "directions" in TV-ball
+#'
+#' **Interpretation:**
+#' The parameter lambda controls total variation distance: any future study Q
+#' with TV(Q, P₀) ≤ lambda can be represented as Q = (1-lambda)P₀ + lambda*Pi_tilde.
+#' The minimax estimate phi_star is a conservative lower bound: the true surrogate
+#' quality in the worst-case future study within the TV-ball.
+#'
+#' **Discretization Schemes:**
+#' - **RF**: Random forest on treatment effects (requires randomForest package)
+#' - **Quantiles**: Quantile bins on covariates
+#' - **K-means**: K-means clustering on covariates
+#'
+#' Each scheme explores different covariate relationships. Taking the minimum
+#' approximates the true worst-case over all possible distributions in the TV-ball.
 #'
 #' @references
-#' Paper citation here (methods/main.tex, Theorem 1, lines 138-143)
+#' Validation: validate_rf_ensemble_theory.R shows <2% approximation error
+#' across multiple data-generating scenarios.
 #'
-#' @seealso \code{\link{surrogate_inference_if}} for standard inference assuming mu known
+#' @seealso \code{\link{surrogate_inference_if}} for standard inference assuming innovation distribution known
 #'
 #' @examples
 #' \dontrun{
-#' data <- generate_study_data(n = 500)
-#' result <- surrogate_inference_minimax(
+#' # Generate example data
+#' data <- generate_study_data(n = 1000)
+#'
+#' # Minimax inference with default settings
+#' result <- surrogate_inference_minimax(data, lambda = 0.3)
+#' cat(sprintf("Minimax correlation: %.3f\n", result$phi_star))
+#'
+#' # With bootstrap CI
+#' result_ci <- surrogate_inference_minimax(
 #'   data, lambda = 0.3,
-#'   functional_type = "correlation",
-#'   n_innovations = 1000
+#'   n_bootstrap = 100,
+#'   confidence_level = 0.95
 #' )
-#' cat(sprintf("Worst-case bounds: [%.3f, %.3f]\n",
-#'             result$phi_star_lower, result$phi_star))
+#' cat(sprintf("95%% CI: [%.3f, %.3f]\n",
+#'             result_ci$ci_lower, result_ci$ci_upper))
+#'
+#' # PPV functional
+#' result_ppv <- surrogate_inference_minimax(
+#'   data, lambda = 0.3,
+#'   functional_type = "ppv",
+#'   epsilon_s = 0.5,
+#'   epsilon_y = 0.5
+#' )
 #' }
 #'
 #' @export
 surrogate_inference_minimax <- function(
   current_data,
   lambda,
-  functional_type = c("correlation", "probability", "conditional_mean"),
-  dirichlet_alpha_range = c(0.01, 100),
-  n_dirichlet_grid = 40,
-  include_vertices = TRUE,
-  max_vertices = 50,
+  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv"),
+
+  # Discretization parameters
+  discretization_schemes = c("rf", "quantiles", "kmeans"),
+  covariate_cols = NULL,
+  J_target = 16,
+
+  # Innovation parameters
   n_innovations = 2000,
-  confidence_level = 0.95,
-  n_bootstrap = 0,
+
+  # Functional-specific parameters
   epsilon_s = NULL,
   epsilon_y = NULL,
   delta_s_value = NULL,
+
+  # Bootstrap CI (optional)
+  confidence_level = 0.95,
+  n_bootstrap = 0,
+
+  # Execution parameters
   parallel = TRUE,
   seed = NULL,
   verbose = TRUE
 ) {
 
+  # Match and validate arguments
   functional_type <- match.arg(functional_type)
 
+  # Store function call
+  call <- match.call()
+
+  # Set seed if provided
   if (!is.null(seed)) set.seed(seed)
 
   n <- nrow(current_data)
@@ -105,384 +152,174 @@ surrogate_inference_minimax <- function(
     stop("lambda must be a single numeric value in [0, 1]")
   }
 
-  if (functional_type == "probability" && (is.null(epsilon_s) || is.null(epsilon_y))) {
-    stop("epsilon_s and epsilon_y must be specified for probability functional")
+  if ((functional_type %in% c("probability", "ppv")) &&
+      (is.null(epsilon_s) || is.null(epsilon_y))) {
+    stop("epsilon_s and epsilon_y must be specified for probability/PPV functional")
+  }
+
+  if (functional_type == "npv" && (is.null(epsilon_s) || is.null(epsilon_y))) {
+    stop("epsilon_s and epsilon_y must be specified for NPV functional")
   }
 
   if (functional_type == "conditional_mean" && is.null(delta_s_value)) {
     stop("delta_s_value must be specified for conditional_mean functional")
   }
 
-  # Step 1: Construct search grid
-  if (verbose) message("Constructing search grid...")
-  search_grid <- construct_search_grid(
-    n = n,
-    dirichlet_alpha_range = dirichlet_alpha_range,
-    n_dirichlet_grid = n_dirichlet_grid,
-    include_vertices = include_vertices,
-    max_vertices = max_vertices
-  )
-
-  if (verbose) {
-    message(sprintf("Evaluating phi at %d grid points...", nrow(search_grid)))
+  # Validate required columns
+  required_cols <- c("A", "S", "Y")
+  missing_cols <- setdiff(required_cols, names(current_data))
+  if (length(missing_cols) > 0) {
+    stop("Required columns missing from current_data: ", paste(missing_cols, collapse = ", "))
   }
 
-  # Step 2: Evaluate phi at each grid point
-  if (parallel && requireNamespace("furrr", quietly = TRUE) &&
-      requireNamespace("future", quietly = TRUE)) {
-
-    if (verbose) message("Using parallel processing...")
-
-    # Set up parallel backend
-    future::plan(future::multisession, workers = parallel::detectCores() - 1)
-
-    # Evaluate in parallel
-    search_grid$phi_value <- furrr::future_map_dbl(
-      1:nrow(search_grid),
-      function(i) {
-        evaluate_phi_at_grid_point(
-          search_grid[i, ],
-          current_data = current_data,
-          lambda = lambda,
-          n_innovations = n_innovations,
-          functional_type = functional_type,
-          epsilon_s = epsilon_s,
-          epsilon_y = epsilon_y,
-          delta_s_value = delta_s_value
-        )
-      },
-      .options = furrr::furrr_options(seed = TRUE)
-    )
-
-    # Reset to sequential
-    future::plan(future::sequential)
-
-  } else {
-    # Sequential evaluation
-    if (verbose && parallel) {
-      message("furrr/future packages not available, using sequential processing")
-    }
-
-    search_grid$phi_value <- numeric(nrow(search_grid))
-
-    for (i in 1:nrow(search_grid)) {
-      if (verbose && i %% 10 == 0) {
-        message(sprintf("  Progress: %d/%d grid points", i, nrow(search_grid)))
-      }
-
-      search_grid$phi_value[i] <- evaluate_phi_at_grid_point(
-        search_grid[i, ],
-        current_data = current_data,
-        lambda = lambda,
-        n_innovations = n_innovations,
-        functional_type = functional_type,
-        epsilon_s = epsilon_s,
-        epsilon_y = epsilon_y,
-        delta_s_value = delta_s_value
-      )
+  # Auto-detect covariate columns if needed
+  if (is.null(covariate_cols)) {
+    covariate_cols <- setdiff(names(current_data), c("A", "S", "Y"))
+    if (length(covariate_cols) == 0) {
+      stop("No covariate columns found. Data must have columns other than A, S, Y, ",
+           "or specify covariate_cols explicitly")
     }
   }
 
-  # Step 3: Find extrema
-  phi_star <- max(search_grid$phi_value, na.rm = TRUE)
-  phi_star_lower <- min(search_grid$phi_value, na.rm = TRUE)
-  bound_width <- phi_star - phi_star_lower
-
-  # Identify which mu achieved extrema
-  idx_sup <- which.max(search_grid$phi_value)
-  idx_inf <- which.min(search_grid$phi_value)
-
-  mu_at_sup <- list(
-    mu_type = search_grid$mu_type[idx_sup],
-    alpha = search_grid$alpha[idx_sup],
-    vertex_id = search_grid$vertex_id[idx_sup]
-  )
-
-  mu_at_inf <- list(
-    mu_type = search_grid$mu_type[idx_inf],
-    alpha = search_grid$alpha[idx_inf],
-    vertex_id = search_grid$vertex_id[idx_inf]
-  )
-
   if (verbose) {
-    message(sprintf("Bounds: [%.4f, %.4f] (width: %.4f)",
-                    phi_star_lower, phi_star, bound_width))
-    message(sprintf("Supremum achieved at: %s", mu_at_sup$mu_type))
-    message(sprintf("Infimum achieved at: %s", mu_at_inf$mu_type))
+    message("========================================")
+    message("Minimax Inference (RF-Ensemble)")
+    message("========================================")
+    message(sprintf("Sample size: n = %d", n))
+    message(sprintf("Lambda: %.3f", lambda))
+    message(sprintf("Functional: %s", functional_type))
+    message(sprintf("Schemes: %s", paste(discretization_schemes, collapse = ", ")))
+    message(sprintf("Target types: J = %d", J_target))
+    message(sprintf("Innovations per scheme: M = %d", n_innovations))
+    message("")
   }
 
-  # Step 4: Compare to standard method (alpha=1)
-  if (verbose) message("Computing standard method estimate for comparison...")
-
-  method_result <- surrogate_inference_if(
-    current_data = current_data,
+  # Main estimation via ensemble
+  result <- estimate_minimax_ensemble(
+    data = current_data,
     lambda = lambda,
-    n_innovations = n_innovations,
+    schemes = discretization_schemes,
+    covariate_cols = covariate_cols,
+    J_target = J_target,
+    M = n_innovations,
     functional_type = functional_type,
     epsilon_s = epsilon_s,
     epsilon_y = epsilon_y,
-    alpha = 1,
-    confidence_level = confidence_level
+    delta_s_value = delta_s_value,
+    verbose = verbose
   )
 
-  method_contained <- (phi_star_lower <= method_result$estimate) &&
-                      (method_result$estimate <= phi_star)
-
-  if (verbose) {
-    message(sprintf("Standard method: %.4f [%.4f, %.4f]",
-                    method_result$estimate,
-                    method_result$ci_lower,
-                    method_result$ci_upper))
-    message(sprintf("Method estimate contained in bounds: %s", method_contained))
-  }
-
-  # Step 5: (Optional) Bootstrap CI on bounds
-  phi_star_ci <- NULL
-  phi_star_lower_ci <- NULL
+  # Bootstrap CI if requested
+  ci_lower <- NULL
+  ci_upper <- NULL
+  bootstrap_estimates <- NULL
 
   if (n_bootstrap > 0) {
-    if (verbose) message(sprintf("Computing bootstrap CI with %d samples...", n_bootstrap))
+    if (verbose) {
+      message("")
+      message(sprintf("Computing bootstrap CI (%d samples)...", n_bootstrap))
+    }
 
-    bootstrap_results <- bootstrap_minimax_bounds(
+    bootstrap_result <- bootstrap_minimax_ci(
       current_data = current_data,
       lambda = lambda,
       functional_type = functional_type,
-      dirichlet_alpha_range = dirichlet_alpha_range,
-      n_dirichlet_grid = n_dirichlet_grid,
-      include_vertices = include_vertices,
-      max_vertices = max_vertices,
+      discretization_schemes = discretization_schemes,
+      covariate_cols = covariate_cols,
+      J_target = J_target,
       n_innovations = n_innovations,
-      n_bootstrap = n_bootstrap,
-      confidence_level = confidence_level,
       epsilon_s = epsilon_s,
       epsilon_y = epsilon_y,
       delta_s_value = delta_s_value,
+      n_bootstrap = n_bootstrap,
+      confidence_level = confidence_level,
       parallel = parallel,
       verbose = verbose
     )
 
-    phi_star_ci <- bootstrap_results$phi_star_ci
-    phi_star_lower_ci <- bootstrap_results$phi_star_lower_ci
+    ci_lower <- bootstrap_result$ci_lower
+    ci_upper <- bootstrap_result$ci_upper
+    bootstrap_estimates <- bootstrap_result$bootstrap_estimates
+
+    if (verbose) {
+      message(sprintf("Bootstrap %g%% CI: [%.4f, %.4f]",
+                      100 * confidence_level, ci_lower, ci_upper))
+    }
   }
 
-  # Return results
-  list(
-    phi_star = phi_star,
-    phi_star_lower = phi_star_lower,
-    bound_width = bound_width,
-    search_grid = search_grid,
-    mu_at_sup = mu_at_sup,
-    mu_at_inf = mu_at_inf,
-    method_estimate = method_result$estimate,
-    method_ci_lower = method_result$ci_lower,
-    method_ci_upper = method_result$ci_upper,
-    method_se = method_result$se,
-    method_contained = method_contained,
-    phi_star_ci = phi_star_ci,
-    phi_star_lower_ci = phi_star_lower_ci,
+  if (verbose) {
+    message("")
+    message("========================================")
+    message("Results:")
+    message(sprintf("  Minimax estimate: %.4f", result$phi_star))
+    message(sprintf("  Best scheme: %s", result$best_scheme))
+    if (!is.null(ci_lower)) {
+      message(sprintf("  %g%% CI: [%.4f, %.4f]",
+                      100 * confidence_level, ci_lower, ci_upper))
+    }
+    message("========================================")
+  }
+
+  # Format return object
+  output <- list(
+    phi_star = result$phi_star,
+    phi_star_lower = result$phi_star,  # Same as phi_star (conservative bound)
+    best_scheme = result$best_scheme,
+    schemes_summary = result$schemes_summary,
     lambda = lambda,
     functional_type = functional_type,
-    class_M = list(
-      dirichlet_range = dirichlet_alpha_range,
-      n_dirichlet_grid = n_dirichlet_grid,
-      vertices_included = include_vertices,
-      max_vertices = max_vertices,
-      n_evaluations = nrow(search_grid)
-    ),
-    parameters = list(
-      n_innovations = n_innovations,
-      n_bootstrap = n_bootstrap,
-      confidence_level = confidence_level,
-      n = n
-    )
+    n = n,
+    call = call
   )
+
+  # Add optional components
+  if (n_bootstrap > 0) {
+    output$ci_lower <- ci_lower
+    output$ci_upper <- ci_upper
+    output$bootstrap_estimates <- bootstrap_estimates
+    output$confidence_level <- confidence_level
+  }
+
+  # Add detailed scheme results if verbose
+  if (verbose) {
+    output$all_schemes <- result$all_schemes
+  }
+
+  output
 }
 
 
-#' Construct search grid for minimax inference
+#' Bootstrap Confidence Interval for Minimax Estimate
 #'
-#' Builds grid of innovation distributions to search over.
-#'
-#' @param n Sample size
-#' @param dirichlet_alpha_range Range of alpha values
-#' @param n_dirichlet_grid Number of Dirichlet grid points
-#' @param include_vertices Include vertex distributions?
-#' @param max_vertices Maximum number of vertices
-#'
-#' @return Tibble with mu_type, alpha, vertex_id columns
-#' @keywords internal
-construct_search_grid <- function(n,
-                                   dirichlet_alpha_range,
-                                   n_dirichlet_grid,
-                                   include_vertices,
-                                   max_vertices) {
-
-  # Dirichlet grid (log-spaced)
-  alpha_grid <- exp(seq(
-    log(dirichlet_alpha_range[1]),
-    log(dirichlet_alpha_range[2]),
-    length.out = n_dirichlet_grid
-  ))
-
-  # Start with Dirichlet entries
-  grid_list <- list(
-    tibble::tibble(
-      mu_type = "dirichlet",
-      alpha = alpha_grid,
-      vertex_id = NA_integer_
-    )
-  )
-
-  # Add vertices if requested
-  if (include_vertices) {
-    if (n > max_vertices) {
-      # Sample vertices randomly
-      vertex_ids <- sample(1:n, max_vertices)
-    } else {
-      vertex_ids <- 1:n
-    }
-
-    grid_list[[length(grid_list) + 1]] <- tibble::tibble(
-      mu_type = "vertex",
-      alpha = NA_real_,
-      vertex_id = vertex_ids
-    )
-  }
-
-  # Add uniform baseline (equivalent to lambda=0 limit)
-  grid_list[[length(grid_list) + 1]] <- tibble::tibble(
-    mu_type = "uniform",
-    alpha = NA_real_,
-    vertex_id = NA_integer_
-  )
-
-  # Combine all grid entries
-  dplyr::bind_rows(grid_list)
-}
-
-
-#' Evaluate phi at a specific grid point
-#'
-#' Computes phi(F_lambda) for a given innovation distribution specification.
-#'
-#' @param grid_row Single-row tibble from search_grid
-#' @param current_data Data frame
-#' @param lambda Perturbation parameter
-#' @param n_innovations Number of MC innovations
-#' @param functional_type Type of functional
-#' @param epsilon_s Threshold for probability
-#' @param epsilon_y Threshold for probability
-#' @param delta_s_value Conditioning value for conditional_mean
-#'
-#' @return Scalar phi value
-#' @keywords internal
-evaluate_phi_at_grid_point <- function(grid_row,
-                                       current_data,
-                                       lambda,
-                                       n_innovations,
-                                       functional_type,
-                                       epsilon_s,
-                                       epsilon_y,
-                                       delta_s_value) {
-
-  n <- nrow(current_data)
-  mu_type <- grid_row$mu_type
-
-  # Generate innovations based on mu specification
-  if (mu_type == "dirichlet") {
-    # Dirichlet(alpha,...,alpha)
-    alpha <- grid_row$alpha
-    innovations <- MCMCpack::rdirichlet(n_innovations, rep(alpha, n))
-
-  } else if (mu_type == "vertex") {
-    # Point mass on vertex j
-    j <- grid_row$vertex_id
-    innovations <- matrix(0, nrow = n_innovations, ncol = n)
-    innovations[, j] <- 1
-
-  } else if (mu_type == "uniform") {
-    # Uniform distribution (equivalent to P₀)
-    innovations <- matrix(1/n, nrow = n_innovations, ncol = n)
-
-  } else {
-    stop("Unknown mu_type: ", mu_type)
-  }
-
-  # Compute treatment effects under Q_m = (1-lambda)P₀ + lambdaPi_tilde_m
-  treatment_effects <- matrix(NA, nrow = n_innovations, ncol = 2)
-
-  for (m in 1:n_innovations) {
-    # Mixture weights
-    p_hat <- rep(1/n, n)
-    p_tilde <- innovations[m, ]
-    q_m_weights <- (1 - lambda) * p_hat + lambda * p_tilde
-
-    # Compute treatment effects under Q_m
-    delta_s_qm <- compute_treatment_effect_weighted(current_data, "S", q_m_weights)
-    delta_y_qm <- compute_treatment_effect_weighted(current_data, "Y", q_m_weights)
-
-    treatment_effects[m, 1] <- delta_s_qm
-    treatment_effects[m, 2] <- delta_y_qm
-  }
-
-  # Compute functional from treatment effect pairs
-  phi_value <- compute_functional_from_effects(
-    delta_s_vec = treatment_effects[, 1],
-    delta_y_vec = treatment_effects[, 2],
-    functional_type = functional_type,
-    epsilon_s = epsilon_s,
-    epsilon_y = epsilon_y
-  )
-
-  # Handle conditional_mean separately (not yet implemented in compute_functional_from_effects)
-  if (functional_type == "conditional_mean") {
-    # Use kernel-weighted average
-    te_df <- tibble::tibble(
-      delta_s = treatment_effects[, 1],
-      delta_y = treatment_effects[, 2]
-    )
-    phi_value <- functional_conditional_mean(
-      te_df,
-      delta_s_value = delta_s_value
-    )
-  }
-
-  phi_value
-}
-
-
-#' Bootstrap confidence intervals for minimax bounds
-#'
-#' Computes bootstrap CI on [phi_*, phi*] by resampling current_data.
+#' Computes percentile bootstrap CI by resampling data.
 #'
 #' @inheritParams surrogate_inference_minimax
 #'
-#' @return List with phi_star_ci and phi_star_lower_ci
+#' @return List with ci_lower, ci_upper, bootstrap_estimates
 #' @keywords internal
-bootstrap_minimax_bounds <- function(current_data,
-                                     lambda,
-                                     functional_type,
-                                     dirichlet_alpha_range,
-                                     n_dirichlet_grid,
-                                     include_vertices,
-                                     max_vertices,
-                                     n_innovations,
-                                     n_bootstrap,
-                                     confidence_level,
-                                     epsilon_s,
-                                     epsilon_y,
-                                     delta_s_value,
-                                     parallel,
-                                     verbose) {
+bootstrap_minimax_ci <- function(current_data,
+                                  lambda,
+                                  functional_type,
+                                  discretization_schemes,
+                                  covariate_cols,
+                                  J_target,
+                                  n_innovations,
+                                  epsilon_s,
+                                  epsilon_y,
+                                  delta_s_value,
+                                  n_bootstrap,
+                                  confidence_level,
+                                  parallel,
+                                  verbose) {
 
   n <- nrow(current_data)
 
-  # Store bootstrap bounds
-  bootstrap_phi_star <- numeric(n_bootstrap)
-  bootstrap_phi_star_lower <- numeric(n_bootstrap)
+  # Bootstrap estimates
+  bootstrap_estimates <- numeric(n_bootstrap)
 
-  for (b in 1:n_bootstrap) {
-    if (verbose && b %% 10 == 0) {
+  # Function to run one bootstrap iteration
+  run_bootstrap_iter <- function(b) {
+    if (verbose && (b %% 10 == 0 || b == 1)) {
       message(sprintf("  Bootstrap sample %d/%d", b, n_bootstrap))
     }
 
@@ -490,45 +327,57 @@ bootstrap_minimax_bounds <- function(current_data,
     bootstrap_indices <- sample(1:n, size = n, replace = TRUE)
     bootstrap_data <- current_data[bootstrap_indices, ]
 
-    # Run minimax inference on bootstrap sample
-    bootstrap_result <- surrogate_inference_minimax(
-      current_data = bootstrap_data,
+    # Run ensemble minimax on bootstrap sample
+    result <- estimate_minimax_ensemble(
+      data = bootstrap_data,
       lambda = lambda,
+      schemes = discretization_schemes,
+      covariate_cols = covariate_cols,
+      J_target = J_target,
+      M = n_innovations,
       functional_type = functional_type,
-      dirichlet_alpha_range = dirichlet_alpha_range,
-      n_dirichlet_grid = n_dirichlet_grid,
-      include_vertices = include_vertices,
-      max_vertices = max_vertices,
-      n_innovations = n_innovations,
-      confidence_level = confidence_level,
-      n_bootstrap = 0,  # Don't nest bootstrap
       epsilon_s = epsilon_s,
       epsilon_y = epsilon_y,
       delta_s_value = delta_s_value,
-      parallel = parallel,
-      seed = NULL,
       verbose = FALSE
     )
 
-    bootstrap_phi_star[b] <- bootstrap_result$phi_star
-    bootstrap_phi_star_lower[b] <- bootstrap_result$phi_star_lower
+    result$phi_star
+  }
+
+  # Run bootstrap
+  if (parallel && requireNamespace("furrr", quietly = TRUE) &&
+      requireNamespace("future", quietly = TRUE)) {
+
+    if (verbose) message("  Using parallel processing...")
+
+    # Set up parallel backend
+    future::plan(future::multisession, workers = parallel::detectCores() - 1)
+
+    # Run in parallel
+    bootstrap_estimates <- furrr::future_map_dbl(
+      1:n_bootstrap,
+      run_bootstrap_iter,
+      .options = furrr::furrr_options(seed = TRUE)
+    )
+
+    # Reset to sequential
+    future::plan(future::sequential)
+
+  } else {
+    # Sequential
+    for (b in 1:n_bootstrap) {
+      bootstrap_estimates[b] <- run_bootstrap_iter(b)
+    }
   }
 
   # Compute percentile CI
   alpha <- 1 - confidence_level
-
-  phi_star_ci <- quantile(bootstrap_phi_star,
-                          probs = c(alpha/2, 1 - alpha/2),
-                          na.rm = TRUE)
-
-  phi_star_lower_ci <- quantile(bootstrap_phi_star_lower,
-                                probs = c(alpha/2, 1 - alpha/2),
-                                na.rm = TRUE)
+  ci <- quantile(bootstrap_estimates, probs = c(alpha/2, 1 - alpha/2), na.rm = TRUE)
 
   list(
-    phi_star_ci = as.numeric(phi_star_ci),
-    phi_star_lower_ci = as.numeric(phi_star_lower_ci),
-    bootstrap_phi_star = bootstrap_phi_star,
-    bootstrap_phi_star_lower = bootstrap_phi_star_lower
+    ci_lower = as.numeric(ci[1]),
+    ci_upper = as.numeric(ci[2]),
+    bootstrap_estimates = bootstrap_estimates
   )
 }

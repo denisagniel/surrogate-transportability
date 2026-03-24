@@ -10,7 +10,9 @@ compute_all_functionals(
   epsilon_y = 0.1,
   delta_s_values = c(0.3, 0.5, 0.7),
   correlation_method = c("pearson", "spearman", "kendall"),
-  conditional_method = c("local_linear", "kernel")
+  conditional_method = c("local_linear", "kernel"),
+  n_future = 500,
+  alpha = 0.05
 )
 }
 \arguments{
@@ -25,15 +27,20 @@ compute_all_functionals(
 \item{correlation_method}{Character. Method for correlation.}
 
 \item{conditional_method}{Character. Method for conditional mean.}
+
+\item{n_future}{Integer. Sample size for PPV functional. Default: 500.}
+
+\item{alpha}{Numeric. Significance level for PPV functional. Default: 0.05.}
 }
 \value{
 A list with elements:
   \item{correlation}{Correlation between treatment effects}
   \item{probability}{Conditional probability}
   \item{conditional_means}{Conditional means for specified delta_s_values}
+  \item{ppv}{Positive predictive value}
 }
 \description{
-Convenience function to compute all three main surrogate functionals
+Convenience function to compute all main surrogate functionals
 simultaneously.
 }
 \examples{

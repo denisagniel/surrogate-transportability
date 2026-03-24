@@ -10,7 +10,8 @@ gradient_correlation_analytical(
   lambda,
   alpha,
   n_innovations,
-  data
+  data,
+  use_bootstrap = TRUE
 )
 }
 \description{

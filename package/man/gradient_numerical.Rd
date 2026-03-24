@@ -14,7 +14,8 @@ gradient_numerical(
   epsilon_s,
   epsilon_y,
   eps,
-  data
+  data,
+  use_bootstrap = TRUE
 )
 }
 \description{

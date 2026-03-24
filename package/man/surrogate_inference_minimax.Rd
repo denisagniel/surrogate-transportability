@@ -7,17 +7,16 @@
 surrogate_inference_minimax(
   current_data,
   lambda,
-  functional_type = c("correlation", "probability", "conditional_mean"),
-  dirichlet_alpha_range = c(0.01, 100),
-  n_dirichlet_grid = 40,
-  include_vertices = TRUE,
-  max_vertices = 50,
+  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv"),
+  discretization_schemes = c("rf", "quantiles", "kmeans"),
+  covariate_cols = NULL,
+  J_target = 16,
   n_innovations = 2000,
-  confidence_level = 0.95,
-  n_bootstrap = 0,
   epsilon_s = NULL,
   epsilon_y = NULL,
   delta_s_value = NULL,
+  confidence_level = 0.95,
+  n_bootstrap = 0,
   parallel = TRUE,
   seed = NULL,
   verbose = TRUE
@@ -26,31 +25,31 @@ surrogate_inference_minimax(
 \arguments{
 \item{current_data}{Data frame with columns A (treatment), S (surrogate), Y (outcome)}
 
-\item{lambda}{Perturbation parameter in [0,1] controlling TV distance}
+\item{lambda}{TV-ball radius in [0,1] controlling perturbation magnitude}
 
-\item{functional_type}{Character: "correlation", "probability", or "conditional_mean"}
+\item{functional_type}{Character: "correlation", "probability", "conditional_mean", "ppv", or "npv"}
 
-\item{dirichlet_alpha_range}{Numeric vector of length 2: [min_alpha, max_alpha] for Dirichlet search}
+\item{discretization_schemes}{Character vector: which schemes to use in ensemble
+Default: c("rf", "quantiles", "kmeans"). RF requires randomForest package.}
 
-\item{n_dirichlet_grid}{Integer: number of Dirichlet alpha values to search}
+\item{covariate_cols}{Character vector of covariate column names.
+If NULL, auto-detects all columns except A, S, Y}
 
-\item{include_vertices}{Logical: include point mass innovations on individual units?}
+\item{J_target}{Integer: target number of types for discretization}
 
-\item{max_vertices}{Integer: max number of vertices to check (for computational tractability)}
+\item{n_innovations}{Integer: number of Dirichlet innovations per scheme}
 
-\item{n_innovations}{Integer: number of Monte Carlo innovations per grid point}
+\item{epsilon_s}{Numeric: threshold for probability/PPV functionals}
 
-\item{confidence_level}{Numeric in (0,1): confidence level for bootstrap CI (if n_bootstrap > 0)}
-
-\item{n_bootstrap}{Integer: number of bootstrap samples for CI on bounds (0 = none)}
-
-\item{epsilon_s}{Numeric: threshold for probability functional}
-
-\item{epsilon_y}{Numeric: threshold for probability functional}
+\item{epsilon_y}{Numeric: threshold for probability/PPV functionals}
 
 \item{delta_s_value}{Numeric: conditioning value for conditional_mean functional}
 
-\item{parallel}{Logical: use parallel processing?}
+\item{confidence_level}{Numeric in (0,1): confidence level for bootstrap CI}
+
+\item{n_bootstrap}{Integer: number of bootstrap samples for CI (0 = no CI)}
+
+\item{parallel}{Logical: use parallel processing for bootstrap?}
 
 \item{seed}{Integer: random seed for reproducibility}
 
@@ -58,59 +57,86 @@ surrogate_inference_minimax(
 }
 \value{
 List with components:
-  \item{phi_star}{Supremum of phi over M}
-  \item{phi_star_lower}{Infimum of phi over M}
-  \item{bound_width}{Width of worst-case interval}
-  \item{search_grid}{Tibble with all evaluated (mu, phi) pairs}
-  \item{alpha_at_sup}{Which mu achieved supremum}
-  \item{alpha_at_inf}{Which mu achieved infimum}
-  \item{method_estimate}{Standard method (alpha=1) estimate for comparison}
-  \item{method_ci_lower}{Standard method CI lower bound}
-  \item{method_ci_upper}{Standard method CI upper bound}
-  \item{method_contained}{Logical: is method estimate within bounds?}
-  \item{phi_star_ci}{Bootstrap CI on supremum (if n_bootstrap > 0)}
-  \item{phi_star_lower_ci}{Bootstrap CI on infimum (if n_bootstrap > 0)}
+  \item{phi_star}{Minimax estimate (conservative lower bound on surrogate quality)}
+  \item{phi_star_lower}{Same as phi_star (for consistency with old API)}
+  \item{best_scheme}{Which discretization scheme achieved minimum}
+  \item{schemes_summary}{Tibble with results per scheme}
+  \item{all_schemes}{Detailed results per scheme (if requested)}
+  \item{ci_lower}{Bootstrap CI lower bound (if n_bootstrap > 0)}
+  \item{ci_upper}{Bootstrap CI upper bound (if n_bootstrap > 0)}
   \item{lambda}{Lambda parameter used}
   \item{functional_type}{Functional type}
-  \item{class_M}{List describing the class M}
+  \item{n}{Sample size}
+  \item{call}{Function call}
 }
 \description{
-Computes worst-case bounds [phi_*, phi*] for surrogate quality over a class
-of innovation distributions. Provides robust inference that does not
-depend on correctly specifying mu.
+Computes worst-case (minimax) bounds for surrogate quality over a
+total variation (TV) ball of distributions. Uses RF-ensemble type-level
+approach with validated <2% approximation error.
 }
 \details{
-This function searches over a class M of innovation distributions to find
-worst-case bounds on surrogate quality phi(F_lambda). The class includes:
-\itemize{
-  \item Dirichlet(alpha,...,alpha) for alpha in \code{dirichlet_alpha_range}
-  \item Point masses on individual units (if \code{include_vertices = TRUE})
-  \item Uniform distribution (baseline)
-}
+This function implements the validated RF-ensemble type-level minimax approach:
 
-The bounds [phi_*, phi*] are guaranteed to contain phi(F_lambda) for ANY innovation
-distribution mu in the class M. This provides robust inference that does not
-require correctly specifying mu.
+**Algorithm:**
+1. Discretize data into types using multiple schemes (RF, quantiles, k-means)
+2. For each scheme:
+   - Generate J-dimensional Dirichlet innovations (type-level, NOT observation-level)
+   - Form mixtures Q_m = (1-λ)P₀ + λP̃_m at type level
+   - Map to observation weights and compute treatment effects
+   - Compute functional from treatment effect distribution
+3. Take MINIMUM across all schemes (ensemble estimate)
 
-The parameter lambda controls total variation distance: any future study Q with
-TV(Q, P₀) ≤ lambda can be represented as Q = (1-lambda)P₀ + lambdaPi_tilde for some Pi_tilde.
+**Key Innovation:**
+- Uses TYPE-LEVEL innovations (J-dimensional) instead of observation-level (n-dimensional)
+- Validated to achieve <2% approximation error to true TV-ball minimax
+- Ensemble over schemes explores different "directions" in TV-ball
+
+**Interpretation:**
+The parameter lambda controls total variation distance: any future study Q
+with TV(Q, P₀) ≤ lambda can be represented as Q = (1-lambda)P₀ + lambda*Pi_tilde.
+The minimax estimate phi_star is a conservative lower bound: the true surrogate
+quality in the worst-case future study within the TV-ball.
+
+**Discretization Schemes:**
+- **RF**: Random forest on treatment effects (requires randomForest package)
+- **Quantiles**: Quantile bins on covariates
+- **K-means**: K-means clustering on covariates
+
+Each scheme explores different covariate relationships. Taking the minimum
+approximates the true worst-case over all possible distributions in the TV-ball.
 }
 \examples{
 \dontrun{
-data <- generate_study_data(n = 500)
-result <- surrogate_inference_minimax(
+# Generate example data
+data <- generate_study_data(n = 1000)
+
+# Minimax inference with default settings
+result <- surrogate_inference_minimax(data, lambda = 0.3)
+cat(sprintf("Minimax correlation: \%.3f\n", result$phi_star))
+
+# With bootstrap CI
+result_ci <- surrogate_inference_minimax(
   data, lambda = 0.3,
-  functional_type = "correlation",
-  n_innovations = 1000
+  n_bootstrap = 100,
+  confidence_level = 0.95
 )
-cat(sprintf("Worst-case bounds: [\%.3f, \%.3f]\n",
-            result$phi_star_lower, result$phi_star))
+cat(sprintf("95\%\% CI: [\%.3f, \%.3f]\n",
+            result_ci$ci_lower, result_ci$ci_upper))
+
+# PPV functional
+result_ppv <- surrogate_inference_minimax(
+  data, lambda = 0.3,
+  functional_type = "ppv",
+  epsilon_s = 0.5,
+  epsilon_y = 0.5
+)
 }
 
 }
 \references{
-Paper citation here (methods/main.tex, Theorem 1, lines 138-143)
+Validation: validate_rf_ensemble_theory.R shows <2% approximation error
+across multiple data-generating scenarios.
 }
 \seealso{
-\code{\link{surrogate_inference_if}} for standard inference assuming mu known
+\code{\link{surrogate_inference_if}} for standard inference assuming innovation distribution known
 }

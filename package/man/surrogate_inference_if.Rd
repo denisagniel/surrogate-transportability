@@ -8,13 +8,15 @@ surrogate_inference_if(
   current_data,
   lambda,
   n_innovations = 1000,
-  functional_type = c("correlation", "probability", "conditional_mean"),
+  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv"),
   epsilon_s = 0.2,
   epsilon_y = 0.1,
   alpha = 1,
   confidence_level = 0.95,
   gradient_method = c("numerical", "analytical"),
-  epsilon_gradient = 0.01
+  epsilon_gradient = 0.01,
+  use_bootstrap = TRUE,
+  ci_method = c("auto", "delta", "percentile")
 )
 }
 \arguments{
@@ -41,6 +43,15 @@ Default: 1 (uniform).}
 
 \item{epsilon_gradient}{Numeric. Step size for numerical gradient. Default: 0.01
 (1% perturbation). Smaller values increase numerical instability due to Monte Carlo noise.}
+
+\item{use_bootstrap}{Logical. If TRUE (default), draw bootstrap samples from mixture
+for "genuinely new populations". If FALSE, use reweighting (faster but underestimates
+variance for new populations).}
+
+\item{ci_method}{Character. Method for confidence intervals: "delta" (delta method,
+requires smooth functional) or "percentile" (bootstrap percentile, works for any
+functional). Default: "auto" uses percentile for threshold functionals (PPV/NPV) and
+delta for smooth functionals (correlation).}
 }
 \value{
 A list with elements:
@@ -68,11 +79,14 @@ where σ²(λ) = (∇H)ᵀ V(λ) (∇H)
 The algorithm:
 1. Generate M innovations P̃_m ~ Dirichlet(α,...,α)
 2. Form Q_m = (1-λ)P̂_n + λP̃_m
-3. Compute (Δ_S(Q_m), Δ_Y(Q_m)) using mixture weights
+3. Compute (Δ_S(Q_m), Δ_Y(Q_m)) via bootstrap sampling (default) or reweighting
+   - Bootstrap: Draw new sample of size n from mixture Q_m (correct for new populations)
+   - Reweighting: Apply mixture weights to observed data (faster but underestimates variance)
 4. Compute φ̂(λ) from the M pairs
-5. Compute V̂(λ) using influence functions for treatment effects
-6. Compute ∇H using numerical or analytical derivatives
-7. Compute σ̂²(λ) = (∇H)ᵀ V̂(λ) (∇H)
+5. Compute confidence interval:
+   - Delta method (smooth functionals): Compute gradient, use influence function variance
+   - Percentile (threshold functionals): Use bootstrap percentiles (avoids gradient issues)
+6. For delta method: Compute σ̂²(λ) = (∇H)ᵀ V̂(λ) (∇H)
 }
 \examples{
 # Generate data

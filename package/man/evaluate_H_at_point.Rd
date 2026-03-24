@@ -13,7 +13,8 @@ evaluate_H_at_point(
   alpha,
   functional_type,
   epsilon_s,
-  epsilon_y
+  epsilon_y,
+  use_bootstrap = TRUE
 )
 }
 \arguments{
@@ -31,9 +32,11 @@ evaluate_H_at_point(
 
 \item{functional_type}{Type of functional}
 
-\item{epsilon_s}{Threshold for probability functional}
+\item{epsilon_s}{Threshold for probability/PPV functional}
 
-\item{epsilon_y}{Threshold for probability functional}
+\item{epsilon_y}{Threshold for probability/PPV functional}
+
+\item{use_bootstrap}{Logical. If TRUE, use bootstrap sampling; if FALSE, use reweighting}
 }
 \value{
 Scalar value of φ(F_λ) evaluated at (δ_S, δ_Y)
