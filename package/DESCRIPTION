@@ -1,13 +1,16 @@
 Package: surrogateTransportability
 Type: Package
 Title: Surrogate Inference via Random Probability Distributions
-Version: 0.2.0
+Version: 0.3.0
 Authors@R: person("Author", "Name", email = "author@example.com", role = c("aut", "cre"))
 Description: Implements surrogate marker evaluation using random probability distributions
-    to assess transportability across future studies. Uses RF-ensemble type-level minimax
-    approach with validated <2% approximation error. The method models future studies
-    as draws from a mixture distribution combining the current study with innovation
-    distributions, enabling inference about surrogate quality in new populations.
+    to assess transportability across future studies. Provides both total variation (TV) ball
+    and Wasserstein ball minimax approaches with RF-ensemble type-level inference. The TV-ball
+    approach provides conservative bounds for arbitrary distributional changes, while the
+    Wasserstein ball approach offers tighter bounds for covariate shift scenarios. Both achieve
+    validated <2% approximation error. The method models future studies as draws from constraint
+    sets around the current study, enabling robust inference about surrogate quality across
+    diverse future populations.
 License: MIT
 Encoding: UTF-8
 LazyData: true
@@ -30,4 +33,7 @@ Suggests:
     rmarkdown,
     future,
     furrr,
-    randomForest (>= 4.7-1.1)
+    randomForest (>= 4.7-1.1),
+    quadprog (>= 1.5-8),
+    transport (>= 0.15-4),
+    lpSolve (>= 5.6.15)

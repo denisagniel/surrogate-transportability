@@ -232,3 +232,114 @@ discretize_data <- function(data,
     covariate_cols = covariate_cols
   )
 }
+
+
+#' Compute Type Centroids for Wasserstein Distance
+#'
+#' Computes the centroid (mean covariate vector) for each type (bin)
+#' in the discretized data. Used for constructing cost matrices in
+#' Wasserstein minimax inference.
+#'
+#' @param data Data frame with covariate columns
+#' @param bins Integer vector of bin assignments (length nrow(data))
+#' @param covariate_cols Character vector of covariate column names
+#'
+#' @return Matrix (J x p) where J = number of unique bins, p = number of covariates.
+#'   Each row is the centroid (mean) of covariates for observations in that bin.
+#'
+#' @details
+#' For each bin j, computes:
+#'
+#' centroid_j = mean(X_i : i in bin j)
+#'
+#' These centroids define the "location" of each type in covariate space
+#' and are used to construct the cost matrix C[i,j] = ||centroid_i - centroid_j||^2
+#' for Wasserstein distance computation.
+#'
+#' **Properties:**
+#' - Centroids preserve the relative locations of types in covariate space
+#' - Empty bins are excluded from the result
+#' - Row names indicate bin IDs
+#'
+#' **Use in Wasserstein minimax:**
+#' 1. Discretize data into types (bins)
+#' 2. Compute centroids for each type
+#' 3. Construct cost matrix from centroids
+#' 4. Use cost matrix in Wasserstein distance calculations
+#'
+#' @examples
+#' \dontrun{
+#' # Generate data
+#' data <- generate_study_data(n = 500)
+#'
+#' # Discretize
+#' disc <- discretize_data(data, scheme = "rf", J_target = 16)
+#'
+#' # Compute centroids
+#' covariate_cols <- setdiff(names(data), c("A", "S", "Y"))
+#' centroids <- compute_type_centroids(data, disc$bins, covariate_cols)
+#'
+#' # Check dimensions
+#' nrow(centroids)  # Should be J (number of types)
+#' ncol(centroids)  # Should be p (number of covariates)
+#'
+#' # Centroids can be used to construct cost matrix
+#' C <- compute_type_cost_matrix(centroids, cost_function = "euclidean")
+#' }
+#'
+#' @export
+compute_type_centroids <- function(data, bins, covariate_cols) {
+
+  # Validate inputs
+  if (nrow(data) != length(bins)) {
+    stop("Number of rows in data must match length of bins")
+  }
+
+  if (length(covariate_cols) == 0) {
+    stop("covariate_cols must have at least one column")
+  }
+
+  # Check that covariate columns exist
+  missing_cols <- setdiff(covariate_cols, names(data))
+  if (length(missing_cols) > 0) {
+    stop("Covariate columns not found in data: ", paste(missing_cols, collapse = ", "))
+  }
+
+  # Extract covariate matrix
+  X_matrix <- as.matrix(data[, covariate_cols, drop = FALSE])
+
+  # Get unique bins
+  unique_bins <- sort(unique(bins))
+  J <- length(unique_bins)
+  p <- length(covariate_cols)
+
+  # Initialize centroid matrix
+  centroids <- matrix(NA, J, p)
+  rownames(centroids) <- as.character(unique_bins)
+  colnames(centroids) <- covariate_cols
+
+  # Compute centroid for each bin
+  for (i in 1:J) {
+    bin_id <- unique_bins[i]
+    bin_idx <- which(bins == bin_id)
+
+    if (length(bin_idx) == 0) {
+      warning(sprintf("Bin %d has no observations. Skipping.", bin_id))
+      next
+    }
+
+    # Compute mean of covariates in this bin
+    if (length(bin_idx) == 1) {
+      # Single observation
+      centroids[i, ] <- X_matrix[bin_idx, ]
+    } else {
+      # Multiple observations
+      centroids[i, ] <- colMeans(X_matrix[bin_idx, , drop = FALSE])
+    }
+  }
+
+  # Remove any rows with all NA (empty bins)
+  centroids <- centroids[complete.cases(centroids), , drop = FALSE]
+
+  centroids
+}
