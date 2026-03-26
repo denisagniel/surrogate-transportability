@@ -388,7 +388,16 @@ bootstrap_minimax_ci_wasserstein <- function(current_data,
     if (verbose) message("  Using parallel processing...")
 
     # Set up parallel backend
-    future::plan(future::multisession, workers = parallel::detectCores() - 1)
+    # Detect available cores (respects Slurm allocation)
+    slurm_cpus <- Sys.getenv("SLURM_CPUS_PER_TASK", unset = "")
+    if (slurm_cpus != "") {
+      n_workers <- as.integer(slurm_cpus)
+    } else if (requireNamespace("parallelly", quietly = TRUE)) {
+      n_workers <- parallelly::availableCores()
+    } else {
+      n_workers <- 1
+    }
+    future::plan(future::multisession, workers = n_workers)
 
     # Run in parallel
     bootstrap_estimates <- furrr::future_map_dbl(

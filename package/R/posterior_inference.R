@@ -276,7 +276,15 @@ posterior_inference_nested <- function(current_data,
 
   # Run outer loop (potentially in parallel)
   if (parallel && requireNamespace("parallel", quietly = TRUE)) {
-    n_cores <- parallel::detectCores() - 1
+    # Detect available cores (respects Slurm allocation)
+    slurm_cpus <- Sys.getenv("SLURM_CPUS_PER_TASK", unset = "")
+    if (slurm_cpus != "") {
+      n_cores <- as.integer(slurm_cpus)
+    } else if (requireNamespace("parallelly", quietly = TRUE)) {
+      n_cores <- parallelly::availableCores()
+    } else {
+      n_cores <- 1
+    }
     cl <- parallel::makeCluster(n_cores)
     parallel::clusterEvalQ(cl, library(dplyr))
     parallel::clusterExport(cl, varlist = ls(envir = environment()), envir = environment())
