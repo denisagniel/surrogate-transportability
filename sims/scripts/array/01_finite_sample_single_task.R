@@ -86,21 +86,22 @@ run_single_replication <- function(rep, n, J, scenario_params, lambda) {
 
   # Estimate
   result <- tryCatch({
-    est <- concordance_minimax(
-      data = dgp$data,
+    est <- surrogate_inference_minimax(
+      current_data = dgp$data,
       lambda = lambda,
+      functional_type = "concordance",
       n_bootstrap = 200,
-      method = "sampling"
+      confidence_level = 0.95
     )
 
     tibble(
       rep = rep,
-      estimate = est$estimate,
-      se = est$se,
+      estimate = est$phi_star,
+      se = NA_real_,  # Not provided by minimax
       ci_lower = est$ci_lower,
       ci_upper = est$ci_upper,
       truth = dgp$true_concordance,
-      bias = est$estimate - dgp$true_concordance,
+      bias = est$phi_star - dgp$true_concordance,
       covered = (dgp$true_concordance >= est$ci_lower &
                    dgp$true_concordance <= est$ci_upper),
       ci_width = est$ci_upper - est$ci_lower,
