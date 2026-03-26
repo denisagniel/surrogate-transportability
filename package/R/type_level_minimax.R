@@ -25,6 +25,7 @@ NULL
 #'   \item{effects}{Matrix of treatment effects (M x 2)}
 #'   \item{J}{Number of types}
 #'   \item{innovations}{Matrix of type-level innovations (M x J)}
+#'   \item{method}{Character: "closed_form_tv" or "sampling"}
 #'
 #' @details
 #' This implements the core type-level minimax algorithm:
@@ -36,6 +37,11 @@ NULL
 #'    - Compute treatment effects via deterministic reweighting
 #' 3. Compute functional from treatment effect distribution
 #'
+#' **FAST PATH for concordance:** When functional_type = "concordance",
+#' uses closed-form TV-ball solution (instant, no sampling):
+#'   min_{Q: TV(Q,P0)<=lambda} E_Q[delta_S*delta_Y]
+#'     = E_P0[delta_S*delta_Y] - lambda * max_j |tau_j^s * tau_j^y|
+#'
 #' KEY: Uses deterministic reweighting, not bootstrap. We're exploring
 #' the TV-ball, not estimating sampling variability.
 #'
@@ -45,12 +51,37 @@ estimate_minimax_single_scheme <- function(data,
                                             lambda,
                                             M = 500,
                                             functional_type = c("correlation", "probability",
-                                                                 "conditional_mean", "ppv", "npv"),
+                                                                 "conditional_mean", "ppv", "npv",
+                                                                 "concordance"),
                                             epsilon_s = NULL,
                                             epsilon_y = NULL,
                                             delta_s_value = NULL) {
 
   functional_type <- match.arg(functional_type)
+
+  # FAST PATH: Closed-form solution for concordance
+  if (functional_type == "concordance") {
+    type_stats <- compute_type_level_effects(data, bins)
+
+    # TV-ball closed form: E_P0[δS·δY] - λ·max_j|τ_j^s·τ_j^y|
+    concordance_p0 <- sum(type_stats$p0 * type_stats$tau_s * type_stats$tau_y)
+    worst_deviation <- max(abs(type_stats$tau_s * type_stats$tau_y))
+
+    phi_star <- concordance_p0 - lambda * worst_deviation
+
+    return(list(
+      phi_value = phi_star,
+      effects = NULL,  # Not computed for closed-form
+      J = type_stats$J,
+      innovations = NULL,  # Not needed for closed-form
+      method = "closed_form_tv",
+      type_stats = type_stats,
+      concordance_p0 = concordance_p0,
+      worst_deviation = worst_deviation
+    ))
+  }
+
+  # FALLBACK: Sampling-based approach for other functionals
 
   n <- nrow(data)
   J <- length(unique(bins))
@@ -124,7 +155,8 @@ estimate_minimax_single_scheme <- function(data,
     phi_value = phi_value,
     effects = effects,
     J = J,
-    innovations = innovations
+    innovations = innovations,
+    method = "sampling"
   )
 }
 
@@ -207,6 +239,12 @@ compute_functional_from_effects_minimax <- function(effects,
     cond_mean <- sum(kernel_weights * delta_y)
     return(cond_mean)
 
+  } else if (functional_type == "concordance") {
+    # Concordance: E[delta_S * delta_Y]
+    # This is linear in treatment effects
+    concordance <- mean(effects[, 1] * effects[, 2])
+    return(concordance)
+
   } else {
     stop("Unknown functional_type: ", functional_type)
   }
@@ -258,7 +296,8 @@ estimate_minimax_ensemble <- function(data,
                                        J_target = 16,
                                        M = 2000,
                                        functional_type = c("correlation", "probability",
-                                                            "conditional_mean", "ppv", "npv"),
+                                                            "conditional_mean", "ppv", "npv",
+                                                            "concordance"),
                                        epsilon_s = NULL,
                                        epsilon_y = NULL,
                                        delta_s_value = NULL,

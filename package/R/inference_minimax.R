@@ -111,7 +111,8 @@ NULL
 surrogate_inference_minimax <- function(
   current_data,
   lambda,
-  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv"),
+  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv",
+                      "concordance"),
 
   # Discretization parameters
   discretization_schemes = c("rf", "quantiles", "kmeans"),
