@@ -89,8 +89,8 @@ run_single_replication <- function(rep, n, J, scenario_params, lambda) {
     est <- surrogate_inference_minimax(
       current_data = dgp$data,
       lambda = lambda,
-      functional_type = "correlation",
-      discretization_schemes = c("quantiles", "kmeans"),  # Skip RF (requires randomForest)
+      functional_type = "concordance",
+      discretization_schemes = c("rf", "quantiles", "kmeans"),
       n_bootstrap = 200,
       confidence_level = 0.95,
       verbose = FALSE
