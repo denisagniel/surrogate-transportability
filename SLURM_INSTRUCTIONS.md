@@ -94,7 +94,8 @@ module spider R
 ### 2. Load R and check version
 
 ```bash
-module load R/4.3.0  # adjust to your cluster's version
+module load gcc/14.2.0
+module load R/4.4.2  # adjust to your cluster's version
 R --version
 ```
 
@@ -113,10 +114,11 @@ source ~/.bashrc
 
 ```bash
 # Request interactive session
-srun --pty --mem=16G --cpus-per-task=4 --time=01:00:00 bash
+srun --pty --partition=short --mem=16G --cpus-per-task=4 --time=01:00:00 bash
 
 # Load R
-module load R/4.3.0
+module load gcc/14.2.0
+module load R/4.4.2
 
 # Install packages
 R
@@ -185,7 +187,8 @@ module avail gcc
 
 # Edit slurm scripts to match
 nano slurm/studies_reduced.slurm
-# Change: module load R/4.3.0  to match your cluster
+# Change: module load gcc/14.2.0
+module load R/4.4.2  to match your cluster
 ```
 
 **Adjust resource requests if needed:**
@@ -346,11 +349,12 @@ ps aux | grep $USER | grep R
 
 ```bash
 # Request interactive session
-srun --pty --mem=16G --cpus-per-task=4 --time=01:00:00 bash
+srun --pty --partition=short --mem=16G --cpus-per-task=4 --time=01:00:00 bash
 
 # Load modules
-module load R/4.3.0
-module load gcc/11.2.0  # needed for compilation
+module load gcc/14.2.0
+module load R/4.4.2
+  # needed for compilation
 
 # Try installing manually
 R
@@ -400,7 +404,8 @@ scp username@cluster.edu:~/surrogate-transportability/sims/results/*.rds \
 
 ```bash
 # On cluster, after jobs complete
-module load R/4.3.0
+module load gcc/14.2.0
+module load R/4.4.2
 cd ~/surrogate-transportability
 
 # Generate outputs
@@ -553,7 +558,8 @@ cd ~/surrogate-transportability
 # 3. Setup (one-time)
 mkdir -p slurm/logs
 sed -i 's/your.email@example.com/username@rand.org/g' slurm/*.slurm
-module load R/4.3.0
+module load gcc/14.2.0
+module load R/4.4.2
 # Install packages in interactive session (see above)
 
 # 4. Quick test

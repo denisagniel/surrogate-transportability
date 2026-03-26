@@ -21,8 +21,8 @@ echo "=========================================="
 echo ""
 
 # Load R module
-module load R/4.3.0
-module load gcc/11.2.0
+module load gcc/14.2.0
+module load R/4.4.2
 
 # Set up environment
 export R_LIBS_USER=$HOME/R/library

@@ -20,8 +20,9 @@ tar -xzf surrogate-transportability-cluster.tar.gz
 cd surrogate-transportability-cluster
 
 # Install R packages (interactive session)
-srun --pty --mem=16G --cpus-per-task=4 --time=01:00:00 bash
-module load R/4.3.0
+srun --pty --partition=short --mem=16G --cpus-per-task=4 --time=01:00:00 bash
+module load gcc/14.2.0
+module load R/4.4.2
 R
 ```
 

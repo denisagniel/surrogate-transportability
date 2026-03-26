@@ -23,9 +23,9 @@ echo "Start time: $(date)"
 echo "=========================================="
 echo ""
 
-# Load R module (adjust for your cluster)
-module load R/4.3.0  # or module load r/4.5.0, etc.
-module load gcc/11.2.0  # if needed for compilation
+# Load R module
+module load gcc/14.2.0
+module load R/4.4.2
 
 # Set up environment
 export R_LIBS_USER=$HOME/R/library
