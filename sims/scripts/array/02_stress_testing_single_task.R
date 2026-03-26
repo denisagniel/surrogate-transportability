@@ -102,12 +102,20 @@ generate_stress_data <- function(n, J, rho, cv, seed) {
 
   data <- tibble(type = types, A = A, X = X, S = S, Y = Y)
 
-  list(data = data, tau_s = tau_s, tau_y = tau_y,
-       true_concordance = mean(tau_s * tau_y))
+  # True minimax value
+  true_concordance_p0 <- sum(pi_types * tau_s * tau_y)
+  true_worst_deviation <- max(abs(tau_s * tau_y))
+
+  list(data = data, tau_s = tau_s, tau_y = tau_y, pi_types = pi_types,
+       true_concordance_p0 = true_concordance_p0,
+       true_worst_deviation = true_worst_deviation)
 }
 
 run_single_replication <- function(rep, params) {
   dgp <- generate_stress_data(params$n, params$J, params$rho, params$cv, seed = rep)
+
+  # True minimax value (closed-form from true parameters)
+  true_minimax <- dgp$true_concordance_p0 - params$lambda * dgp$true_worst_deviation
 
   result <- tryCatch({
     est <- surrogate_inference_minimax(
@@ -126,10 +134,10 @@ run_single_replication <- function(rep, params) {
       se = NA_real_,  # Not provided by minimax
       ci_lower = est$ci_lower,
       ci_upper = est$ci_upper,
-      truth = dgp$true_concordance,
-      bias = est$phi_star - dgp$true_concordance,
-      covered = (dgp$true_concordance >= est$ci_lower &
-                   dgp$true_concordance <= est$ci_upper),
+      truth = true_minimax,  # TRUE MINIMAX, not just concordance
+      truth_p0 = dgp$true_concordance_p0,
+      bias = est$phi_star - true_minimax,
+      covered = (true_minimax >= est$ci_lower & true_minimax <= est$ci_upper),
       ci_width = est$ci_upper - est$ci_lower,
       success = TRUE
     )
@@ -138,7 +146,7 @@ run_single_replication <- function(rep, params) {
     tibble(
       rep = rep, estimate = NA_real_, se = NA_real_,
       ci_lower = NA_real_, ci_upper = NA_real_,
-      truth = dgp$true_concordance, bias = NA_real_,
+      truth = true_minimax, truth_p0 = dgp$true_concordance_p0, bias = NA_real_,
       covered = NA, ci_width = NA_real_, success = FALSE,
       error_msg = conditionMessage(e)
     )
