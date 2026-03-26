@@ -18,6 +18,13 @@
 #'   "numerical" (default) or "analytical" (for correlation only).
 #' @param epsilon_gradient Numeric. Step size for numerical gradient. Default: 0.01
 #'   (1% perturbation). Smaller values increase numerical instability due to Monte Carlo noise.
+#' @param use_bootstrap Logical. If TRUE (default), draw bootstrap samples from mixture
+#'   for "genuinely new populations". If FALSE, use reweighting (faster but underestimates
+#'   variance for new populations).
+#' @param ci_method Character. Method for confidence intervals: "delta" (delta method,
+#'   requires smooth functional) or "percentile" (bootstrap percentile, works for any
+#'   functional). Default: "auto" uses percentile for threshold functionals (PPV/NPV) and
+#'   delta for smooth functionals (correlation).
 #'
 #' @return A list with elements:
 #'   \item{estimate}{Point estimate of φ(F_λ)}
@@ -39,11 +46,14 @@
 #' The algorithm:
 #' 1. Generate M innovations P̃_m ~ Dirichlet(α,...,α)
 #' 2. Form Q_m = (1-λ)P̂_n + λP̃_m
-#' 3. Compute (Δ_S(Q_m), Δ_Y(Q_m)) using mixture weights
+#' 3. Compute (Δ_S(Q_m), Δ_Y(Q_m)) via bootstrap sampling (default) or reweighting
+#'    - Bootstrap: Draw new sample of size n from mixture Q_m (correct for new populations)
+#'    - Reweighting: Apply mixture weights to observed data (faster but underestimates variance)
 #' 4. Compute φ̂(λ) from the M pairs
-#' 5. Compute V̂(λ) using influence functions for treatment effects
-#' 6. Compute ∇H using numerical or analytical derivatives
-#' 7. Compute σ̂²(λ) = (∇H)ᵀ V̂(λ) (∇H)
+#' 5. Compute confidence interval:
+#'    - Delta method (smooth functionals): Compute gradient, use influence function variance
+#'    - Percentile (threshold functionals): Use bootstrap percentiles (avoids gradient issues)
+#' 6. For delta method: Compute σ̂²(λ) = (∇H)ᵀ V̂(λ) (∇H)
 #'
 #' @examples
 #' # Generate data
@@ -62,16 +72,26 @@
 surrogate_inference_if <- function(current_data,
                                    lambda,
                                    n_innovations = 1000,
-                                   functional_type = c("correlation", "probability", "conditional_mean"),
+                                   functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv"),
                                    epsilon_s = 0.2,
                                    epsilon_y = 0.1,
                                    alpha = 1,
                                    confidence_level = 0.95,
                                    gradient_method = c("numerical", "analytical"),
-                                   epsilon_gradient = 0.01) {
+                                   epsilon_gradient = 0.01,
+                                   use_bootstrap = TRUE,
+                                   ci_method = c("auto", "delta", "percentile")) {
 
   functional_type <- match.arg(functional_type)
   gradient_method <- match.arg(gradient_method)
+  ci_method <- match.arg(ci_method)
+
+  # Auto-select CI method
+  if (ci_method == "auto") {
+    # Use percentile for threshold functionals (have zero gradient at boundaries)
+    # Use delta method for smooth functionals
+    ci_method <- if (functional_type %in% c("ppv", "npv")) "percentile" else "delta"
+  }
 
   n <- nrow(current_data)
 
@@ -92,19 +112,69 @@ surrogate_inference_if <- function(current_data,
   treatment_effects <- matrix(NA, nrow = n_innovations, ncol = 2)
   colnames(treatment_effects) <- c("delta_s", "delta_y")
 
-  for (m in 1:n_innovations) {
-    # Mixture weights for Q_m
-    p_hat <- rep(1/n, n)  # Empirical distribution
-    p_tilde <- innovations[m, ]  # Innovation
-    q_m_weights <- (1 - lambda) * p_hat + lambda * p_tilde
+  # For percentile CI, we need functional value per bootstrap
+  # For threshold functionals, we compute many "mini-functionals" from subsets
+  if (ci_method == "percentile" && functional_type %in% c("ppv", "npv")) {
+    # Use bootstrap-of-bootstrap: each innovation is a potential functional value
+    # We'll group innovations into B bootstrap samples
+    B_groups <- 100  # Number of bootstrap samples
+    group_size <- floor(n_innovations / B_groups)
+    bootstrap_functionals <- numeric(B_groups)
 
-    # Compute treatment effects under Q_m using mixture weights
-    # Δ_S(Q_m) = E_Qm[S(1) - S(0)]
-    delta_s_qm <- compute_treatment_effect_weighted(current_data, "S", q_m_weights)
-    delta_y_qm <- compute_treatment_effect_weighted(current_data, "Y", q_m_weights)
+    for (b in 1:B_groups) {
+      start_idx <- (b - 1) * group_size + 1
+      end_idx <- min(b * group_size, n_innovations)
 
-    treatment_effects[m, "delta_s"] <- delta_s_qm
-    treatment_effects[m, "delta_y"] <- delta_y_qm
+      # Compute treatment effects for this group
+      for (m in start_idx:end_idx) {
+        idx <- m - start_idx + 1
+        p_hat <- rep(1/n, n)
+        p_tilde <- innovations[m, ]
+        q_m_weights <- (1 - lambda) * p_hat + lambda * p_tilde
+
+        if (use_bootstrap) {
+          boot_indices <- sample(1:n, size = n, replace = TRUE, prob = q_m_weights)
+          boot_sample <- current_data[boot_indices, ]
+          delta_s_qm <- compute_treatment_effect(boot_sample, "S")
+          delta_y_qm <- compute_treatment_effect(boot_sample, "Y")
+        } else {
+          delta_s_qm <- compute_treatment_effect_weighted(current_data, "S", q_m_weights)
+          delta_y_qm <- compute_treatment_effect_weighted(current_data, "Y", q_m_weights)
+        }
+
+        treatment_effects[m, "delta_s"] <- delta_s_qm
+        treatment_effects[m, "delta_y"] <- delta_y_qm
+      }
+
+      # Compute functional for this bootstrap sample
+      bootstrap_functionals[b] <- compute_functional_from_effects(
+        treatment_effects[start_idx:end_idx, "delta_s"],
+        treatment_effects[start_idx:end_idx, "delta_y"],
+        functional_type = functional_type,
+        epsilon_s = epsilon_s,
+        epsilon_y = epsilon_y
+      )
+    }
+  } else {
+    # Standard: compute all treatment effects, then functional
+    for (m in 1:n_innovations) {
+      p_hat <- rep(1/n, n)
+      p_tilde <- innovations[m, ]
+      q_m_weights <- (1 - lambda) * p_hat + lambda * p_tilde
+
+      if (use_bootstrap) {
+        boot_indices <- sample(1:n, size = n, replace = TRUE, prob = q_m_weights)
+        boot_sample <- current_data[boot_indices, ]
+        delta_s_qm <- compute_treatment_effect(boot_sample, "S")
+        delta_y_qm <- compute_treatment_effect(boot_sample, "Y")
+      } else {
+        delta_s_qm <- compute_treatment_effect_weighted(current_data, "S", q_m_weights)
+        delta_y_qm <- compute_treatment_effect_weighted(current_data, "Y", q_m_weights)
+      }
+
+      treatment_effects[m, "delta_s"] <- delta_s_qm
+      treatment_effects[m, "delta_y"] <- delta_y_qm
+    }
   }
 
   # Step 4: Compute φ̂(λ) from the M treatment effect pairs
@@ -116,27 +186,50 @@ surrogate_inference_if <- function(current_data,
     epsilon_y = epsilon_y
   )
 
-  # Step 5: Compute gradient ∇H at (Δ̂_S, Δ̂_Y)
-  if (gradient_method == "analytical" && functional_type == "correlation") {
-    grad_h <- gradient_correlation_analytical(
-      delta_s_hat, delta_y_hat, lambda, alpha, n_innovations, current_data
-    )
+  # Step 5: Compute confidence interval
+  if (ci_method == "percentile") {
+    # Percentile bootstrap CI (no gradient needed)
+    if (functional_type %in% c("ppv", "npv")) {
+      # Use bootstrap-of-bootstrap functionals
+      alpha_level <- (1 - confidence_level) / 2
+      ci_lower <- quantile(bootstrap_functionals, alpha_level, na.rm = TRUE)
+      ci_upper <- quantile(bootstrap_functionals, 1 - alpha_level, na.rm = TRUE)
+      se <- sd(bootstrap_functionals, na.rm = TRUE)
+      grad_h <- c(NA, NA)  # Not computed for percentile CI
+      sigma_sq <- NA
+    } else {
+      # For other functionals using percentile (not typical)
+      warning("Percentile CI for non-threshold functionals not yet implemented")
+      grad_h <- c(NA, NA)
+      sigma_sq <- NA
+      se <- NA
+      ci_lower <- NA
+      ci_upper <- NA
+    }
   } else {
-    # Numerical gradient using finite differences
-    grad_h <- gradient_numerical(
-      delta_s_hat, delta_y_hat, lambda, alpha, n_innovations,
-      functional_type, epsilon_s, epsilon_y, epsilon_gradient, current_data
-    )
+    # Delta method CI (requires gradient)
+    # Step 5a: Compute gradient ∇H at (Δ̂_S, Δ̂_Y)
+    if (gradient_method == "analytical" && functional_type == "correlation") {
+      grad_h <- gradient_correlation_analytical(
+        delta_s_hat, delta_y_hat, lambda, alpha, n_innovations, current_data, use_bootstrap
+      )
+    } else {
+      # Numerical gradient using finite differences
+      grad_h <- gradient_numerical(
+        delta_s_hat, delta_y_hat, lambda, alpha, n_innovations,
+        functional_type, epsilon_s, epsilon_y, epsilon_gradient, current_data, use_bootstrap
+      )
+    }
+
+    # Step 5b: Delta method variance: σ²(λ) = (∇H)ᵀ V(λ) (∇H)
+    sigma_sq <- as.numeric(t(grad_h) %*% V_lambda %*% grad_h)
+    se <- sqrt(sigma_sq / n)
+
+    # Step 5c: Normal-based CI
+    z_alpha <- qnorm(1 - (1 - confidence_level) / 2)
+    ci_lower <- phi_hat - z_alpha * se
+    ci_upper <- phi_hat + z_alpha * se
   }
-
-  # Step 6: Delta method variance: σ²(λ) = (∇H)ᵀ V(λ) (∇H)
-  sigma_sq <- as.numeric(t(grad_h) %*% V_lambda %*% grad_h)
-  se <- sqrt(sigma_sq / n)
-
-  # Step 7: Confidence interval
-  z_alpha <- qnorm(1 - (1 - confidence_level) / 2)
-  ci_lower <- phi_hat - z_alpha * se
-  ci_upper <- phi_hat + z_alpha * se
 
   # Return results
   list(
@@ -154,7 +247,9 @@ surrogate_inference_if <- function(current_data,
       functional_type = functional_type,
       alpha = alpha,
       confidence_level = confidence_level,
-      n = n
+      n = n,
+      use_bootstrap = use_bootstrap,
+      ci_method = ci_method
     )
   )
 }
@@ -227,9 +322,26 @@ compute_functional_from_effects <- function(delta_s_vec, delta_y_vec,
       return(0)
     }
     cor(delta_s_vec, delta_y_vec)
-  } else if (functional_type == "probability") {
-    mean((delta_s_vec > epsilon_s) & (delta_y_vec > epsilon_y)) /
-      mean(delta_s_vec > epsilon_s)
+  } else if (functional_type == "probability" || functional_type == "ppv") {
+    # Both use threshold-based approach: P(Delta_Y > epsilon_y | Delta_S > epsilon_s)
+    n_exceed_s <- sum(delta_s_vec > epsilon_s)
+
+    if (n_exceed_s == 0) {
+      return(NA_real_)
+    }
+
+    n_both_exceed <- sum((delta_s_vec > epsilon_s) & (delta_y_vec > epsilon_y))
+    n_both_exceed / n_exceed_s
+  } else if (functional_type == "npv") {
+    # NPV: P(Delta_Y <= epsilon_y | Delta_S <= epsilon_s)
+    n_not_exceed_s <- sum(delta_s_vec <= epsilon_s)
+
+    if (n_not_exceed_s == 0) {
+      return(NA_real_)
+    }
+
+    n_both_not_exceed <- sum((delta_s_vec <= epsilon_s) & (delta_y_vec <= epsilon_y))
+    n_both_not_exceed / n_not_exceed_s
   } else if (functional_type == "conditional_mean") {
     # Not implemented yet
     stop("conditional_mean functional not yet implemented with IF method")
@@ -248,13 +360,15 @@ compute_functional_from_effects <- function(delta_s_vec, delta_y_vec,
 #' @param n_innovations Number of innovations M
 #' @param alpha Dirichlet concentration parameter
 #' @param functional_type Type of functional
-#' @param epsilon_s Threshold for probability functional
-#' @param epsilon_y Threshold for probability functional
+#' @param epsilon_s Threshold for probability/PPV functional
+#' @param epsilon_y Threshold for probability/PPV functional
+#' @param use_bootstrap Logical. If TRUE, use bootstrap sampling; if FALSE, use reweighting
 #'
 #' @return Scalar value of φ(F_λ) evaluated at (δ_S, δ_Y)
 #' @keywords internal
 evaluate_H_at_point <- function(delta_s, delta_y, data, lambda, n_innovations,
-                                alpha, functional_type, epsilon_s, epsilon_y) {
+                                alpha, functional_type, epsilon_s, epsilon_y,
+                                use_bootstrap = TRUE) {
   n <- nrow(data)
 
   # Generate M innovations from Dirichlet(α,...,α)
@@ -271,8 +385,18 @@ evaluate_H_at_point <- function(delta_s, delta_y, data, lambda, n_innovations,
   for (m in 1:n_innovations) {
     # Compute treatment effect under the innovation P̃_m
     p_tilde <- innovations[m, ]
-    delta_s_tilde <- compute_treatment_effect_weighted(data, "S", p_tilde)
-    delta_y_tilde <- compute_treatment_effect_weighted(data, "Y", p_tilde)
+
+    if (use_bootstrap) {
+      # Bootstrap: draw new sample from innovation distribution
+      boot_indices <- sample(1:n, size = n, replace = TRUE, prob = p_tilde)
+      boot_sample <- data[boot_indices, ]
+      delta_s_tilde <- compute_treatment_effect(boot_sample, "S")
+      delta_y_tilde <- compute_treatment_effect(boot_sample, "Y")
+    } else {
+      # Reweighting: apply innovation weights to same data
+      delta_s_tilde <- compute_treatment_effect_weighted(data, "S", p_tilde)
+      delta_y_tilde <- compute_treatment_effect_weighted(data, "Y", p_tilde)
+    }
 
     # Mixture: (1-λ) * point + λ * innovation
     delta_s_qm <- (1 - lambda) * delta_s + lambda * delta_s_tilde
@@ -300,27 +424,27 @@ evaluate_H_at_point <- function(delta_s, delta_y, data, lambda, n_innovations,
 #' @keywords internal
 gradient_numerical <- function(delta_s, delta_y, lambda, alpha, n_innovations,
                                functional_type, epsilon_s, epsilon_y, eps,
-                               data) {
+                               data, use_bootstrap = TRUE) {
 
   # Evaluate H at four points using central differences
   h_s_plus <- evaluate_H_at_point(
     delta_s + eps, delta_y, data, lambda, n_innovations,
-    alpha, functional_type, epsilon_s, epsilon_y
+    alpha, functional_type, epsilon_s, epsilon_y, use_bootstrap
   )
 
   h_s_minus <- evaluate_H_at_point(
     delta_s - eps, delta_y, data, lambda, n_innovations,
-    alpha, functional_type, epsilon_s, epsilon_y
+    alpha, functional_type, epsilon_s, epsilon_y, use_bootstrap
   )
 
   h_y_plus <- evaluate_H_at_point(
     delta_s, delta_y + eps, data, lambda, n_innovations,
-    alpha, functional_type, epsilon_s, epsilon_y
+    alpha, functional_type, epsilon_s, epsilon_y, use_bootstrap
   )
 
   h_y_minus <- evaluate_H_at_point(
     delta_s, delta_y - eps, data, lambda, n_innovations,
-    alpha, functional_type, epsilon_s, epsilon_y
+    alpha, functional_type, epsilon_s, epsilon_y, use_bootstrap
   )
 
   # Central differences
@@ -335,10 +459,11 @@ gradient_numerical <- function(delta_s, delta_y, lambda, alpha, n_innovations,
 #' For correlation, we can compute the gradient analytically
 #'
 #' @keywords internal
-gradient_correlation_analytical <- function(delta_s, delta_y, lambda, alpha, n_innovations, data) {
+gradient_correlation_analytical <- function(delta_s, delta_y, lambda, alpha, n_innovations,
+                                           data, use_bootstrap = TRUE) {
   # This requires deriving ∂/∂δ_S of cor(Δ_S(Q), Δ_Y(Q)) where Q ~ F_λ
   # Complex - may need to approximate or use numerical method
   warning("Analytical gradient for correlation not yet implemented, using numerical")
   gradient_numerical(delta_s, delta_y, lambda, alpha, n_innovations,
-                     "correlation", NULL, NULL, 1e-6, data)
+                     "correlation", NULL, NULL, 1e-6, data, use_bootstrap)
 }
