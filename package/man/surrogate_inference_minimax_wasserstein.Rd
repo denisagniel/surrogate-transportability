@@ -7,7 +7,8 @@
 surrogate_inference_minimax_wasserstein(
   current_data,
   lambda_w,
-  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv"),
+  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv",
+    "concordance"),
   discretization_schemes = c("rf", "quantiles", "kmeans"),
   covariate_cols = NULL,
   J_target = 16,

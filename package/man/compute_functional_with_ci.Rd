@@ -6,7 +6,8 @@
 \usage{
 compute_functional_with_ci(
   treatment_effects,
-  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv"),
+  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv",
+    "concordance"),
   n_bootstrap = 1000,
   confidence_level = 0.95,
   ...

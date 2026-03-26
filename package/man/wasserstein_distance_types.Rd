@@ -4,7 +4,7 @@
 \alias{wasserstein_distance_types}
 \title{Compute Type-Level Wasserstein Distance}
 \usage{
-wasserstein_distance_types(q1, q2, cost_matrix)
+wasserstein_distance_types(q1, q2, cost_matrix, method = c("transport", "lp"))
 }
 \arguments{
 \item{q1}{Numeric vector (length J): first type distribution (probability simplex)}
@@ -12,33 +12,36 @@ wasserstein_distance_types(q1, q2, cost_matrix)
 \item{q2}{Numeric vector (length J): second type distribution (probability simplex)}
 
 \item{cost_matrix}{Matrix (J x J): pairwise cost between types}
+
+\item{method}{Character: "transport" (exact via transport package) or "lp" (exact via lpSolve)}
 }
 \value{
 Numeric: W_2(q1, q2) - the 2-Wasserstein distance
 }
 \description{
 Computes the 2-Wasserstein (L2) distance between two type-level
-probability distributions using a given cost matrix.
+probability distributions using proper optimal transport.
 }
 \details{
-Computes an approximation to the 2-Wasserstein distance:
+Computes the exact 2-Wasserstein distance by solving the optimal transport problem:
 
-W_2^2(q1, q2) ≈ (q1 - q2)' C (q1 - q2)
+W_2^2(q1, q2) = min_{π} Σᵢⱼ πᵢⱼ Cᵢⱼ
 
-This is an upper bound on the true Wasserstein distance and becomes
-tight when the cost matrix has specific structure. For general cost
-matrices, this provides a computationally efficient approximation.
+subject to: Σⱼ πᵢⱼ = q1ᵢ, Σᵢ πᵢⱼ = q2ⱼ, πᵢⱼ ≥ 0
 
-**Properties verified:**
+This is a linear programming problem. We use established solvers:
+- **transport package** (preferred): Fast, specialized OT solver
+- **lpSolve** (fallback): General LP solver
+
+**Properties:**
 - W_2(q, q) = 0 (identity)
 - W_2(q1, q2) = W_2(q2, q1) (symmetry)
 - W_2(q1, q2) >= 0 (non-negativity)
-- Triangle inequality (approximately satisfied)
+- Triangle inequality (satisfied)
 
-**Alternative (exact but slow):**
-The exact Wasserstein distance requires solving a linear program.
-For minimax inference with M=2000 iterations, the approximation is
-sufficiently accurate while being orders of magnitude faster.
+**Note on cost matrix:**
+Unlike the previous approximation, this method does NOT require the cost matrix
+to be positive semi-definite. It works with any valid cost matrix.
 }
 \examples{
 \dontrun{
@@ -51,7 +54,7 @@ q <- MCMCpack::rdirichlet(1, rep(1, J))[1,]  # Random perturbation
 centroids <- matrix(rnorm(J * 2), J, 2)
 C <- compute_type_cost_matrix(centroids)
 
-# Compute distance
+# Compute exact distance
 w_dist <- wasserstein_distance_types(q, p0, C)
 }
 
