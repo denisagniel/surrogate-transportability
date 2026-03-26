@@ -2,6 +2,7 @@
 #SBATCH --job-name=study1_finite_sample
 #SBATCH --output=logs/study1_%j.out
 #SBATCH --error=logs/study1_%j.err
+#SBATCH --partition=short
 #SBATCH --time=08:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1

@@ -114,7 +114,7 @@ source ~/.bashrc
 
 ```bash
 # Request interactive session
-srun --pty --partition=short --mem=16G --cpus-per-task=4 --time=01:00:00 bash
+srun --pty --partition=interactive --mem=16G --cpus-per-task=4 --time=01:00:00 bash
 
 # Load R
 module load gcc/14.2.0
@@ -349,7 +349,7 @@ ps aux | grep $USER | grep R
 
 ```bash
 # Request interactive session
-srun --pty --partition=short --mem=16G --cpus-per-task=4 --time=01:00:00 bash
+srun --pty --partition=interactive --mem=16G --cpus-per-task=4 --time=01:00:00 bash
 
 # Load modules
 module load gcc/14.2.0

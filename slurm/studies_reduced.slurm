@@ -2,6 +2,7 @@
 #SBATCH --job-name=studies_reduced
 #SBATCH --output=logs/studies_reduced_%j.out
 #SBATCH --error=logs/studies_reduced_%j.err
+#SBATCH --partition=short
 #SBATCH --time=04:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
