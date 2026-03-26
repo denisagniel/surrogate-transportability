@@ -19,7 +19,17 @@ devtools::load_all(here("package"))
 
 # Simulation parameters (can be overridden by quick script)
 if (!exists("N_REPS")) N_REPS <- 500  # Replications per stress condition
-if (!exists("N_CORES")) N_CORES <- parallel::detectCores() - 1
+
+# Detect available cores (respects Slurm allocation)
+if (!exists("N_CORES")) {
+  # Use Slurm allocation if available, otherwise use parallelly::availableCores()
+  slurm_cpus <- Sys.getenv("SLURM_CPUS_PER_TASK", unset = "")
+  if (slurm_cpus != "") {
+    N_CORES <- as.integer(slurm_cpus)
+  } else {
+    N_CORES <- parallelly::availableCores()
+  }
+}
 
 # Baseline (non-stressed) parameters
 if (!exists("BASELINE")) BASELINE <- list(

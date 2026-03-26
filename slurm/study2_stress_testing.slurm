@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=study2_stress_test
-#SBATCH --output=logs/study2_%j.out
-#SBATCH --error=logs/study2_%j.err
+#SBATCH --output=slurm/logs/study2_%j.out
+#SBATCH --error=slurm/logs/study2_%j.err
 #SBATCH --partition=short
 #SBATCH --time=06:00:00
 #SBATCH --nodes=1

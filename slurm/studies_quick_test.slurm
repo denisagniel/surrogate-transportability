@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=studies_quick_test
-#SBATCH --output=logs/quick_test_%j.out
-#SBATCH --error=logs/quick_test_%j.err
+#SBATCH --output=slurm/logs/quick_test_%j.out
+#SBATCH --error=slurm/logs/quick_test_%j.err
 #SBATCH --partition=short
 #SBATCH --time=00:30:00
 #SBATCH --nodes=1
