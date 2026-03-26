@@ -74,7 +74,8 @@ generate_scenario_data <- function(n, J, scenario_params, seed) {
 
   # True minimax value (what the estimator is targeting)
   true_concordance_p0 <- sum(pi_types * tau_s * tau_y)
-  true_worst_deviation <- max(abs(tau_s * tau_y))
+  concordances <- tau_s * tau_y
+  true_min_concordance <- min(concordances)
 
   list(
     data = data,
@@ -82,7 +83,7 @@ generate_scenario_data <- function(n, J, scenario_params, seed) {
     tau_y = tau_y,
     pi_types = pi_types,
     true_concordance_p0 = true_concordance_p0,
-    true_worst_deviation = true_worst_deviation
+    true_min_concordance = true_min_concordance
   )
 }
 
@@ -91,7 +92,7 @@ run_single_replication <- function(rep, n, J, scenario_params, lambda) {
   dgp <- generate_scenario_data(n, J, scenario_params, seed = rep)
 
   # True minimax value (closed-form from true parameters)
-  true_minimax <- dgp$true_concordance_p0 - lambda * dgp$true_worst_deviation
+  true_minimax <- (1 - lambda) * dgp$true_concordance_p0 + lambda * dgp$true_min_concordance
 
   # Estimate
   result <- tryCatch({

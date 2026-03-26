@@ -104,18 +104,19 @@ generate_stress_data <- function(n, J, rho, cv, seed) {
 
   # True minimax value
   true_concordance_p0 <- sum(pi_types * tau_s * tau_y)
-  true_worst_deviation <- max(abs(tau_s * tau_y))
+  concordances <- tau_s * tau_y
+  true_min_concordance <- min(concordances)
 
   list(data = data, tau_s = tau_s, tau_y = tau_y, pi_types = pi_types,
        true_concordance_p0 = true_concordance_p0,
-       true_worst_deviation = true_worst_deviation)
+       true_min_concordance = true_min_concordance)
 }
 
 run_single_replication <- function(rep, params) {
   dgp <- generate_stress_data(params$n, params$J, params$rho, params$cv, seed = rep)
 
   # True minimax value (closed-form from true parameters)
-  true_minimax <- dgp$true_concordance_p0 - params$lambda * dgp$true_worst_deviation
+  true_minimax <- (1 - params$lambda) * dgp$true_concordance_p0 + params$lambda * dgp$true_min_concordance
 
   result <- tryCatch({
     est <- surrogate_inference_minimax(

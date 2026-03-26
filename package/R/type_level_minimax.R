@@ -40,7 +40,8 @@ NULL
 #' **FAST PATH for concordance:** When functional_type = "concordance",
 #' uses closed-form TV-ball solution (instant, no sampling):
 #'   min_{Q: TV(Q,P0)<=lambda} E_Q[delta_S*delta_Y]
-#'     = E_P0[delta_S*delta_Y] - lambda * max_j |tau_j^s * tau_j^y|
+#'   where Q = (1-lambda)*P0 + lambda*P_tilde
+#'     = (1-lambda)*E_P0[delta_S*delta_Y] + lambda*min_j(tau_j^s * tau_j^y)
 #'
 #' KEY: Uses deterministic reweighting, not bootstrap. We're exploring
 #' the TV-ball, not estimating sampling variability.
@@ -63,11 +64,14 @@ estimate_minimax_single_scheme <- function(data,
   if (functional_type == "concordance") {
     type_stats <- compute_type_level_effects(data, bins)
 
-    # TV-ball closed form: E_P0[δS·δY] - λ·max_j|τ_j^s·τ_j^y|
+    # TV-ball closed form: min over Q = (1-λ)P0 + λP̃
+    # E_Q[τ_S·τ_Y] = (1-λ)E_P0[τ_S·τ_Y] + λ·E_P̃[τ_S·τ_Y]
+    # Adversary minimizes by putting all mass on type with min concordance
     concordance_p0 <- sum(type_stats$p0 * type_stats$tau_s * type_stats$tau_y)
-    worst_deviation <- max(abs(type_stats$tau_s * type_stats$tau_y))
+    concordances <- type_stats$tau_s * type_stats$tau_y
+    min_concordance <- min(concordances)
 
-    phi_star <- concordance_p0 - lambda * worst_deviation
+    phi_star <- (1 - lambda) * concordance_p0 + lambda * min_concordance
 
     return(list(
       phi_value = phi_star,
@@ -77,7 +81,7 @@ estimate_minimax_single_scheme <- function(data,
       method = "closed_form_tv",
       type_stats = type_stats,
       concordance_p0 = concordance_p0,
-      worst_deviation = worst_deviation
+      min_concordance = min_concordance
     ))
   }
 
