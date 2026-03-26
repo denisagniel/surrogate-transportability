@@ -114,8 +114,10 @@ run_single_replication <- function(rep, params) {
       current_data = dgp$data,
       lambda = params$lambda,
       functional_type = "concordance",
+      discretization_schemes = c("quantiles", "kmeans"),  # Skip RF (requires randomForest)
       n_bootstrap = 200,
-      confidence_level = 0.95
+      confidence_level = 0.95,
+      verbose = FALSE
     )
 
     tibble(
@@ -132,11 +134,13 @@ run_single_replication <- function(rep, params) {
       success = TRUE
     )
   }, error = function(e) {
+    cat("ERROR in rep", rep, ":", conditionMessage(e), "\n")
     tibble(
       rep = rep, estimate = NA_real_, se = NA_real_,
       ci_lower = NA_real_, ci_upper = NA_real_,
       truth = dgp$true_concordance, bias = NA_real_,
-      covered = NA, ci_width = NA_real_, success = FALSE
+      covered = NA, ci_width = NA_real_, success = FALSE,
+      error_msg = conditionMessage(e)
     )
   })
 
