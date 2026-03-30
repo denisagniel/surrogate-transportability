@@ -43,7 +43,14 @@ if [ -d "sims/results/study2_array" ]; then
     echo ""
 fi
 
+# Create summary report
+echo "Creating summary report..."
+Rscript sims/scripts/array/create_summary_report.R
+echo ""
+
 echo "=========================================="
 echo "Aggregation Complete"
 echo "End time: $(date)"
 echo "=========================================="
+echo ""
+echo "Summary saved to: SIMULATION_RESULTS_SUMMARY.md"
