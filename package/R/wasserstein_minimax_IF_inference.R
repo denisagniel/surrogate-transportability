@@ -246,10 +246,11 @@ estimate_dual_fold_wasserstein <- function(test_data, h_hat, covariates,
                                             gamma, tau) {
   X <- as.matrix(test_data[, covariates, drop = FALSE])
   n <- nrow(X)
+  d <- ncol(X)  # Number of covariates for normalization
 
   phi_j <- numeric(n)
   for (j in 1:n) {
-    costs <- rowSums((X - matrix(X[j, ], nrow = n, ncol = ncol(X), byrow = TRUE))^2)
+    costs <- rowSums((X - matrix(X[j, ], nrow = n, ncol = ncol(X), byrow = TRUE))^2) / d
     values <- exp(-(h_hat + gamma * costs) / tau)
     m_j <- mean(values)
     phi_j[j] <- -tau * log(m_j)
@@ -276,6 +277,7 @@ compute_IF_fold_wasserstein <- function(test_data, nuisances, covariates,
                                          gamma, tau) {
   X <- as.matrix(test_data[, covariates, drop = FALSE])
   n <- nrow(X)
+  d <- ncol(X)  # Number of covariates for normalization
 
   h_hat <- nuisances$h_hat
   tau_S_hat <- nuisances$tau_S_hat
@@ -284,7 +286,7 @@ compute_IF_fold_wasserstein <- function(test_data, nuisances, covariates,
   # Compute m(X_j) for all j
   m_vals <- numeric(n)
   for (j in 1:n) {
-    costs <- rowSums((X - matrix(X[j, ], nrow = n, ncol = ncol(X), byrow = TRUE))^2)
+    costs <- rowSums((X - matrix(X[j, ], nrow = n, ncol = ncol(X), byrow = TRUE))^2) / d
     values <- exp(-(h_hat + gamma * costs) / tau)
     m_vals[j] <- mean(values)
   }
@@ -295,7 +297,7 @@ compute_IF_fold_wasserstein <- function(test_data, nuisances, covariates,
   # Compute softmax weights
   W <- matrix(0, n, n)
   for (j in 1:n) {
-    costs <- rowSums((X - matrix(X[j, ], nrow = n, ncol = ncol(X), byrow = TRUE))^2)
+    costs <- rowSums((X - matrix(X[j, ], nrow = n, ncol = ncol(X), byrow = TRUE))^2) / d
     values <- exp(-(h_hat + gamma * costs) / tau)
     W[, j] <- values / sum(values)
   }
@@ -312,7 +314,7 @@ compute_IF_fold_wasserstein <- function(test_data, nuisances, covariates,
     # TERM 2 (INNER): k in all inner expectations
     inner_contrib <- numeric(n)
     for (j in 1:n) {
-      cost_kj <- sum((X[k, ] - X[j, ])^2)
+      cost_kj <- sum((X[k, ] - X[j, ])^2) / d
       g_kj <- exp(-(h_hat[k] + gamma * cost_kj) / tau)
       inner_contrib[j] <- -tau * g_kj / m_vals[j]
     }
