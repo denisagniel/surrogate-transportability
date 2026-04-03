@@ -92,6 +92,12 @@ surrogate-transportability/
 | 90    | PR         | Ready for deployment   |
 | 95    | Excellence | Aspirational           |
 
+**Exception - Exploration Mode:**
+- Threshold: 60/100 for experimental work in `explorations/`
+- No planning needed; code immediately
+- Decision point: Graduate to production (upgrade to 80/100) or archive
+- See `.claude/rules/exploration-fast-track.md`
+
 ---
 
 ## Skills Quick Reference (Research-Focused)
