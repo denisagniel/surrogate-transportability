@@ -1,0 +1,220 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║         SAMPLING vs CLOSED-FORM: The Information Trade-off                    ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌────────────────────────────────────────────────────────────────────────────────┐
+│ WHAT SAMPLING GIVES US (That Closed-Form Doesn't)                              │
+├────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  FULL DISTRIBUTION over Q ∈ B_λ(P₀)                                            │
+│  ═══════════════════════════════════════                                       │
+│                                                                                 │
+│  Given M=2000 sampled Q_m:                                                     │
+│                                                                                 │
+│    ┌─────────────────────────────────┐                                         │
+│    │  Summary Statistics             │                                         │
+│    ├─────────────────────────────────┤                                         │
+│    │  • Minimum (worst-case)    ✓    │  ← Closed-form gives this              │
+│    │  • 5th percentile          ✓    │  ← Sampling ONLY                       │
+│    │  • 25th percentile         ✓    │  ← Sampling ONLY                       │
+│    │  • Median                  ✓    │  ← Sampling ONLY                       │
+│    │  • Mean (typical case)     ✓    │  ← Sampling ONLY                       │
+│    │  • 75th percentile         ✓    │  ← Sampling ONLY                       │
+│    │  • 95th percentile         ✓    │  ← Sampling ONLY                       │
+│    │  • Maximum (best-case)     ✓    │  ← Closed-form can give this*          │
+│    │  • Variance/Spread         ✓    │  ← Sampling ONLY                       │
+│    │  • Full density plot       ✓    │  ← Sampling ONLY                       │
+│    └─────────────────────────────────┘                                         │
+│                                                                                 │
+│  *For linear functionals: max = E_P0[h] + λ·||h||∞                             │
+│                                                                                 │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────┐
+│ RISK PROFILING: What We Learn From Distribution                                │
+├────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  Example Distribution:                                                          │
+│                                                                                 │
+│        Density                                                                  │
+│          │                                                                      │
+│          │            ╱‾‾‾╲                                                     │
+│          │          ╱       ╲                                                   │
+│          │        ╱           ╲                                                 │
+│          │      ╱               ╲                                               │
+│          │    ╱                   ╲                                             │
+│          │  ╱                       ╲                                           │
+│          ├──────────────────────────────────► φ(Q)                             │
+│             │    │    │    │    │    │                                          │
+│           min  5th  25th med  mean  max                                        │
+│           0.3  0.4  0.5  0.6  0.6  0.8                                         │
+│                                                                                 │
+│  INTERPRETATION:                                                                │
+│    • Minimum: 0.3  → Worst-case guarantee                                      │
+│    • Mean: 0.6     → Typical performance                                       │
+│    • Spread: 0.5   → Moderate variability                                      │
+│                                                                                 │
+│  DECISION-MAKING:                                                               │
+│    • Conservative: Use 5th percentile (0.4)                                    │
+│    • Moderate: Use 25th percentile (0.5)                                       │
+│    • Risk-neutral: Use mean (0.6)                                              │
+│    • Optimistic: Use median (0.6)                                              │
+│                                                                                 │
+│  ROBUSTNESS ASSESSMENT:                                                         │
+│    • Narrow distribution → Robust (stable across ball)                         │
+│    • Wide distribution → Fragile (sensitive to shifts)                         │
+│                                                                                 │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────┐
+│ COMPARISON TABLE: Information Content                                          │
+├─────────────────────────┬──────────────┬─────────────┬─────────────────────────┤
+│ Summary                 │ Closed-Form  │  Sampling   │  Time                   │
+├─────────────────────────┼──────────────┼─────────────┼─────────────────────────┤
+│ Minimum (worst-case)    │   ✓ Instant  │  ✓ Sample   │  4ms vs 38ms            │
+│ Maximum (best-case)     │   ✓ Formula* │  ✓ Sample   │  4ms vs 38ms            │
+│ Mean (typical)          │   ✗ No       │  ✓ Yes      │  N/A vs 38ms            │
+│ Median                  │   ✗ No       │  ✓ Yes      │  N/A vs 38ms            │
+│ Quantiles (5th,25th...) │   ✗ No       │  ✓ Yes      │  N/A vs 38ms            │
+│ Variance (spread)       │   ✗ No       │  ✓ Yes      │  N/A vs 38ms            │
+│ Full density            │   ✗ No       │  ✓ Yes      │  N/A vs 38ms            │
+│ Risk profile            │   ✗ No       │  ✓ Yes      │  N/A vs 38ms            │
+├─────────────────────────┴──────────────┴─────────────┴─────────────────────────┤
+│ *For linear functionals only: φ_max = E_P0[h] + λ·||h||∞                       │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────┐
+│ WHEN TO USE WHAT                                                                │
+├────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  USE CLOSED-FORM (Fast, Limited Info)                                          │
+│  ═════════════════════════════════════                                         │
+│                                                                                 │
+│    Scenarios:                                                                   │
+│      ✓ Worst-case decision-making only                                         │
+│      ✓ Large-scale screening (1000s of analyses)                               │
+│      ✓ Real-time inference (<5ms required)                                     │
+│      ✓ Simple pass/fail criteria                                               │
+│                                                                                 │
+│    Example:                                                                     │
+│      if (phi_star > threshold) approve() else reject()                         │
+│                                                                                 │
+│    Get: Minimum only                                                            │
+│    Time: 4ms                                                                    │
+│                                                                                 │
+│  ──────────────────────────────────────────────────────────────────────────    │
+│                                                                                 │
+│  USE SAMPLING (Slower, Rich Info)                                              │
+│  ═══════════════════════════════                                               │
+│                                                                                 │
+│    Scenarios:                                                                   │
+│      ✓ Risk profiling needed (quantiles, variance)                             │
+│      ✓ Portfolio management (multiple studies)                                 │
+│      ✓ Understanding sensitivity to shifts                                     │
+│      ✓ Publication (show full uncertainty)                                     │
+│      ✓ Different risk attitudes (conservative vs optimistic)                   │
+│                                                                                 │
+│    Example:                                                                     │
+│      risk_profile <- tibble(                                                   │
+│        worst    = quantile(phi_dist, 0.05),                                    │
+│        typical  = mean(phi_dist),                                              │
+│        spread   = sd(phi_dist)                                                 │
+│      )                                                                          │
+│                                                                                 │
+│    Get: Full distribution + all summaries                                      │
+│    Time: 38-1963ms                                                             │
+│                                                                                 │
+│  ──────────────────────────────────────────────────────────────────────────    │
+│                                                                                 │
+│  USE HYBRID (Best of Both) ⭐                                                   │
+│  ══════════════════════════                                                    │
+│                                                                                 │
+│    Scenarios:                                                                   │
+│      ✓ Sensitivity analysis (many λ values)                                    │
+│      ✓ Some λ critical, others not                                             │
+│      ✓ Balance speed and depth                                                 │
+│                                                                                 │
+│    Approach:                                                                    │
+│      1. Screen ALL λ with closed-form (fast)                                   │
+│         → Identify critical regions                                            │
+│                                                                                 │
+│      2. Deep dive at CRITICAL λ with sampling (rich)                           │
+│         → Full risk profile where it matters                                   │
+│                                                                                 │
+│    Example:                                                                     │
+│      # Screen 20 λ values: 20 × 4ms = 80ms                                     │
+│      critical <- lambda[phi_star < threshold]                                  │
+│                                                                                 │
+│      # Deep dive at 2 critical: 2 × 38ms = 76ms                                │
+│      risk_profiles <- map(critical, sample_distribution)                       │
+│                                                                                 │
+│      # Total: 156ms vs 760ms (all sampling)                                    │
+│                                                                                 │
+│    Get: Speed + depth where needed                                             │
+│    Time: 5-10x faster than all-sampling                                        │
+│                                                                                 │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────────────────┐
+│ RECOMMENDATION FOR YOUR CASE                                                    │
+├────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  PRIMARY USE: Closed-Form                                                       │
+│  ════════════════════════                                                       │
+│                                                                                 │
+│    Most decisions need WORST-CASE only:                                        │
+│      • Regulatory approval: "Is it good enough in worst-case?"                 │
+│      • Go/no-go: "Does surrogate meet minimum threshold?"                      │
+│      • Screening: "Which surrogates are robust?"                               │
+│                                                                                 │
+│  WHEN TO SWITCH TO SAMPLING:                                                    │
+│  ════════════════════════════════                                              │
+│                                                                                 │
+│    1. Close to decision boundary                                               │
+│       → Need to understand typical case vs worst-case                          │
+│                                                                                 │
+│    2. Portfolio of studies                                                     │
+│       → Different risk attitudes for different contexts                        │
+│                                                                                 │
+│    3. Manuscript/publication                                                   │
+│       → Reviewers want full uncertainty quantification                         │
+│                                                                                 │
+│    4. Validation                                                               │
+│       → Confirm closed-form minimum matches sampling minimum                   │
+│                                                                                 │
+│  HYBRID WORKFLOW: ⭐ RECOMMENDED                                                │
+│  ═══════════════════════════════                                               │
+│                                                                                 │
+│    result <- surrogate_inference_minimax(                                      │
+│      data, lambda = 0.3,                                                       │
+│      functional_type = "concordance",                                          │
+│      compute_distribution = TRUE   # Optional flag                             │
+│    )                                                                            │
+│                                                                                 │
+│    # Returns:                                                                   │
+│    #   - phi_star (always, instant)                                            │
+│    #   - phi_distribution (if requested, +30ms)                                │
+│    #   - phi_mean, phi_quantiles, phi_sd (if requested)                        │
+│                                                                                 │
+└────────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║ BOTTOM LINE                                                                    ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                ║
+║  TRADE-OFF: Speed vs Information                                               ║
+║  ═══════════════════════════════════                                           ║
+║                                                                                ║
+║    • Closed-form: 10-500x faster, but ONLY min/max                             ║
+║    • Sampling: Full distribution, but 10-500x slower                           ║
+║    • Hybrid: Best of both (screen → sample critical)                           ║
+║                                                                                ║
+║  DEFAULT: Use closed-form (worst-case sufficient for most decisions)           ║
+║                                                                                ║
+║  UPGRADE: Add compute_distribution=TRUE when need risk profile                 ║
+║                                                                                ║
+║  BEST: Hybrid approach for sensitivity analyses                                ║
+║                                                                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+See: CLOSED_FORM_VS_SAMPLING_TRADEOFFS.md for full analysis

@@ -6,6 +6,60 @@
 #' @name type_level_minimax
 NULL
 
+#' Compute Type-Level Treatment Effects
+#'
+#' Computes treatment effects for each type (bin) in discretized data.
+#'
+#' @param data Data frame with A, S, Y
+#' @param bins Integer vector of bin assignments (length nrow(data))
+#'
+#' @return List with:
+#'   \item{tau_s}{Vector of treatment effects on S for each type}
+#'   \item{tau_y}{Vector of treatment effects on Y for each type}
+#'   \item{p0}{Vector of type probabilities under P0}
+#'   \item{J}{Number of types}
+#'
+#' @keywords internal
+compute_type_level_effects <- function(data, bins) {
+
+  # Get unique types
+  unique_bins <- sort(unique(bins))
+  J <- length(unique_bins)
+
+  # Initialize
+  tau_s <- numeric(J)
+  tau_y <- numeric(J)
+  p0 <- numeric(J)
+
+  for (j in 1:J) {
+    bin_id <- unique_bins[j]
+    idx <- which(bins == bin_id)
+
+    # Type probability
+    p0[j] <- length(idx) / length(bins)
+
+    # Treatment effects in this type
+    treated_idx <- idx[data$A[idx] == 1]
+    control_idx <- idx[data$A[idx] == 0]
+
+    if (length(treated_idx) > 0 && length(control_idx) > 0) {
+      tau_s[j] <- mean(data$S[treated_idx]) - mean(data$S[control_idx])
+      tau_y[j] <- mean(data$Y[treated_idx]) - mean(data$Y[control_idx])
+    } else {
+      # No treatment contrast in this type
+      tau_s[j] <- 0
+      tau_y[j] <- 0
+    }
+  }
+
+  list(
+    tau_s = tau_s,
+    tau_y = tau_y,
+    p0 = p0,
+    J = J
+  )
+}
+
 #' Estimate Minimax for Single Discretization Scheme
 #'
 #' Computes minimax estimate of surrogate functional for a single

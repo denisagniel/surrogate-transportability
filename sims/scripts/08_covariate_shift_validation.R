@@ -26,9 +26,7 @@ N_BASELINE <- 1000        # Baseline study sample size
 N_FUTURE <- 1000          # Future study sample size
 N_REPLICATIONS <- 1000    # Number of replications per scenario (for reliable coverage)
 N_TRUE_STUDIES <- 500     # Studies for computing TRUE φ(Q) (ground truth)
-N_BASELINE_RESAMPLES <- 100  # Outer bootstrap for proper CI
-N_BOOTSTRAP <- 100        # Bootstrap samples for CI (draws from F_λ)
-N_MC_DRAWS <- 50          # MC draws per bootstrap (studies per Q)
+N_INNOVATIONS <- 1000     # Number of innovations for influence function method
 CONFIDENCE_LEVEL <- 0.95
 
 cat("================================================================\n")
@@ -39,11 +37,8 @@ cat("Parameters:\n")
 cat(sprintf("  Baseline n: %d\n", N_BASELINE))
 cat(sprintf("  Replications per scenario: %d\n", N_REPLICATIONS))
 cat(sprintf("  Studies for TRUE φ(Q): %d\n", N_TRUE_STUDIES))
-cat(sprintf("  Baseline resamples (outer): %d\n", N_BASELINE_RESAMPLES))
-cat(sprintf("  Bootstrap samples (middle): %d\n", N_BOOTSTRAP))
-cat(sprintf("  MC draws per bootstrap (inner): %d\n", N_MC_DRAWS))
-cat(sprintf("  Total future studies per rep: %d\n",
-            N_TRUE_STUDIES + N_BASELINE_RESAMPLES * N_BOOTSTRAP * N_MC_DRAWS))
+cat(sprintf("  Innovations (M): %d\n", N_INNOVATIONS))
+cat(sprintf("  Method: Influence function (delta method)\n"))
 cat(sprintf("  Confidence level: %.2f\n", CONFIDENCE_LEVEL))
 
 cat("\n")
@@ -51,8 +46,8 @@ cat("Research Design:\n")
 cat("  1. Generate baseline study with balanced classes (50/50)\n")
 cat("  2. Generate TRUE future studies via covariate shift\n")
 cat("  3. Compute TRUE φ(Q) in each future study\n")
-cat("  4. Apply METHOD assuming Dirichlet(1,...,1)\n")
-cat("  5. Check if method CI contains TRUE φ(Q)\n")
+cat("  4. Apply influence function method assuming Dirichlet(1,...,1)\n")
+cat("  5. Check if delta method CI contains TRUE φ(Q)\n")
 cat("  6. Compute coverage rate across replications\n\n")
 
 # Define covariate shift scenarios
@@ -90,10 +85,7 @@ validation_results <- tibble::tibble(
   method_se = numeric(),
   method_ci_lower = numeric(),
   method_ci_upper = numeric(),
-  method_q025 = numeric(),
-  method_q975 = numeric(),
-  covered_ci = logical(),
-  covered_quantile = logical()
+  covered_ci = logical()
 )
 
 cat("----------------------------------------------------------------\n")
@@ -162,17 +154,13 @@ for (scenario_name in names(shift_scenarios)) {
     # Use the empirical TV distance from the shifted study
     lambda_empirical <- shifted_study$tv_distance
 
-    # Run posterior inference with fixed lambda using nested bootstrap
+    # Run influence function inference with fixed lambda
     method_result <- tryCatch({
-      posterior_inference(
+      surrogate_inference_if(
         baseline,
-        n_draws_from_F = N_BOOTSTRAP,
-        n_future_studies_per_draw = N_MC_DRAWS,
-        n_baseline_resamples = N_BASELINE_RESAMPLES,
         lambda = lambda_empirical,
-        functional_type = "correlation",
-        innovation_type = "bayesian_bootstrap",
-        seed = NULL
+        n_innovations = N_INNOVATIONS,
+        functional_type = "correlation"
       )
     }, error = function(e) {
       warning(sprintf("Error in replication %d: %s", rep, e$message))
@@ -182,20 +170,15 @@ for (scenario_name in names(shift_scenarios)) {
     if (is.null(method_result)) next
 
     # Step 5: Extract method results and check coverage
-    method_estimate <- method_result$summary$mean
-    method_se <- method_result$summary$se
-    method_ci_lower <- method_result$summary$ci_lower
-    method_ci_upper <- method_result$summary$ci_upper
-    method_q025 <- method_result$summary$q025
-    method_q975 <- method_result$summary$q975
+    method_estimate <- method_result$estimate
+    method_se <- method_result$se
+    method_ci_lower <- method_result$ci_lower
+    method_ci_upper <- method_result$ci_upper
 
-    # Check coverage for both CI and quantiles
-    # Note: CI is for E[phi(F_lambda)], quantiles are prediction interval for phi(Q)
-    # Here we're checking if specific phi(Q) falls in each interval
+    # Check coverage for CI
+    # Note: CI is for φ(F_lambda) using delta method
     covered_ci <- (true_correlation >= method_ci_lower) &&
                   (true_correlation <= method_ci_upper)
-    covered_quantile <- (true_correlation >= method_q025) &&
-                        (true_correlation <= method_q975)
 
     # Store results
     # Extract values outside tibble to avoid scoping issues
@@ -212,10 +195,7 @@ for (scenario_name in names(shift_scenarios)) {
       method_se = method_se,
       method_ci_lower = method_ci_lower,
       method_ci_upper = method_ci_upper,
-      method_q025 = method_q025,
-      method_q975 = method_q975,
-      covered_ci = covered_ci,
-      covered_quantile = covered_quantile
+      covered_ci = covered_ci
     ))
 
     # Save interim results every 25 reps
@@ -243,30 +223,27 @@ coverage_summary <- validation_results %>%
   group_by(scenario, target_class1_prob) %>%
   summarise(
     n_reps = n(),
-    coverage_rate_ci = mean(covered_ci, na.rm = TRUE),
-    coverage_rate_quantile = mean(covered_quantile, na.rm = TRUE),
+    coverage_rate = mean(covered_ci, na.rm = TRUE),
     mean_tv_distance = mean(tv_distance, na.rm = TRUE),
     mean_true_correlation = mean(true_correlation, na.rm = TRUE),
     mean_method_estimate = mean(method_estimate, na.rm = TRUE),
     mean_se = mean(method_se, na.rm = TRUE),
     mean_ci_width = mean(method_ci_upper - method_ci_lower, na.rm = TRUE),
-    mean_quantile_width = mean(method_q975 - method_q025, na.rm = TRUE),
     .groups = "drop"
   )
 
 cat("Coverage Rates by Scenario:\n\n")
-cat("Note: CI = confidence interval for E[phi]; Quantile = prediction interval\n\n")
-cat(sprintf("%-25s %-6s %-8s %-8s %-8s %-8s %-8s %-8s\n",
-            "Scenario", "λ", "Cov_CI", "Cov_Q", "True φ", "Est φ", "SE", "CI Wid"))
-cat(strrep("-", 90), "\n")
+cat("Note: Using influence function method (delta method)\n\n")
+cat(sprintf("%-25s %-6s %-8s %-8s %-8s %-8s %-8s\n",
+            "Scenario", "λ", "Coverage", "True φ", "Est φ", "SE", "CI Wid"))
+cat(strrep("-", 80), "\n")
 
 for (i in 1:nrow(coverage_summary)) {
   row <- coverage_summary[i, ]
-  cat(sprintf("%-25s %-6.3f %-8.3f %-8.3f %-8.3f %-8.3f %-8.4f %-8.3f\n",
+  cat(sprintf("%-25s %-6.3f %-8.3f %-8.3f %-8.3f %-8.4f %-8.3f\n",
               row$scenario,
               row$mean_tv_distance,
-              row$coverage_rate_ci,
-              row$coverage_rate_quantile,
+              row$coverage_rate,
               row$mean_true_correlation,
               row$mean_method_estimate,
               row$mean_se,
@@ -275,32 +252,18 @@ for (i in 1:nrow(coverage_summary)) {
 
 cat("\n")
 cat("Target Coverage: ", CONFIDENCE_LEVEL, "\n")
-cat("Nominal α: ", 1 - CONFIDENCE_LEVEL, "\n")
-cat("Cov_CI = Coverage rate using SE-based CI for E[phi(F_lambda)]\n")
-cat("Cov_Q = Coverage rate using quantile-based prediction interval\n\n")
+cat("Nominal α: ", 1 - CONFIDENCE_LEVEL, "\n\n")
 
 # Assess overall validity
-overall_coverage_ci <- mean(validation_results$covered_ci, na.rm = TRUE)
-overall_coverage_quantile <- mean(validation_results$covered_quantile, na.rm = TRUE)
+overall_coverage <- mean(validation_results$covered_ci, na.rm = TRUE)
 
-cat(sprintf("Overall Coverage (SE-based CI): %.3f (%.1f%%)\n",
-            overall_coverage_ci, overall_coverage_ci * 100))
-cat(sprintf("Overall Coverage (Quantiles): %.3f (%.1f%%)\n",
-            overall_coverage_quantile, overall_coverage_quantile * 100))
+cat(sprintf("Overall Coverage: %.3f (%.1f%%)\n",
+            overall_coverage, overall_coverage * 100))
 
-cat("\nSE-based CI interpretation:\n")
-if (overall_coverage_ci >= CONFIDENCE_LEVEL - 0.05) {
+cat("\nInterpretation:\n")
+if (overall_coverage >= CONFIDENCE_LEVEL - 0.02) {
   cat("✓ VALID: Coverage within acceptable range\n")
-} else if (overall_coverage_ci >= CONFIDENCE_LEVEL - 0.10) {
-  cat("⚠ MARGINAL: Coverage slightly below target\n")
-} else {
-  cat("✗ INVALID: Coverage substantially below target\n")
-}
-
-cat("\nQuantile-based interval interpretation:\n")
-if (overall_coverage_quantile >= CONFIDENCE_LEVEL - 0.05) {
-  cat("✓ VALID: Coverage within acceptable range\n")
-} else if (overall_coverage_quantile >= CONFIDENCE_LEVEL - 0.10) {
+} else if (overall_coverage >= CONFIDENCE_LEVEL - 0.05) {
   cat("⚠ MARGINAL: Coverage slightly below target\n")
 } else {
   cat("✗ INVALID: Coverage substantially below target\n")
@@ -368,15 +331,15 @@ validation_results_plot <- validation_results %>%
 
 p3 <- ggplot(validation_results_plot,
              aes(x = obs_id, y = method_estimate)) +
-  geom_pointrange(aes(ymin = method_lower, ymax = method_upper,
-                      color = covered),
+  geom_pointrange(aes(ymin = method_ci_lower, ymax = method_ci_upper,
+                      color = covered_ci),
                   alpha = 0.6, size = 0.3) +
   geom_point(aes(y = true_correlation), color = "black", size = 1) +
   facet_wrap(~scenario, scales = "free_x") +
   scale_color_manual(values = c("TRUE" = "blue", "FALSE" = "red"),
                      labels = c("TRUE" = "Covered", "FALSE" = "Missed")) +
   labs(
-    title = "Confidence Interval Coverage",
+    title = "Confidence Interval Coverage (Influence Function Method)",
     subtitle = "Black dots: true φ(Q); Blue/Red: CIs that cover/miss",
     x = "Replication",
     y = "Correlation",
@@ -453,7 +416,8 @@ cat("\n4. Recommendation for Paper:\n")
 cat("   Add to Section 5 (Simulation Studies):\n")
 cat("   'To validate robustness to covariate shift, we generated\n")
 cat("    future studies where only P(class) changed while\n")
-cat("    P(S,Y|A,class) remained fixed. The method provided\n")
+cat("    P(S,Y|A,class) remained fixed. The influence function\n")
+cat("    method (Proposition 1) provided\n")
 cat(sprintf("    %.0f%% coverage (target: %.0f%%) across shifts with\n",
             overall_coverage * 100, CONFIDENCE_LEVEL * 100))
 cat(sprintf("    λ ∈ [%.2f, %.2f], demonstrating validity under\n",

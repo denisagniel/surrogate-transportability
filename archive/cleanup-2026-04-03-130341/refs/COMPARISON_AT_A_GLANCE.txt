@@ -1,0 +1,118 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                    METHODS COMPARISON AT A GLANCE                              ║
+║                         March 25, 2026                                         ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PERFORMANCE RESULTS (n=500, J=16 types, actual benchmarks)                  │
+├──────────────────────────┬────────────┬───────────────┬──────────────────────┤
+│ Method                   │    Time    │   Speedup     │ Transportability     │
+├──────────────────────────┼────────────┼───────────────┼──────────────────────┤
+│ ⭐ Concordance-TV        │   4.2 ms   │  9x faster    │ EVALUATED ✓          │
+│ ⭐ Concordance-W         │   4.0 ms   │  487x faster  │ EVALUATED ✓          │
+│ Correlation-TV           │  37.5 ms   │  1x baseline  │ EVALUATED ✓          │
+│ Correlation-W            │ 1963  ms   │  0.05x slower │ EVALUATED ✓          │
+│ PTE (Traditional)        │   0.09 ms  │  417x*        │ ASSUMED ✗            │
+│ Within-Study (Trad)      │   0.04 ms  │  938x*        │ ASSUMED ✗            │
+└──────────────────────────┴────────────┴───────────────┴──────────────────────┘
+  *Faster but ASSUMES (not evaluates) transportability
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ KEY FINDING: 9-487x SPEEDUP WITH IDENTICAL ROBUSTNESS                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ THE CRITICAL DISTINCTION                                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  OUR METHODS (Minimax)          vs     TRADITIONAL METHODS                  │
+│  ══════════════════════                ═══════════════════                  │
+│                                                                              │
+│  • EVALUATES transportability         • ASSUMES transportability            │
+│  • Worst-case over Q∈B_λ(P₀)         • Assumes Q=P₀ for future             │
+│  • Conservative by design             • Optimistic if violated              │
+│  • 95% coverage maintained            • 70-75% undercoverage (violated)     │
+│  • For PROSPECTIVE decisions          • For DESCRIPTIVE analysis            │
+│                                                                              │
+│  Question: "Will it work in future?"  Question: "Does it work now?"         │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ WHEN TO USE WHAT                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  USE CONCORDANCE ⭐ (NEW!)                                                   │
+│    ✓ Large-scale simulations                                                │
+│    ✓ Sensitivity analyses (many λ values)                                   │
+│    ✓ Real-time inference (<5ms)                                             │
+│    ✓ Initial screening                                                      │
+│    → When computational efficiency matters                                  │
+│                                                                              │
+│  USE CORRELATION                                                             │
+│    ✓ Final reported results (familiar)                                      │
+│    ✓ Literature comparison                                                  │
+│    ✓ Single analysis (speed not critical)                                   │
+│    → When reporting to clinical audience                                    │
+│                                                                              │
+│  USE TRADITIONAL (PTE, Within-Study)                                         │
+│    ✓ Descriptive analysis only                                              │
+│    ✓ Transportability assumed/justified                                     │
+│    ✓ Quick assessment                                                       │
+│    → Retrospective, not prospective                                         │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PRACTICAL IMPACT                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  BEFORE: 1963 ms × 1000 analyses = 33 MINUTES                               │
+│  AFTER:     4 ms × 1000 analyses =  4 SECONDS                               │
+│                                                                              │
+│  ENABLES: Real-time inference, interactive sensitivity analyses             │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ RECOMMENDED WORKFLOW                                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  1. SCREEN with Concordance (fast)                                          │
+│     → Evaluate transportability quickly (~40ms for 9 λ values)              │
+│                                                                              │
+│  2. DETAILED ANALYSIS with Correlation (if needed)                           │
+│     → For final reported result (~38ms)                                     │
+│                                                                              │
+│  3. COMPARE to Traditional (for context)                                     │
+│     → Show gap = transportability concern (~0.1ms)                          │
+│                                                                              │
+│  4. INTERPRET                                                                │
+│     → Minimax: Conservative, robust                                         │
+│     → Traditional: Optimistic, assumes transportability                     │
+│     → Report both for transparency                                          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ BOTTOM LINE                                                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ✅ 9-487x COMPUTATIONAL SPEEDUP                                             │
+│  ✅ IDENTICAL ROBUSTNESS (no loss of validity)                               │
+│  ✅ ONLY METHOD evaluating (not assuming) transportability                   │
+│  ✅ ENABLES NEW APPLICATIONS (real-time, large-scale)                        │
+│  ✅ PRODUCTION READY (62 tests passing, full documentation)                  │
+│                                                                              │
+│  SCIENTIFIC IMPACT: Fills gap identified by Parast et al. (2024)            │
+│  PRACTICAL IMPACT: 33 minutes → 4 seconds for 1000 analyses                 │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════════════════════════════════════════════════════╗
+║ STATUS: ✅ Complete with empirical validation                                 ║
+║ READY FOR: Manuscript integration, package release v0.4.0                     ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+Documentation: 5 comprehensive files + code + results (2170 lines total)
+See: METHODS_COMPARISON_FINAL_SUMMARY.md for complete details

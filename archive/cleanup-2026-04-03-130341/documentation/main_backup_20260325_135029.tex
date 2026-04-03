@@ -1,0 +1,1207 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+% %\input{GrandMacros.tex}
+% %\input{Macro.tex}
+\usepackage{amsthm}
+\usepackage{xcolor}
+\newtheorem{remark}{Remark}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\usepackage{graphicx,verbatim,array,multicol, subfigure, color, lscape, mathrsfs, dsfont,url}
+%\usepackage{psfrag, amsmath, amsfonts, epsfig, fancybox, setspace,soul, cancel,biometri}
+\usepackage{psfrag, amsmath, amsfonts, epsfig, fancybox, setspace, soul, amsthm, longtable, threeparttable, threeparttablex, makecell, xcolor, pdflscape, tabu, booktabs, natbib, amssymb}
+\usepackage[normalem]{ulem}
+\usepackage{cancel}
+\usepackage[utf8]{inputenc}
+\parindent 16pt
+\include{common-defs}
+\newcommand{\PP}{\mathbb{P}}
+
+\input{typography-preamble}
+
+% \def\cor{\text{cor}}
+% \def\cF{\cF}
+
+\title{Surrogate inference via random probability distributions: evaluation of surrogate quality in future studies}
+
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+
+Surrogate markers promise to accelerate clinical research by replacing expensive or long-term outcomes with earlier-measured alternatives. A central question is whether a surrogate validated in one study will perform well in future trials with different populations. This is fundamentally a question of \textbf{transportability}: will the surrogate-outcome relationship observed in the current study hold when the population, treatment effect heterogeneity, or covariate distributions change?
+
+Traditional validation methods---proportion of treatment effect (PTE; \cite{chen2003pte}), within-study correlation, principal stratification \cite{frangakis2002principal}, and causal mediation \cite{vanderweele2015mediation}---are designed for this prospective use case. However, these methods \textbf{assume} that observed relationships will transport to future settings. PTE assumes the proportion of treatment effect remains stable; mediation assumes pathway structures persist; principal stratification assumes stratum definitions transfer. When these assumptions are violated---as may occur with covariate shift, treatment effect heterogeneity, or selection mechanisms---inference can be misleading. \cite{parast2024} identified ``limited work on transportability of surrogate knowledge from one study to another'' as a critical methodological gap.
+
+We introduce a framework for \textbf{local geometric evaluation} of transportability. Rather than assuming surrogate relationships transport, we explicitly compute worst-case surrogate performance over distributions within distance $\lambda$ of the observed $\PP_0$. The ``local'' constraint (distance $\leq \lambda$) focuses on plausible shifts rather than all possible distributions; the ``geometric'' aspect (choice of distance metric) captures different shift mechanisms (TV for arbitrary reweighting, Wasserstein for covariate shift); ``evaluation'' means explicit computation of conservative bounds without transportability assumptions.
+
+This framework admits multiple instantiations. We develop two: TV-ball distributional robustness optimization (DRO) for general distributional shifts, and Wasserstein-ball DRO for covariate shifts that preserve geometry. Within each, we provide sampling-based algorithms for general functionals and closed-form solutions for linear functionals (concordance) via recent DRO theory \cite{bentalnemirovski2013, esfahanikuhn2018}. The closed-form approach provides 9--487$\times$ computational speedup while maintaining identical robustness guarantees.
+
+Our simulation studies demonstrate that when transportability assumptions are violated, traditional methods exhibit 20--25 percentage point undercoverage (70--75\% instead of nominal 95\%), while local geometric evaluation maintains 95\% coverage by design. When assumptions hold, both approaches yield similar inference, with ours more conservative. The choice between assuming and evaluating transportability depends on tolerance for Type I vs Type II error in the prospective decision-making context.
+
+This paper makes three contributions. \textbf{First}, we introduce the local geometric evaluation framework for assessing surrogate transportability, providing the first approach to explicitly compute worst-case performance bounds rather than assuming transportability holds. \textbf{Second}, we develop two implementations---TV-ball and Wasserstein-ball DRO---with sampling-based algorithms and closed-form solutions for linear functionals, including a 9--487$\times$ speedup via concordance. \textbf{Third}, we demonstrate via simulation that when transportability assumptions are violated (covariate shift), traditional methods achieve 70--75\% coverage while our approach maintains nominal 95\% coverage, quantifying the cost of assumption-based vs evaluation-based inference.
+
+Table~\ref{tab:comparison} summarizes how local geometric evaluation compares to traditional surrogate validation methods.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of surrogate validation approaches}
+\label{tab:comparison}
+\begin{tabular}{lllll}
+\toprule
+Approach & Goal & Transportability & Key Requirement & Data \\
+\midrule
+\multicolumn{5}{l}{\textit{Traditional methods (assume transportability)}} \\
+\quad PTE \cite{chen2003pte} & Future trials & Assumed stable & Monotonicity & Single \\
+\quad Within-study corr & Future trials & Assumed stable & Association transports & Single \\
+\quad Mediation \cite{vanderweele2015mediation} & Future trials & Assumed stable & Pathway structure fixed & Single \\
+\quad Principal strat \cite{frangakis2002principal} & Future trials & Assumed stable & Strata definitions transfer & Single/multi \\
+\quad Meta-analytic \cite{buyse2000validation} & Future trials & Assumed stable & Trial-level homogeneity & Multiple \\
+\midrule
+\multicolumn{5}{l}{\textit{Local geometric evaluation (evaluate transportability)}} \\
+\quad \textbf{TV-ball DRO} & \textbf{Future trials} & \textbf{Evaluated (worst-case)} & \textbf{Distance radius $\lambda$} & \textbf{Single} \\
+\quad \textbf{Wasserstein DRO} & \textbf{Future trials} & \textbf{Evaluated (worst-case)} & \textbf{Distance radius $\lambda_W$} & \textbf{Single} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Local Geometric Evaluation Framework}\label{sec:framework}
+
+\subsection{Transportability as the inferential target}
+
+Let $\PP_0$ denote the distribution of the observed data in the current study, where we observe $\bO = (\bX, A, S, Y)$ (covariates, treatment, surrogate, outcome). We estimate treatment effects $\Delta_S = \E_{\PP_0}\{S(1) - S(0)\}$ and $\Delta_Y = \E_{\PP_0}\{Y(1) - Y(0)\}$ under standard identification assumptions (SUTVA, ignorability). The question is: \emph{what do these estimates tell us about future studies?}
+
+A future study operates under distribution $\Q \neq \PP_0$, observing treatment effects $\Delta_S(\Q)$ and $\Delta_Y(\Q)$. The surrogate is valuable if knowledge of $\Delta_S(\Q)$ informs $\Delta_Y(\Q)$ \emph{even when $\Q$ differs from $\PP_0$}. To assess this, we need to characterize how surrogate quality---measured by functionals such as correlation of treatment effects $\phi(\Q) = \text{Cor}\{\Delta_S(\Q), \Delta_Y(\Q)\}$---behaves as $\Q$ varies from $\PP_0$.
+
+Traditional methods assume $\phi(\Q) \approx \phi(\PP_0)$ when $\Q$ is a ``similar'' future study, but do not formalize ``similar'' or quantify how $\phi(\Q)$ may degrade. We instead \emph{evaluate} how $\phi(\Q)$ varies over explicitly defined sets of plausible future distributions.
+
+\subsection{Local geometry via distance-based uncertainty sets}
+
+We define a \textbf{local geometry} around $\PP_0$ as the set of distributions within distance $\lambda$:
+\begin{equation}\label{eq:local-geometry}
+    \cU(\PP_0, \lambda; d) = \{\Q : d(\Q, \PP_0) \leq \lambda\}
+\end{equation}
+where $d$ is a distance or divergence measure on probability distributions.
+
+The parameter $\lambda$ controls the size of the local region:
+\begin{itemize}
+    \item $\lambda = 0$: Only $\PP_0$ (no robustness)
+    \item Small $\lambda$: Distributions very similar to $\PP_0$ (conservative assumption about future similarity)
+    \item Large $\lambda$: Broad range of distributions (pessimistic assumption)
+\end{itemize}
+
+The choice of distance metric $d$ determines which types of shifts are captured:
+
+\paragraph{Total variation (TV) distance.}
+\begin{equation}
+    d_{\mathrm{TV}}(\Q, \PP_0) = \sup_{A \subseteq \Omega} |\Q(A) - \PP_0(A)| \leq 1
+\end{equation}
+The TV-ball captures \emph{arbitrary distributional reweighting}. Any reweighting scheme that changes cell probabilities by at most $\lambda$ is included. This is the most general local geometry, appropriate when the mechanism of distributional shift is unknown.
+
+\paragraph{Wasserstein distance.}
+For data with covariate structure $(\bX, A, S, Y)$, the 2-Wasserstein distance is
+\begin{equation}
+    W_2(\Q, \PP_0) = \inf_{\pi \in \Pi(\Q, \PP_0)} \left( \int \|\bx - \bx'\|^2 \, d\pi(\bx, \bx') \right)^{1/2}
+\end{equation}
+where $\pi$ is a coupling. The Wasserstein ball captures \emph{shifts in covariate space} that preserve local geometry: distributions that arise from transporting mass in covariate space by at most $\lambda_W$. This is appropriate for covariate shift (selection, enrichment) where the relationship structure is preserved but the covariate distribution changes.
+
+\paragraph{Other distances.}
+The framework extends naturally to other distances:
+\begin{itemize}
+    \item KL divergence: $d_{\mathrm{KL}}(\Q \| \PP_0)$ for likelihood-ratio shifts
+    \item $\chi^2$ divergence: $d_{\chi^2}(\Q, \PP_0)$ for specific perturbation classes
+    \item $f$-divergences: General family including KL and $\chi^2$ as special cases
+\end{itemize}
+Each choice defines a different local geometry, capturing different shift mechanisms.
+
+\paragraph{Interpretation: Local, not global or point.}
+The local geometry approach balances two extremes:
+\begin{itemize}
+    \item \textbf{Point estimate ($\lambda = 0$):} Assumes future = current exactly (traditional methods implicitly do this)
+    \item \textbf{Global pessimism ($\lambda = \infty$):} Considers all distributions (uninformative, too conservative)
+    \item \textbf{Local geometry ($\lambda$ finite):} Plausible distributions within distance $\lambda$ (explicit robustness radius)
+\end{itemize}
+
+The parameter $\lambda$ encodes our belief about how different future studies may be. Sensitivity analysis over $\lambda \in [0.1, 0.5]$ reveals how surrogate quality degrades as distributional distance increases.
+
+\subsection{Evaluation via worst-case computation}
+
+Given a local geometry $\cU(\PP_0, \lambda; d)$ and a surrogate quality functional $\phi$ (e.g., correlation, probability of concordance, expected outcome effect given surrogate effect), we compute:
+\begin{equation}\label{eq:worst-case}
+    \phi_*(\lambda) = \inf_{\Q \in \cU(\PP_0, \lambda; d)} \phi(\Q)
+\end{equation}
+This is the \textbf{worst-case surrogate quality} over the local geometry.
+
+\paragraph{Interpretation.}
+If $\phi_*(\lambda) \geq$ threshold, then \emph{even in the worst-case distribution within distance $\lambda$}, the surrogate meets the quality threshold. This provides a \textbf{conservative guarantee} without assuming transportability.
+
+\paragraph{Comparison to traditional methods.}
+Traditional methods compute $\phi(\PP_0)$ or $\hat{\phi}$ from the observed data and report a confidence interval. This answers: ``What is surrogate quality \emph{in the current study}?'' Our approach answers: ``What is the minimum surrogate quality \emph{across all plausible future studies within distance $\lambda$}?''
+
+When the future study $\Q$ is within the local geometry ($d(\Q, \PP_0) \leq \lambda$), the bound $\phi_*(\lambda)$ is guaranteed to hold for $\Q$. Traditional methods provide no such guarantee when $\Q \neq \PP_0$.
+
+\paragraph{Coverage under transportability violations.}
+When traditional methods assume $\phi(\Q) \approx \phi(\PP_0)$ and this assumption is violated ($\Q$ differs substantially from $\PP_0$ in ways affecting $\phi$), their confidence intervals may not contain $\phi(\Q)$, yielding undercoverage. Our worst-case bound $\phi_*(\lambda)$ covers $\phi(\Q)$ by construction whenever $d(\Q, \PP_0) \leq \lambda$, maintaining nominal coverage.
+
+Section~\ref{sec:simulation} demonstrates this empirically: under covariate shift scenarios where $d(\Q, \PP_0) > 0$, traditional methods achieve 70--75\% coverage while $\phi_*(\lambda)$ maintains 95\% coverage.
+
+\subsection{The framework in summary}
+
+Local geometric evaluation consists of three steps:
+\begin{enumerate}
+    \item \textbf{Choose distance metric $d$:} Determines which shift types are captured (TV for general, Wasserstein for covariate shift, KL for likelihood, etc.)
+    \item \textbf{Choose radius $\lambda$:} Determines size of local region (plausible deviation from $\PP_0$)
+    \item \textbf{Compute worst-case:} $\phi_*(\lambda) = \inf_{d(\Q,\PP_0) \leq \lambda} \phi(\Q)$
+\end{enumerate}
+
+This is a \emph{framework}, not a single method. Different choices of $(d, \lambda, \phi,$computation approach$)$ yield different implementations, all sharing the core principle of explicit evaluation over local geometry.
+
+In Sections~\ref{sec:tv-implementation} and~\ref{sec:wasserstein-implementation}, we develop two implementations: TV-ball DRO (arbitrary shifts) and Wasserstein DRO (covariate shifts), each with sampling and closed-form computational approaches.
+
+\section{Setting}\label{sec:setting}
+Suppose we observe $n$ iid realizations of $\bO = (\bX, A, S, Y) \sim \PP_0$ in the current study, where $A \in \{0, 1\}$ is a binary treatment, $Y \in \cY \subset \R$ is the outcome of interest, $S \in \cS \subset \R$ is a surrogate marker that may replace $Y$ in a future study, and $\bX \in \cX \subset \R^p$ are pre-treatment covariates ($\bX$ may be omitted in a randomized trial). The distribution $\PP_0$ is the law of the observables. We measure treatment effects on the surrogate and the outcome via
+\begin{align*}
+    &\Delta_Y = \E_{\PP_0}\{Y(1) - Y(0)\}\\
+    &\Delta_S = \E_{\PP_0}\{S(1) - S(0)\}
+\end{align*}
+This all describes (the population of) the current study. Under suitable identification assumptions, $\Delta_S$ and $\Delta_Y$ are identified and can be estimated by standard methods (e.g., difference in means or influence-function-based estimators). However, for the purposes of determining surrogate quality, we wish to know how the surrogate would perform in \emph{future} studies. Consider a future study with distribution $\PP^*$; we would observe $\Delta^*_S = \E_{\PP^*}\{S(1) - S(0)\}$ but not $Y$, and we wish to know what $\Delta^*_S$ implies about $\Delta^*_Y = \E_{\PP^*}\{Y(1) - Y(0)\}$. 
+
+To formalize this, we must begin to characterize a class of future studies to which we might wish to generalize. We treat the study-specific distribution as a draw from a random probability measure $\cF$, so that both the current distribution $\PP_0$ and any future study distribution $\Q$ are (conceptually) draws from $\cF$.
+
+Suppose that we have a random probability measure $\cF$ such that $\PP_0 \sim \cF$ and any future study $\Q \sim \cF$. Our goal is to make inference about functionals $\phi(\cF)$ of the distribution of studies using the observed data from the current study. Examples of functionals that may be of interest include the correlation between the two treatment effects $\phi(\cF) = \frac{\Cov_{\cF}\{\Delta_S(\Q), \Delta_Y(\Q)\}}{\sqrt{\Var_\cF\{\Delta_S(\Q)\}\Var_\cF\{\Delta_Y(\Q)\}}}$; the probability that a non-small treatment effect on the surrogate implies a non-small treatment effect on the outcome $\phi(\cF; \epsilon_S, \epsilon_Y) = \E_\cF\left[ \cI\{ \Delta_S(\Q) > \epsilon_S, \Delta_Y(\Q) > \epsilon_Y\} \right] / \E_\cF\left[ \cI\{ \Delta_S(\Q) > \epsilon_S\} \right]$; or the expected outcome treatment effect for a given surrogate treatment effect $\phi(\cF; \delta) = \E_\cF\left\{\Delta_Y(\Q) | \Delta_S(\Q) = \delta\right\}$. Our goal is to estimate these functionals, thereby characterizing how the surrogate--outcome relationship may behave in future studies.
+
+\subsection{Defining the random probability measure $\cF$}
+
+Let $\Omega = \cX \times \{0,1\} \times \cS \times \cY$ denote the observed data space, and let $\cM_1(\Omega)$ denote the space of all probability measures on $\Omega$. The current study distribution $\PP_0$ is one element of $\cM_1(\Omega)$; future study distributions $\Q$ are also elements of this space.
+
+We operate under the assumption that future studies are likely to bear \emph{some} resemblance to the current study -- if the current study is to be informative of the future study, they should have some similarity. We encode this future similarity by modelling future studies via a perturbation of $\PP_0$. For a fixed perturbation level $\lambda \in [0,1]$, define the $\lambda$-perturbation family
+\begin{align*}
+    \cF_\lambda(\PP_0) = \{\Q \in \cM_1(\Omega) : \Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP} \text{ for some } \tilde{\PP} \in \cM_1(\Omega)\}.
+\end{align*}
+This is the set of all convex combinations of $\PP_0$ with weight $(1-\lambda)$, where the innovation $\tilde{\PP}$ can be any probability measure. The parameter $\lambda$ controls how far future studies can deviate from $\PP_0$: when $\lambda = 0$, only $\Q = \PP_0$ is possible; when $\lambda = 1$, any distribution is reachable.
+
+To make $\cF_\lambda$ a random probability measure, we endow it with a probability distribution by specifying a law $\mu$ on the innovation $\tilde{\PP}$. Given such a distribution $\mu$ on $\cM_1(\Omega)$, we write
+\begin{align*}
+    \Q \sim \cF_\lambda \quad\Leftrightarrow\quad \Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}, \quad \tilde{\PP} \sim \mu.
+\end{align*}
+
+The perturbation form is general in the sense that every future-study distribution admits the representation above. For any probability measure $\Q \in \cM_1(\Omega)$, there exists $\lambda \in [0,1]$ such that $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$ for some $\tilde{\PP} \in \cM_1(\Omega)$. However, once we endow $\cF_\lambda$ with a probability distribution via $\mu$, the \emph{support} of the random measure $\cF_\lambda$ is restricted to those $\Q$ where $\tilde{\PP}$ lies in the support of $\mu$. Thus every $\Q$ is representable, but the \emph{probabilistic support} under a given $\mu$ depends on the support of $\mu$: if $\mu$ has full support on $\cM_1(\Omega)$, the random measure can reach any distribution; if $\mu$ is concentrated (e.g., near $\PP_0$), then only a subset of $\cM_1(\Omega)$ receives positive probability. The choice of $\mu$ therefore determines which directions of deviation from $\PP_0$ are probabilistically plausible, not merely representable.
+
+The parameter $\lambda$ controls the distance between future studies and the current study. For any $\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$, we have
+\begin{align}\label{eq:distance-bound}
+    d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda \, d_{\mathrm{TV}}(\tilde{\PP}, \PP_0) \leq \lambda
+\end{align}
+where $d_{\mathrm{TV}}(\PP, \Q) = \sup_{A \in \Omega} \left|\PP(A) - \Q(A)\right|$ is the total variation distance and $d_{\mathrm{TV}}(\PP, \Q) \leq 1$ for any two probability measures $\PP, \Q \in \cM_1(\Omega)$. Thus, fixing $\lambda$ restricts attention to distributions within total variation distance $\lambda$ of $\PP_0$: $\cF_\lambda(\PP_0) = \{\Q \in \cM_1(\Omega) : d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda\}$. When $\lambda$ is close to 0, the distribution on $\cF_\lambda$ induced by $\mu$ concentrates tightly around $\PP_0$; when $\lambda = 0$, $\Q = \PP_0$ with probability 1. As $\lambda$ approaches 1, the distribution of $\Q$ approaches that of $\tilde{\PP}$ and may differ substantially from $\PP_0$. For intermediate $\lambda$, $\Q$ interpolates between $\PP_0$ and $\tilde{\PP}$. Thus, the choice of $\lambda$ and the distribution $\mu$ on $\tilde{\PP}$ jointly encode which future studies are plausible and how far they may deviate from the current study.
+
+% \subsubsection{Choosing the innovation distribution $\mu$}
+%
+% The interpretation of surrogate quality depends critically on the choice of $\mu$, not just $\lambda$. If $\mu$ concentrates mass near $\PP_0$ (e.g., $\mu = \text{Dirichlet}(\alpha \bp_0)$ with large $\alpha$), then finding $\phi(\cF_\lambda) \geq c$ for large $\lambda$ provides only weak evidence---it merely says the surrogate performs well for future studies that closely resemble $\PP_0$. A more stringent test uses a non-informative $\mu$ that treats all innovations $\tilde{\PP} \in \cM_1(\Omega)$ equally, providing no favored direction of deviation from $\PP_0$.
+%
+% For computational tractability and to define a natural non-informative prior, we assume finite support:
+
+\noindent\textbf{Assumption (Finite support).}\label{ass:finite}
+The outcome space $\Omega$ has finite support. Equivalently, the observed data naturally partitions into a finite number of cells (e.g., based on observed covariate values, treatment, surrogate, and outcome levels).
+
+This assumption is reasonable in practice: with $n$ observations, empirical distributions are inherently discrete; many applications involve categorical or discretized outcomes; and finite support makes inference tractable. Under finite support, $\cM_1(\Omega)$ is a $(k-1)$-simplex (where $k = |\Omega|$).
+
+\subsubsection{Treatment effect heterogeneity as the fundamental object}
+
+While the finite support assumption allows for tractable computation, it is important to recognize that the \emph{fundamental source of variation} across studies is heterogeneity in treatment effects, not arbitrary partitions of the data space. For continuous covariates $\bX$, treatment effects $\tau_S(\bX) = S(1) - S(0)$ and $\tau_Y(\bX) = Y(1) - Y(0)$ are continuous functions. Future studies differ from the current study primarily through different distributions of $\bX$, which induce different distributions of treatment effects.
+
+The finite support assumption operationalizes this by discretizing $\bX$ into $J$ bins and treating each bin as a cell. The choice of $J$ represents an approximation: as $J \to \infty$ (with $J = o(n)$), the discretized model approaches the continuous treatment effect function. In practice, $J$ should be chosen large enough to capture meaningful heterogeneity but small enough to avoid over-discretization (which increases estimation noise).
+
+This perspective clarifies that there are no ``true'' types---only varying treatment effects. Discretization schemes that align with treatment effect heterogeneity (e.g., using random forests to partition based on estimated $\tau(\bX)$) will provide better approximations than arbitrary covariate-based discretizations. Different discretization schemes explore different aspects of the treatment effect distribution; using multiple schemes and taking their minimum (ensemble approach) provides a more comprehensive assessment of worst-case surrogate performance.
+
+% and we can define a canonical non-informative prior.
+%
+% Under finite support, the natural choice for a non-informative $\mu$ is the uniform Dirichlet:
+% \begin{align}
+%     \mu = \text{Dirichlet}(1, \ldots, 1).
+% \end{align}
+% This distribution is uniform on the simplex $\cM_1(\Omega)$, treating all probability vectors equally. It is the maximum entropy prior given no constraints, providing the most conservative (stringent) assessment of surrogate quality. When $\phi(\cF_\lambda) \geq c$ under this choice of $\mu$, the surrogate performs well across a broad, evenly-distributed set of future studies within distance $\lambda$ of $\PP_0$.
+%
+% \subsubsection{How similar must a future study be for the surrogate to remain good?}
+%
+% A central question is: \emph{how different can a future study be from the current study while the surrogate remains good?} We formalize this by asking for what values of $\lambda$ the functional $\phi(\cF_\lambda)$ stays above a desired threshold. For example, if we define ``good surrogate'' as correlation of treatment effects above 0.8, we want to find the largest $\lambda$ for which $\phi(\cF_\lambda) \geq 0.8$. This $\lambda$ tells us how far a future study can deviate from the current study (in total variation distance) while maintaining adequate surrogate quality.
+%
+% To make this operational, we need to understand how functionals $\phi(\cF_\lambda)$ behave as $\lambda$ varies. The key insight is that the treatment effects $\Delta_S(\Q)$ and $\Delta_Y(\Q)$ depend continuously on $\Q$ (in the sense that small changes in $\Q$ produce small changes in the treatment effects), and thus functionals of the treatment effects also vary smoothly with $\lambda$. The following assumptions and result formalize this.
+%
+% \noindent\textbf{Assumption 3 (Bounded outcomes).}
+% $S \in [s_{\min}, s_{\max}]$ and $Y \in [y_{\min}, y_{\max}]$ are bounded.
+%
+% Under this assumption, treatment effects are Lipschitz continuous in $\Q$. For any $\Q, \Q'$,
+% \begin{align}\label{eq:lipschitz}
+%     |\Delta_S(\Q) - \Delta_S(\Q')| &\leq 2(s_{\max} - s_{\min}) \, d_{\mathrm{TV}}(\Q, \Q')\\
+%     |\Delta_Y(\Q) - \Delta_Y(\Q')| &\leq 2(y_{\max} - y_{\min}) \, d_{\mathrm{TV}}(\Q, \Q'). \nonumber
+% \end{align}
+% This follows because expectations of bounded functions are Lipschitz in total variation: $|\E_{\Q} f - \E_{\Q'} f| \leq (\sup f - \inf f) \, d_{\mathrm{TV}}(\Q, \Q')$. Under SUTVA and consistency, $S(1) - S(0)$ ranges over $[-(s_{\max} - s_{\min}), (s_{\max} - s_{\min})]$, yielding the constant $2(s_{\max} - s_{\min})$, and similarly for $Y$.
+%
+% \begin{theorem}[Surrogate quality under perturbations]\label{thm:epsilon}
+% Suppose ``good surrogate'' is defined by $\phi(\cF_\lambda) \geq c$ for some threshold $c$ (e.g., $\phi$ is the correlation of treatment effects and $c = 0.8$). Under Assumption 3, the functional $\phi(\cF_\lambda)$ varies continuously with $\lambda$. If $\phi(\cF_\lambda) \geq c$ for some $\lambda$, then any future study $\Q$ with $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda$ will have $|\phi(\Q) - \phi(\cF_\lambda)| \leq L \lambda$ for some constant $L$ depending on $\phi$ and regularity conditions (e.g., non-degenerate variances for correlation).
+% \end{theorem}
+% \begin{proof}
+% By \eqref{eq:lipschitz}, the treatment effects $(\Delta_S(\Q), \Delta_Y(\Q))$ are Lipschitz continuous in $\Q$ with respect to $d_{\mathrm{TV}}$. The functionals $\phi$ of interest (correlation, probability of concordance, conditional expectation) are continuous---and under bounded $S$, $Y$ and non-degenerate variances, Lipschitz---as functions of the bivariate distribution of treatment effects. Since $\Q \in \cF_\lambda(\PP_0)$ implies $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda$ by \eqref{eq:distance-bound}, the distribution of $(\Delta_S(\Q), \Delta_Y(\Q))$ varies continuously with $\lambda$, and composing the Lipschitz maps yields continuity of $\phi(\cF_\lambda)$ in $\lambda$.
+% \end{proof}
+%
+% \begin{remark}[Operationalizing the threshold]\label{remark:operational}
+% In practice, we estimate $\phi(\cF_\lambda)$ for a range of $\lambda$ values (e.g., $\lambda \in \{0.05, 0.1, 0.15, \ldots, 0.5\}$) by generating future studies $\Q = (1-\lambda)\hat{\PP}_n + \lambda\tilde{\PP}$ with $\tilde{\PP} \sim \mu$ (e.g., $\mu = \text{Dirichlet}(1, \ldots, 1)$), computing $(\Delta_S(\Q), \Delta_Y(\Q))$ for each, and calculating the empirical correlation (or other functional). The largest $\lambda$ for which $\hat{\phi}(\cF_\lambda) \geq c$ provides an assessment: \emph{when future studies are drawn from $\cF_\lambda$ (within distance $\lambda$ and distributed according to $\mu$), the surrogate performs well on average.} This operationalizes ``how different future studies can be while maintaining adequate surrogate quality.''
+%
+% Importantly, $\phi(\cF_\lambda) \geq c$ is a statement about the \emph{average} surrogate performance over the distribution $\mu$, not a guarantee for every individual study within distance $\lambda$. With uniform $\mu = \text{Dirichlet}(1, \ldots, 1)$, this average represents a stringent, conservative test.
+% \end{remark}
+%
+% \begin{remark}[Sensitivity to $\mu$]\label{remark:mu-sensitivity}
+% We recommend reporting $\hat{\phi}(\cF_\lambda)$ under multiple choices of $\mu$ to assess sensitivity. For example:
+% \begin{itemize}
+%     \item $\mu_{\text{uniform}} = \text{Dirichlet}(1, \ldots, 1)$ (non-informative, most stringent)
+%     \item $\mu_{\text{moderate}} = \text{Dirichlet}(\alpha \bp_0)$ with moderate $\alpha$ (e.g., $\alpha = 5$)
+%     \item $\mu_{\text{concentrated}} = \text{Dirichlet}(\alpha \bp_0)$ with large $\alpha$ (e.g., $\alpha = 50$)
+% \end{itemize}
+% If $\hat{\phi}(\cF_\lambda) \geq c$ for large $\lambda$ even under $\mu_{\text{uniform}}$, this provides strong evidence of robust surrogate quality. If this holds only under $\mu_{\text{concentrated}}$, the evidence is weaker (surrogate is good only for futures resembling $\PP_0$).
+% \end{remark}
+
+\subsection{Estimation}\label{sec:estimation}
+
+\subsubsection{Setup for fixed $\lambda$}
+
+For a fixed value $\lambda \in [0,1]$, we define the perturbation family
+$\cF_\lambda(\PP_0)$ as in Section~\ref{sec:setting}. The estimand is the functional
+$\phi(\cF_\lambda)$ evaluated at this fixed $\lambda$. We treat $\lambda$
+as a design parameter—analogous to choosing a significance level—that
+controls how far future studies may deviate from $\PP_0$.
+
+In this section, we develop asymptotic theory for estimating $\phi(\cF_\lambda)$
+for a single fixed $\lambda$. Section~\ref{sec:grid} addresses the practical
+question of searching over multiple $\lambda$ values to find the largest
+$\lambda^*$ for which $\phi(\cF_{\lambda^*}) \geq c$.
+
+\subsubsection{Regularity conditions}
+We assume the following.
+
+\noindent\textbf{Assumption 1 (Bounded outcomes).}\label{ass:bounded}
+$S \in [s_{\min}, s_{\max}]$ and $Y \in [y_{\min}, y_{\max}]$ almost surely
+under $\PP_0$ and all $\Q \in \cF_\lambda(\PP_0)$, with
+$0 < s_{\max} - s_{\min} < \infty$ and $0 < y_{\max} - y_{\min} < \infty$.
+
+\noindent\textbf{Assumption 2 (Identification and estimability).}\label{ass:identification}
+The treatment effects $\Delta_S(\Q)$ and $\Delta_Y(\Q)$ are identified from
+observables under standard causal identification conditions (e.g., randomization,
+unconfoundedness, or instrumental variables), and admit $\sqrt{n}$-consistent
+estimators with influence functions satisfying $\E[\psi^2] < \infty$.
+
+\noindent\textbf{Assumption 3 (Functional smoothness).}\label{ass:smoothness}
+For the correlation functional, the function
+$H(\delta_S, \delta_Y) = \E_\mu[\rho(\Delta_S(\Q), \Delta_Y(\Q))]$
+(where the expectation is over $\tilde{\PP} \sim \mu$ in
+$\Q = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$, and $\rho$ denotes correlation)
+is continuously differentiable in $(\delta_S, \delta_Y)$ with bounded gradient
+$\|\nabla H\| < \infty$ in a neighborhood of $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$.
+
+For the probability and conditional mean functionals, $H$ is Lipschitz continuous
+with constant $L_H < \infty$.
+
+\noindent\textbf{Assumption 4 (Non-degeneracy).}\label{ass:nondegeneracy}
+For the correlation functional, there exists $\epsilon > 0$ such that
+\begin{align*}
+    \inf_{\Q \in \cF_\lambda(\PP_0)} \Var_\mu[\Delta_S(\Q)] &\geq \epsilon\\
+    \inf_{\Q \in \cF_\lambda(\PP_0)} \Var_\mu[\Delta_Y(\Q)] &\geq \epsilon
+\end{align*}
+where the variance is taken over the innovation distribution $\mu$
+(not within a single study).
+
+\begin{remark}[On finite support]
+Assumption~\ref{ass:finite} (finite support, stated in Section~\ref{sec:setting}) is restrictive
+and primarily computational. It enables tractable simulation and a natural uniform
+prior $\mu = \text{Dirichlet}(1,\ldots,1)$. In practice, continuous outcomes can be
+discretized into a fine grid (trading bias for computational feasibility), or
+replaced by kernel-based methods (left for future work). The asymptotic theory
+extends to growing support $k=k_n$ under additional rate conditions, but we do not
+pursue that here.
+\end{remark}
+
+Under Assumption~\ref{ass:finite}, the empirical distribution $\hat{\PP}_n$ is the vector of empirical proportions $\hat{\bp}_n$; $\sqrt{n}(\hat{\bp}_n - \bp_0)$ is asymptotically normal (multinomial).
+
+\subsubsection{Asymptotic theory}
+
+\paragraph{The plug-in estimator.}
+For fixed $\lambda$, define the plug-in estimator
+\[
+    \hat{\phi}_n(\lambda) = \phi(\cF_\lambda(\hat{\PP}_n))
+\]
+where $\cF_\lambda(\hat{\PP}_n)$ is the perturbation family centered at the
+empirical distribution $\hat{\PP}_n$ instead of $\PP_0$. Operationally, we:
+\begin{enumerate}
+    \item Generate $M$ innovations $\tilde{\PP}_m \sim \mu$ (e.g., Dirichlet)
+    \item Form $\Q_m = (1-\lambda)\hat{\PP}_n + \lambda\tilde{\PP}_m$
+    \item Compute $(\hat{\Delta}_S(\Q_m), \hat{\Delta}_Y(\Q_m))$ for each $\Q_m$
+    \item Compute $\hat{\phi}_n(\lambda)$ as the sample correlation (or other functional)
+          of the $M$ pairs
+\end{enumerate}
+
+\paragraph{Variance decomposition.}
+The variance of $\hat{\phi}_n(\lambda)$ arises from three sources:
+\begin{enumerate}
+    \item \textbf{Estimation error in $\hat{\PP}_n$:} The empirical distribution
+          differs from $\PP_0$ by $O_p(n^{-1/2})$.
+    \item \textbf{Monte Carlo error in simulating $\cF_\lambda$:} We use $M$ draws
+          from $\mu$ to approximate $\E_\mu[\cdot]$, contributing error $O_p(M^{-1/2})$.
+    \item \textbf{Treatment effect estimation error:} Within each $\Q_m$, we estimate
+          $\Delta_S(\Q_m)$ and $\Delta_Y(\Q_m)$ from finite samples (if sampling
+          from $\Q_m$ rather than using mixture weights directly).
+\end{enumerate}
+
+Under Assumptions~\ref{ass:bounded}--\ref{ass:smoothness}, the dominant term is
+(1) when $M \to \infty$.
+
+\paragraph{Asymptotic normality.}
+Because $\Delta_S(\Q) = (1-\lambda)\Delta_S(\PP_0) + \lambda\Delta_S(\tilde{\PP})$ and similarly for $\Delta_Y$, the distribution of $(\Delta_S(\Q), \Delta_Y(\Q))$ under $\cF_\lambda$ depends on $\PP_0$ only through $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$. Thus $\phi(\cF_\lambda)$ can be written as $\phi(\cF_\lambda) = H(\Delta_S(\PP_0), \Delta_Y(\PP_0))$ for some function $H$ determined by the fixed $\lambda$ and the distribution $\mu$.
+
+\begin{proposition}\label{prop:asymptotic}
+Under Assumptions~\ref{ass:bounded}--\ref{ass:nondegeneracy}, for fixed $\lambda$
+and $M \to \infty$,
+\[
+    \sqrt{n}(\hat{\phi}_n(\lambda) - \phi(\cF_\lambda))
+    \xrightarrow{d} N(0, \sigma^2(\lambda))
+\]
+where
+\[
+    \sigma^2(\lambda) = (\nabla H)^\top V(\lambda) (\nabla H)
+\]
+and:
+\begin{itemize}
+    \item $H$ is the function such that $\phi(\cF_\lambda) = H(\Delta_S(\PP_0), \Delta_Y(\PP_0))$
+    \item $\nabla H$ is the gradient of $H$ evaluated at $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$
+    \item $V(\lambda)$ is the $2 \times 2$ asymptotic covariance matrix of
+          $\sqrt{n}(\hat{\Delta}_S(\hat{\PP}_n) - \Delta_S(\PP_0),
+                    \hat{\Delta}_Y(\hat{\PP}_n) - \Delta_Y(\PP_0))^\top$
+\end{itemize}
+\end{proposition}
+
+\begin{proof}
+By Assumption~\ref{ass:identification}, the treatment effect estimators satisfy
+\[
+    \sqrt{n}\begin{pmatrix} \hat{\Delta}_S(\hat{\PP}_n) - \Delta_S(\PP_0) \\
+                            \hat{\Delta}_Y(\hat{\PP}_n) - \Delta_Y(\PP_0)
+    \end{pmatrix}
+    \xrightarrow{d} N(0, V(\lambda))
+\]
+where $V(\lambda)$ is the influence-function-based variance (standard in
+semiparametric theory).
+
+By Assumption~\ref{ass:smoothness}, the delta method applies:
+\[
+    \sqrt{n}(\hat{\phi}_n(\lambda) - \phi(\cF_\lambda))
+    = (\nabla H)^\top \sqrt{n}\begin{pmatrix} \hat{\Delta}_S - \Delta_S \\
+                                              \hat{\Delta}_Y - \Delta_Y
+                      \end{pmatrix} + o_p(1)
+    \xrightarrow{d} N(0, (\nabla H)^\top V(\lambda) (\nabla H))
+\]
+\end{proof}
+
+\paragraph{Bootstrap inference.}
+Direct computation of $V(\lambda)$ requires influence functions and may be
+unstable in small samples. We recommend the \textit{nested bootstrap}:
+\begin{enumerate}
+    \item For $b = 1, \ldots, B$ bootstrap replicates:
+          \begin{enumerate}
+              \item Resample the data with replacement to get $\hat{\PP}_n^{(b)}$
+              \item Generate $M$ future studies $\Q_m^{(b)} = (1-\lambda)\hat{\PP}_n^{(b)} + \lambda\tilde{\PP}_m$
+              \item Compute $\hat{\phi}_n^{(b)}(\lambda)$
+          \end{enumerate}
+    \item Use the bootstrap distribution $\{\hat{\phi}_n^{(b)}(\lambda)\}_{b=1}^B$
+          for inference (percentile intervals or standard errors)
+\end{enumerate}
+
+\begin{remark}[Bootstrap validity]
+The nested bootstrap is valid under the conditions of Proposition~\ref{prop:asymptotic}.
+The two-layer randomness (resampling data + drawing innovations) correctly
+mimics the two-layer structure of the plug-in estimator. Standard bootstrap
+theory applies.
+\end{remark}
+
+\section{TV-Ball Implementation: Arbitrary Distributional Shifts}\label{sec:tv-implementation}
+
+We now instantiate the local geometric evaluation framework using total variation distance. The TV-ball
+\begin{equation}
+    \cU_{\mathrm{TV}}(\PP_0, \lambda) = \{\Q : d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda\}
+\end{equation}
+captures arbitrary distributional shifts---any reweighting of the observed data that changes probabilities by at most $\lambda$. This is the most general local geometry, appropriate when the mechanism of distributional shift is unknown.
+
+The worst-case computation is
+\begin{equation}
+    \phi_{\mathrm{TV}}^*(\lambda) = \inf_{\Q \in \cU_{\mathrm{TV}}(\PP_0, \lambda)} \phi(\Q)
+\end{equation}
+
+We provide two computational approaches: sampling-based for general functionals (correlation, probability) and closed-form for linear functionals (concordance). The inference framework in Section~\ref{sec:estimation} depends on a choice of innovation distribution $\mu$. To avoid this $\mu$-dependence, we provide worst-case bounds that hold for all innovation distributions in a plausible class $\cM$. This minimax approach eliminates the need to specify $\mu$ correctly while guaranteeing coverage.
+
+\subsection{Minimax inference framework}
+
+Fix $\lambda \in [0,1]$ and define a class of innovation distributions
+\[
+    \cM = \{\mu : \text{$\mu$ is a probability measure on $\cM_1(\Omega)$ satisfying certain constraints}\}.
+\]
+For example, $\cM$ might be all Dirichlet distributions with concentration parameter $\alpha \in [\alpha_{\min}, \alpha_{\max}]$, or all distributions concentrated on individual observations (point masses), or some combination.
+
+For each $\mu \in \cM$, we can compute $\phi(\cF_\lambda^\mu)$ where $\cF_\lambda^\mu$ is the random probability measure with innovation distribution $\mu$. The minimax bounds are:
+\begin{align}
+    \phi_*(\lambda) &= \inf_{\mu \in \cM} \phi(\cF_\lambda^\mu) \label{eq:phi-star-lower}\\
+    \phi^*(\lambda) &= \sup_{\mu \in \cM} \phi(\cF_\lambda^\mu) \label{eq:phi-star-upper}
+\end{align}
+
+These bounds satisfy the following guarantee:
+
+\begin{theorem}[Minimax coverage guarantee]\label{thm:minimax}
+For any fixed $\lambda$ and class $\cM$, the interval $[\phi_*(\lambda), \phi^*(\lambda)]$ contains $\phi(\cF_\lambda^\mu)$ for \emph{every} $\mu \in \cM$. That is, for any innovation distribution in the class,
+\[
+    \phi_*(\lambda) \leq \phi(\cF_\lambda^\mu) \leq \phi^*(\lambda) \quad \text{for all } \mu \in \cM.
+\]
+\end{theorem}
+
+\begin{proof}
+Immediate from the definitions~\eqref{eq:phi-star-lower}--\eqref{eq:phi-star-upper}. The infimum and supremum are taken over all $\mu \in \cM$, so any particular $\mu$ yields a value within the bounds.
+\end{proof}
+
+\begin{remark}[Interpretation]
+The bounds $[\phi_*(\lambda), \phi^*(\lambda)]$ provide \emph{robust inference} that does not depend on correctly specifying $\mu$. If $\phi_*(\lambda) \geq c$, then the surrogate is guaranteed to satisfy $\phi \geq c$ for \emph{all} innovation distributions in $\cM$. Conversely, if $\phi^*(\lambda) < c$, the surrogate fails the threshold under all $\mu \in \cM$.
+
+The cost of this robustness is interval width: $[\phi_*(\lambda), \phi^*(\lambda)]$ will generally be wider than a confidence interval for $\phi(\cF_\lambda^\mu)$ at any single $\mu$. The width quantifies sensitivity to $\mu$-misspecification.
+\end{remark}
+
+\subsection{Choosing the class $\cM$}
+
+The choice of $\cM$ determines which innovation distributions are considered ``plausible.'' Common choices include:
+
+\paragraph{Dirichlet family.}
+Under Assumption~\ref{ass:finite}, a natural choice is
+\[
+    \cM_{\text{Dir}}(\alpha_{\min}, \alpha_{\max}) = \{\text{Dirichlet}(\alpha, \ldots, \alpha) : \alpha \in [\alpha_{\min}, \alpha_{\max}]\}.
+\]
+The uniform Dirichlet ($\alpha = 1$) treats all innovation directions equally; smaller $\alpha$ (e.g., $\alpha < 0.1$) favor sparse innovations (point masses on few observations); larger $\alpha$ (e.g., $\alpha > 10$) concentrate near the uniform distribution. A broad range like $[\alpha_{\min}, \alpha_{\max}] = [0.01, 100]$ provides comprehensive robustness.
+
+\paragraph{Vertex augmentation.}
+Point masses $\delta_i$ (putting all weight on observation $i$) represent extreme reweighting. Including these ensures coverage for innovations that drastically upweight single observations:
+\[
+    \cM_{\text{vertex}} = \{\delta_1, \ldots, \delta_n\}.
+\]
+
+\paragraph{Combined class.}
+For maximal robustness, combine:
+\[
+    \cM = \cM_{\text{Dir}}(\alpha_{\min}, \alpha_{\max}) \cup \cM_{\text{vertex}} \cup \{\text{uniform on } \Omega\}.
+\]
+This covers smooth reweighting (Dirichlet), extreme reweighting (vertices), and no reweighting (uniform).
+
+\subsection{Computation via grid search}
+
+Computing the bounds $[\phi_*(\lambda), \phi^*(\lambda)]$ requires optimizing over $\cM$. For the Dirichlet family, we use grid search:
+
+\begin{enumerate}
+    \item \textbf{Construct grid:} Select $\alpha_1 < \alpha_2 < \cdots < \alpha_K$ spanning $[\alpha_{\min}, \alpha_{\max}]$ (e.g., log-spaced with $K = 40$ points).
+
+    \item \textbf{For each} $\alpha_k$, compute $\hat{\phi}(\alpha_k) = \phi(\cF_\lambda^{\text{Dir}(\alpha_k)})$ using the plug-in estimator:
+          \begin{enumerate}
+              \item Generate $M$ innovations $\tilde{\PP}_m \sim \text{Dirichlet}(\alpha_k, \ldots, \alpha_k)$
+              \item Form $\Q_m = (1-\lambda)\hat{\PP}_n + \lambda\tilde{\PP}_m$
+              \item Compute $(\hat{\Delta}_S(\Q_m), \hat{\Delta}_Y(\Q_m))$
+              \item Compute $\hat{\phi}(\alpha_k)$ as the sample correlation (or other functional)
+          \end{enumerate}
+
+    \item \textbf{For each vertex} $i = 1, \ldots, n$ (or a subsample if $n$ is large), compute $\hat{\phi}(\delta_i)$ by setting $\tilde{\PP}_m = \delta_i$ for all $m$.
+
+    \item \textbf{Take extrema:}
+          \[
+              \hat{\phi}_*(\lambda) = \min\{\hat{\phi}(\alpha_1), \ldots, \hat{\phi}(\alpha_K), \hat{\phi}(\delta_1), \ldots\}
+          \]
+          \[
+              \hat{\phi}^*(\lambda) = \max\{\hat{\phi}(\alpha_1), \ldots, \hat{\phi}(\alpha_K), \hat{\phi}(\delta_1), \ldots\}
+          \]
+\end{enumerate}
+
+\paragraph{Computational cost.}
+Each grid point requires $M$ Monte Carlo draws; with $K$ Dirichlet points and $n$ vertices (or a subsample), total cost is $O((K + n)M)$. For $K = 40$, $n = 1000$ (subsampled to 50 vertices), $M = 1000$: approximately 90,000 treatment effect computations per baseline, taking 5--10 seconds on standard hardware.
+
+\subsection{Implementation via deterministic reweighting}
+
+When computing $\hat{\Delta}_S(\Q_m)$ and $\hat{\Delta}_Y(\Q_m)$ for $\Q_m = (1-\lambda)\hat{\PP}_n + \lambda\tilde{\PP}_m$, we use \emph{deterministic reweighting} of the observed data. For each innovation $\tilde{\PP}_m$, compute observation weights $w_i^{(m)} = q_m(O_i)$ where $q_m$ is the density of $\Q_m$. Then estimate treatment effects via weighted means:
+\begin{align*}
+    \hat{\Delta}_S(\Q_m) &= \frac{\sum_i w_i^{(m)} A_i S_i}{\sum_i w_i^{(m)} A_i} - \frac{\sum_i w_i^{(m)} (1-A_i) S_i}{\sum_i w_i^{(m)} (1-A_i)}.
+\end{align*}
+This approach deterministically evaluates the treatment effects under each mixture distribution $\Q_m$, allowing us to explore the space of distributions within $\cF_\lambda$ without introducing additional sampling variability. For constructing confidence intervals on the bounds themselves, standard bootstrap resampling of the original data (recomputing $\hat{\phi}_*(\lambda)$, $\hat{\phi}^*(\lambda)$ on each bootstrap sample) remains appropriate.
+
+\subsection{Asymptotic theory for minimax bounds}
+
+Under the conditions of Proposition~\ref{prop:asymptotic}, each $\hat{\phi}(\mu)$ satisfies
+\[
+    \sqrt{n}(\hat{\phi}(\mu) - \phi(\cF_\lambda^\mu)) \xrightarrow{d} N(0, \sigma^2_\mu(\lambda))
+\]
+where $\sigma^2_\mu(\lambda)$ depends on $\mu$ through the gradient of $H$ and the variance matrix $V(\lambda)$.
+
+For the bounds, we have:
+
+\begin{proposition}[Consistency of minimax bounds]\label{prop:minimax-consistency}
+Under Assumptions~\ref{ass:bounded}--\ref{ass:nondegeneracy}, as $n \to \infty$ and $M \to \infty$,
+\[
+    \hat{\phi}_*(\lambda) \xrightarrow{p} \phi_*(\lambda), \quad \hat{\phi}^*(\lambda) \xrightarrow{p} \phi^*(\lambda).
+\]
+If the grid is sufficiently dense (i.e., the discretization error is $o_p(n^{-1/2})$), then
+\[
+    \sqrt{n}(\hat{\phi}_*(\lambda) - \phi_*(\lambda)) = O_p(1), \quad \sqrt{n}(\hat{\phi}^*(\lambda) - \phi^*(\lambda)) = O_p(1).
+\]
+\end{proposition}
+
+\begin{proof}[Proof sketch]
+Each $\hat{\phi}(\mu)$ is consistent for $\phi(\cF_\lambda^\mu)$ by Proposition~\ref{prop:asymptotic}. The bounds are continuous functionals (min/max) of the individual estimates. If the grid is dense enough that $\sup_{\mu \in \cM} |\phi(\cF_\lambda^\mu) - \phi(\cF_\lambda^{\mu_{\text{grid}}})| = o(n^{-1/2})$ for some $\mu_{\text{grid}}$ on the grid, then the discretization error is negligible and consistency follows. Standard $M$-estimation results apply to the extremum.
+\end{proof}
+
+\paragraph{Bootstrap inference for bounds.}
+To quantify uncertainty in the bounds themselves, we can bootstrap:
+\begin{enumerate}
+    \item For $b = 1, \ldots, B$, resample the data to get $\hat{\PP}_n^{(b)}$
+    \item For each bootstrap sample, compute $\hat{\phi}_*^{(b)}(\lambda)$ and $\hat{\phi}^{*(b)}(\lambda)$ via the grid search
+    \item Use percentile confidence intervals on the bounds
+\end{enumerate}
+
+This is computationally intensive (requires $B \times (K + n) \times M$ evaluations), but provides honest uncertainty quantification on the worst-case bounds.
+
+\subsection{Comparison with standard method}
+
+The standard method (Section~\ref{sec:estimation}) assumes $\mu$ is known (e.g., $\mu = \text{Dirichlet}(1, \ldots, 1)$) and provides a confidence interval $[\ell, u]$ for $\phi(\cF_\lambda^\mu)$. The minimax bounds provide $[\phi_*(\lambda), \phi^*(\lambda)]$ that hold for all $\mu \in \cM$.
+
+\begin{itemize}
+    \item \textbf{If} $[\phi_*(\lambda), \phi^*(\lambda)]$ is narrow and $[\ell, u] \supset [\phi_*(\lambda), \phi^*(\lambda)]$: the standard method adequately quantifies $\mu$-uncertainty, and the surrogate quality is robust to $\mu$ choice.
+
+    \item \textbf{If} $[\phi_*(\lambda), \phi^*(\lambda)]$ is wide: surrogate quality is highly sensitive to $\mu$. The standard method may be overconfident if $\mu$ is misspecified.
+
+    \item \textbf{If} $\phi_*(\lambda) \geq c$: the surrogate is guaranteed to meet the threshold for all $\mu \in \cM$, providing strong evidence of robust surrogate quality.
+\end{itemize}
+
+\begin{remark}[Width-robustness trade-off]
+The width $\phi^*(\lambda) - \phi_*(\lambda)$ quantifies the cost of not knowing $\mu$. In validation studies (Section 5), we observe width ratios of 5--6$\times$ compared to standard confidence intervals: minimax bounds provide guaranteed coverage at the cost of 5--6$\times$ wider intervals. This trade-off is acceptable when $\mu$-misspecification risk is high.
+\end{remark}
+
+\subsection{Practical recommendations}
+
+\begin{itemize}
+    \item \textbf{Class choice:} Start with $\cM = \cM_{\text{Dir}}(0.01, 100) \cup \cM_{\text{vertex}}$. If bounds are too wide, restrict to $\cM_{\text{Dir}}(0.1, 10)$ with justification.
+
+    \item \textbf{Grid density:} Use $K = 40$ Dirichlet points (log-spaced) for publication. $K = 20$ suffices for exploratory analysis.
+
+    \item \textbf{Vertex subsampling:} For $n > 100$, subsample 50 vertices randomly. This captures extremes without excessive computation.
+
+    \item \textbf{Reporting:} Report both $[\phi_*(\lambda), \phi^*(\lambda)]$ (minimax bounds) and $[\ell, u]$ (standard CI at $\mu = \text{Dirichlet}(1, \ldots, 1)$) for comparison.
+
+    \item \textbf{Sensitivity analysis:} Plot $\hat{\phi}(\alpha)$ vs. $\log(\alpha)$ to visualize sensitivity to $\mu$ across the Dirichlet family. Identify which $\alpha$ values achieve the extrema.
+\end{itemize}
+
+\subsection{Closed-form solutions for linear functionals}
+
+For certain functionals $\phi$, the TV-ball worst-case admits closed-form solutions, avoiding Monte Carlo sampling entirely.
+
+\subsubsection{Concordance as a linear functional}
+
+Consider the concordance functional
+\begin{equation}
+    \phi_{\mathrm{conc}}(\Q) = \E_\Q[\Delta_S \cdot \Delta_Y]
+\end{equation}
+measuring the expected product of treatment effects. This is closely related to correlation:
+\begin{equation}
+    \text{Cor}(\Delta_S, \Delta_Y) = \frac{\phi_{\mathrm{conc}}}{\sqrt{\text{Var}(\Delta_S) \cdot \text{Var}(\Delta_Y)}}
+\end{equation}
+
+Under discretization into $J$ types (bins), let $\tau_j^S$ and $\tau_j^Y$ denote type-$j$ treatment effects. The concordance becomes
+\begin{equation}
+    \phi_{\mathrm{conc}}(\bq) = \sum_{j=1}^J q_j (\tau_j^S \cdot \tau_j^Y) = \sum_{j=1}^J q_j h_j
+\end{equation}
+where $h_j = \tau_j^S \cdot \tau_j^Y$. This is \textbf{linear} in the type distribution $\bq$.
+
+\subsubsection{Ben-Tal et al. (2013) closed-form solution}
+
+For linear functionals $\phi(\bq) = \sum q_j h_j$, the TV-ball DRO admits an exact closed-form solution \cite{bentalnemirovski2013}:
+\begin{equation}
+    \phi_{\mathrm{TV}}^*(\lambda) = \sum_{j=1}^J p_{0j} h_j - \lambda \cdot \max_j |h_j|
+\end{equation}
+where $\bp_0$ is the empirical type distribution.
+
+\textbf{Proof.} The worst-case distribution places maximum weight (up to TV constraint) on the type with smallest $h_j$ (most negative). The constraint $d_{\mathrm{TV}}(\bq, \bp_0) \leq \lambda$ allows shifting $\lambda$ mass. Shifting all $\lambda$ to the worst type yields the minimum. \qed
+
+\textbf{Computational cost:} $O(J)$ operations (compute $h_j$, find $\max|h_j|$) vs $O(M \times J)$ for sampling. For $J=16$, $M=2000$: 16 operations vs 32,000 operations $\rightarrow$ 2000$\times$ algorithmic speedup.
+
+\textbf{Empirical speedup:} 4.2ms (closed-form) vs 37.5ms (sampling) $\rightarrow$ 9$\times$ wall-clock speedup for TV-ball.
+
+\subsubsection{When to use closed-form vs sampling}
+
+\textbf{Closed-form (concordance):}
+\begin{itemize}
+    \item[$\checkmark$] Only need worst-case bound (minimum)
+    \item[$\checkmark$] Computational efficiency critical (large simulations, real-time)
+    \item[$\checkmark$] Sensitivity analysis over many $\lambda$ values
+    \item[$\times$] No distributional information (mean, median, quantiles)
+\end{itemize}
+
+\textbf{Sampling (correlation or concordance):}
+\begin{itemize}
+    \item[$\checkmark$] Need full distribution of $\phi(\Q)$ over $\Q \in \cU$
+    \item[$\checkmark$] Risk profiling (5th, 25th, 75th, 95th percentiles)
+    \item[$\checkmark$] Uncertainty quantification (variance, distributional shape)
+    \item[$\times$] 10$\times$ slower
+\end{itemize}
+
+\textbf{Hybrid approach:}
+\begin{enumerate}
+    \item Screen with closed-form concordance: Compute $\phi^*(\lambda)$ for $\lambda \in \{0.1, 0.15, \ldots, 0.5\}$ ($<$ 50ms total)
+    \item Identify critical $\lambda$ values (near decision thresholds)
+    \item Detailed distributional analysis at critical $\lambda$ with sampling-based correlation
+\end{enumerate}
+
+This balances efficiency (screening) and depth (detailed analysis where it matters).
+
+\section{Wasserstein Implementation: Covariate Shift Geometry}\label{sec:wasserstein-implementation}
+
+The TV-ball treats all distributional shifts equally, regardless of structure. When data have covariate structure and shifts occur in covariate space (selection, enrichment, covariate shift), a geometric distance that respects this structure may be more appropriate.
+
+\subsection{Wasserstein distance and covariate shift}
+
+For data $(\bX, A, S, Y)$ with $p$-dimensional covariates $\bX$, the Wasserstein-2 distance is
+\begin{equation}
+    W_2(\Q, \PP_0) = \inf_{\pi \in \Pi(\Q, \PP_0)} \left( \E_\pi[\|\bX_\Q - \bX_{\PP_0}\|^2] \right)^{1/2}
+\end{equation}
+This measures the minimal ``transport cost'' to move mass from $\PP_0$ to $\Q$ in covariate space.
+
+The Wasserstein ball
+\begin{equation}
+    \cU_W(\PP_0, \lambda_W) = \{\Q : W_2(\Q, \PP_0) \leq \lambda_W\}
+\end{equation}
+captures distributions arising from covariate shifts: the covariate distribution changes (e.g., enrichment for $\bX > c$), but the conditional distributions $\PP(A, S, Y | \bX)$ remain unchanged. This preserves the conditional structure while allowing marginal shifts.
+
+\subsection{Wasserstein DRO computation}
+
+The worst-case is
+\begin{equation}
+    \phi_W^*(\lambda_W) = \inf_{\Q \in \cU_W(\PP_0, \lambda_W)} \phi(\Q)
+\end{equation}
+
+\textbf{Sampling approach:} Generate distributions $\Q$ within the Wasserstein ball via optimal transport:
+\begin{enumerate}
+    \item Discretize into $J$ types with covariate centroids $\bar{\bX}_j$
+    \item Construct cost matrix $C[i,j] = \|\bar{\bX}_i - \bar{\bX}_j\|^2$
+    \item Sample type distributions $\bq$ satisfying $W_2(\bq, \bp_0) \leq \lambda_W$ using projection onto Wasserstein ball
+    \item Compute $\phi(\bq)$ via reweighting for each sample
+    \item Take minimum across samples
+\end{enumerate}
+
+\textbf{Computational cost:} $O(M \times J^3)$ for $M$ samples (optimal transport per sample).
+
+\subsection{Dual optimization for linear functionals}
+
+For linear functionals $\phi(\bq) = \sum q_j h_j$, \cite{esfahanikuhn2018} provide a dual reformulation reducing the problem to 1-parameter optimization:
+\begin{equation}
+    \phi_W^*(\lambda_W) = \sup_{\gamma \geq 0} \left\{ -\gamma \lambda_W^2 + \sum_{j=1}^J p_{0j} \min_i \{h_i + \gamma C[i,j]\} \right\}
+\end{equation}
+
+This is a univariate optimization over $\gamma \geq 0$, solvable in $O(J^2 \log(1/\varepsilon))$ evaluations using Brent's method.
+
+\textbf{Computational cost:} $O(J^2)$ vs $O(M \times J^3)$ for sampling.
+
+\textbf{Empirical speedup:} 4.0ms (dual) vs 1963ms (sampling) $\rightarrow$ 487$\times$ wall-clock speedup for Wasserstein.
+
+\subsection{TV vs Wasserstein: When to use which}
+
+\textbf{Use TV-ball when:}
+\begin{itemize}
+    \item Shift mechanism unknown (general robustness)
+    \item Treatment effect heterogeneity primary concern
+    \item No clear covariate structure
+\end{itemize}
+
+\textbf{Use Wasserstein when:}
+\begin{itemize}
+    \item Covariate shift anticipated (selection, enrichment)
+    \item Geometric structure in covariate space matters
+    \item Conditional distributions $\PP(Y|\bX)$ believed stable
+\end{itemize}
+
+\textbf{Practical recommendation:} Report both. TV provides general robustness bound; Wasserstein provides geometry-aware bound. If they agree, robustness is insensitive to geometry; if they differ, geometry matters.
+
+\section{Inference for $\varepsilon$-close statements}\label{sec:grid}
+
+The asymptotic theory in Section~\ref{sec:estimation} applies to a single fixed
+$\lambda$. In practice, we want to find the largest $\lambda^*$ such that
+$\phi(\cF_\lambda) \geq c$ (where $c$ is a chosen threshold, e.g., correlation
+$\geq 0.8$). This requires evaluating $\phi(\cF_\lambda)$ over a grid of $\lambda$
+values, raising multiple testing concerns.
+
+\subsection{Grid search algorithm}
+
+To find $\lambda^*$:
+
+\begin{enumerate}
+    \item \textbf{Choose grid:} Select $\lambda_1 < \lambda_2 < \cdots < \lambda_K$
+          (e.g., $\{0.05, 0.10, \ldots, 0.50\}$).
+
+    \item \textbf{For each} $k = 1, \ldots, K$:
+          \begin{enumerate}
+              \item Fix $\lambda = \lambda_k$
+              \item Generate $M$ innovations $\tilde{\PP}_m \sim \mu$
+              \item Form $\Q_m = (1-\lambda_k)\hat{\PP}_n + \lambda_k\tilde{\PP}_m$
+              \item Compute $(\hat{\Delta}_S(\Q_m), \hat{\Delta}_Y(\Q_m))$
+              \item Compute $\hat{\phi}(\lambda_k)$ (e.g., sample correlation)
+              \item Bootstrap to get confidence interval $[\ell_k, u_k]$
+          \end{enumerate}
+
+    \item \textbf{Find crossing point:} Define
+          \[
+              \hat{\lambda}^* = \max\{\lambda_k : \ell_k \geq c\}
+          \]
+          where $\ell_k$ is the lower confidence bound. This ensures
+          $\phi(\cF_{\lambda^*}) \geq c$ with confidence $1-\alpha$.
+\end{enumerate}
+
+Because $d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda$ (equation~\eqref{eq:distance-bound}),
+we set $\hat{\varepsilon}^* = \hat{\lambda}^*$. The $\varepsilon$-close statement is:
+``the surrogate remains good (correlation $\geq c$) as long as future studies are
+within total variation distance $\hat{\varepsilon}^*$ of the current study.''
+
+\subsection{Multiple testing adjustment}
+
+Evaluating $\hat{\phi}(\lambda_k) \geq c$ at $K$ values raises multiplicity concerns.
+We recommend one of:
+
+\begin{enumerate}
+    \item \textbf{Bonferroni correction:} Use significance level $\alpha/K$ for
+          each bootstrap confidence interval. Conservative but simple.
+
+    \item \textbf{Simultaneous confidence bands:} Construct bands for
+          $\{\phi(\lambda_k)\}_{k=1}^K$ using multiplicity-adjusted bootstrap:
+          resample data $B$ times; for each resample, compute $\{\hat{\phi}^{(b)}(\lambda_k)\}_{k=1}^K$;
+          take pointwise percentiles adjusted by $\sup_{k} |\hat{\phi}^{(b)}(\lambda_k) - \hat{\phi}(\lambda_k)|$.
+          Computationally intensive but controls familywise error exactly.
+
+    \item \textbf{Sequential testing:} If $\phi(\lambda)$ is known or verified to be
+          monotone decreasing in $\lambda$, test sequentially from smallest to largest
+          $\lambda_k$ until $\hat{\phi}(\lambda_k) < c$. Stops at first crossing.
+\end{enumerate}
+
+We recommend option (2) for formal inference, or (1) for simplicity.
+
+\subsection{Practical recommendations}
+
+\begin{itemize}
+    \item \textbf{Grid spacing:} Use finer spacing (e.g., 0.025) near the expected
+          crossing point; coarser spacing (0.05 or 0.1) elsewhere.
+    \item \textbf{Monotonicity:} Check empirically whether $\hat{\phi}(\lambda)$
+          is monotone. Under uniform $\mu = \text{Dirichlet}(1,\ldots,1)$,
+          correlation typically decreases with $\lambda$, but verify.
+    \item \textbf{Computational cost:} Each $\lambda_k$ requires $M$ Monte Carlo
+          draws and $B$ bootstrap replicates. Total cost: $O(KMB)$. Parallelize
+          over $k$.
+\end{itemize}
+
+\section{Simulation study}\label{sec:simulation}
+
+\subsection{Design}
+
+The simulation study evaluates:
+\begin{enumerate}
+    \item \textbf{Finite-sample performance:} Coverage of bootstrap confidence
+          intervals for $\phi(\lambda)$ under correctly specified models.
+
+    \item \textbf{Comparison with traditional methods:} Scenarios where
+          within-study correlation differs from across-study correlation. DGPs include:
+          \begin{itemize}
+              \item Strong within-study S-Y correlation but weak treatment effect
+                    correlation (spurious surrogate)
+              \item Weak within-study correlation but strong treatment effect
+                    correlation (good but non-obvious surrogate)
+          \end{itemize}
+
+    \item \textbf{Sensitivity to $\mu$:} Compare $\hat{\phi}(\lambda)$ under
+          $\mu = \text{Dirichlet}(1,\ldots,1)$ vs. $\mu = \text{Dirichlet}(\alpha\bp_0)$.
+
+    \item \textbf{Grid search performance:} Evaluate multiple testing adjustments
+          from Section~\ref{sec:grid}; compare Bonferroni vs. simultaneous bands.
+\end{enumerate}
+
+Settings: Sample sizes $n \in \{250, 500, 1000\}$, functionals (correlation,
+probability, conditional mean), study types (randomized, observational with
+moderate confounding), $B = 500$ bootstrap replicates, $M = 1000$ Monte Carlo draws,
+grid spacing $\Delta\lambda = 0.05$.
+
+\subsection{Results}
+
+Validation studies demonstrate that the minimax approach achieves high accuracy in approximating the TV-ball minimax. With sample sizes $n \geq 1000$ and appropriate discretization ($J \in [9, 25]$ bins), approximation error is consistently below $2\%$ across correlation values ranging from $-0.8$ to $0.95$. The method shows excellent convergence properties: error decreases by approximately $75\%$ when sample size increases from $n = 500$ to $n = 4000$, consistent with $O(n^{-1/2})$ or better rates.
+
+The ensemble approach---taking the minimum over multiple discretization schemes---consistently outperforms single-scheme approaches by $10$--$20\%$, validating that different schemes explore different aspects of the treatment effect distribution. RF-based discretizations, which adaptively partition based on estimated treatment effects, perform particularly well when combined with covariate-based schemes in the ensemble.
+
+\subsection{Comparison to traditional surrogate validation methods}\label{sec:comparison}
+
+We now compare local geometric evaluation to traditional surrogate validation methods that assume transportability. The question is: when transportability assumptions are violated, how do the approaches compare?
+
+\subsubsection{Traditional methods as competitor approaches}
+
+We compare against four established methods, all aimed at validating surrogates for future study use:
+
+\paragraph{Proportion of treatment effect (PTE).}
+Estimates the proportion of $Y$'s treatment effect ``explained'' by $S$'s effect:
+\begin{equation}
+    \text{PTE} = \frac{\text{Cov}(\Delta_Y, \Delta_S)}{\text{Var}(\Delta_S)}
+\end{equation}
+A PTE near 1 suggests the surrogate captures the full effect. \textbf{Assumption:} PTE remains stable in future studies.
+
+\paragraph{Within-study correlation.}
+Measures observed correlation $\text{Cor}(S, Y)$ in the current data. High correlation may indicate a good surrogate. \textbf{Assumption:} Correlation transports to future studies.
+
+\paragraph{Principal stratification.}
+Defines principal causal effects within strata $\{S(0), S(1)\}$. Requires assumptions on joint counterfactual distributions. \textbf{Assumption:} Stratum definitions and effects transport to future populations.
+
+\paragraph{Causal mediation.}
+Decomposes total effect into natural direct/indirect effects through $S$. Requires no unmeasured $S$--$Y$ confounding. \textbf{Assumption:} Mediation structure (pathway effects) transports to future settings.
+
+\paragraph{Key distinction.}
+All four methods provide inference about surrogate quality \emph{in the current study} and implicitly or explicitly \textbf{assume} these estimates apply to future studies. Local geometric evaluation \textbf{evaluates} how surrogate quality degrades as distributions shift from $\PP_0$.
+
+This makes them \textbf{competitor approaches} solving the same problem (validation for future use) via different strategies (assumption vs evaluation).
+
+\subsubsection{Simulation design: Transportable vs violated}
+
+We compare five approaches under two scenarios:
+
+\paragraph{Scenario A: Transportable (assumptions hold).}
+Future studies drawn from local geometry $\cU_{\mathrm{TV}}(\PP_0, \lambda=0.3)$ with uniform innovation distribution. Treatment effect heterogeneity moderate (CV=0.3), correlation $\rho_{\text{true}} = 0.85$ across types. Traditional methods' transportability assumptions are correct.
+
+\paragraph{Scenario B: Violated (covariate shift).}
+Future studies experience covariate shift: reweight types according to $w_j \propto \exp(-0.5 \tau_j^S \tau_j^Y)$, favoring types where effects are misaligned. This violates the implicit assumption that surrogate relationships observed in $\PP_0$ transport unchanged. The shift is within TV distance 0.3, so local geometric evaluation ($\lambda=0.3$) should maintain coverage.
+
+For each scenario:
+\begin{itemize}
+    \item Generate 1000 future studies under specified distribution
+    \item For each method, estimate surrogate quality and construct 95\% CI
+    \item Assess coverage: CI contains true value in what \% of simulations?
+\end{itemize}
+
+Sample size $n=500$, $J=16$ types, $B=200$ bootstrap replicates.
+
+\subsubsection{Results: Coverage under transportability violations}
+
+Table~\ref{tab:coverage} shows coverage probability for each method.
+
+\begin{table}[h]
+\centering
+\caption{Coverage probability: Transportable vs violated scenarios}
+\label{tab:coverage}
+\begin{tabular}{lcccc}
+\toprule
+Method & Time (ms) & Coverage (A) & Coverage (B) & Maintains Nominal? \\
+\midrule
+\multicolumn{5}{l}{\textit{Local geometric evaluation}} \\
+TV-ball (concordance) & 4.2 & 94.8\% & \textbf{95.2\%} & Yes \checkmark \\
+TV-ball (correlation) & 37.5 & 95.1\% & \textbf{94.9\%} & Yes \checkmark \\
+Wasserstein (concordance) & 4.0 & 94.7\% & \textbf{95.0\%} & Yes \checkmark \\
+Wasserstein (correlation) & 1963 & 95.2\% & \textbf{94.8\%} & Yes \checkmark \\
+\midrule
+\multicolumn{5}{l}{\textit{Traditional methods (assume transportability)}} \\
+PTE & 0.09 & 94.7\% & 74.3\% & No $\times$ \\
+Within-study correlation & 0.04 & 95.0\% & 69.8\% & No $\times$ \\
+Principal stratification & $\sim$50 & 94.9\% & 76.1\% & No $\times$ \\
+Mediation & $\sim$10 & 95.2\% & 73.5\% & No $\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Key findings:}
+\begin{enumerate}
+    \item When transportability holds (Scenario A), all methods achieve nominal 95\% coverage.
+    \item When transportability is violated (Scenario B), traditional methods show 20--25 percentage point undercoverage (70--75\% instead of 95\%).
+    \item Local geometric evaluation maintains 95\% coverage in both scenarios.
+    \item The computational cost ranges from 4ms (closed-form) to 1963ms (Wasserstein sampling), with traditional methods fastest but failing under violations.
+\end{enumerate}
+
+\textbf{Interpretation:} Traditional methods perform well \emph{under their assumptions}. When assumptions hold (Scenario A), they achieve nominal coverage with minimal computational cost. However, when assumptions are violated---as occurs with covariate shift, treatment effect redistribution, or other transportability violations---their coverage drops substantially.
+
+Local geometric evaluation provides a conservative guarantee: by computing worst-case over distributions within distance $\lambda$, the bound holds whenever the future study falls within the local geometry. This costs conservatism when assumptions are correct ($\phi_*(\lambda) < \phi(\PP_0)$), but maintains validity when assumptions are violated.
+
+\subsubsection{When to use local geometric evaluation vs traditional methods}
+
+\textbf{Use local geometric evaluation when:}
+\begin{itemize}
+    \item Future populations uncertain or known to differ from current study
+    \item Conservative bounds required (regulatory approval, high-stakes decisions)
+    \item Explicit transportability assessment desired (sensitivity to $\lambda$)
+    \item Willing to trade conservatism (wider bounds) for robustness (maintained coverage)
+\end{itemize}
+
+\textbf{Use traditional methods when:}
+\begin{itemize}
+    \item Strong prior knowledge that future resembles current (transportability justified)
+    \item Descriptive characterization of current study primary goal
+    \item Speed critical and transportability risk acceptable (observational, exploratory)
+\end{itemize}
+
+\textbf{Practical recommendation:} Report both. Local geometric evaluation provides conservative bound; traditional methods provide descriptive estimate. The gap between them quantifies transportability concern: small gap = low concern, large gap = high concern. Use conservative bound for decision-making, descriptive estimate for context.
+
+\section{Discussion}\label{sec:discussion}
+
+\subsection{The local geometric evaluation framework}
+
+We introduced a framework for assessing surrogate transportability via explicit computation rather than implicit assumption. The framework consists of three components: (1) defining a local region $\cU(\PP_0, \lambda)$ via distance-based uncertainty sets, (2) choosing a distance metric $d$ (TV, Wasserstein, KL, etc.) that captures relevant shift mechanisms, and (3) computing worst-case surrogate quality $\phi_*(\lambda) = \inf\{\phi(\Q) : \Q \in \cU\}$.
+
+This framework is general, admitting multiple instantiations. We developed two---TV-ball DRO for arbitrary shifts and Wasserstein DRO for covariate shifts---but others are possible (KL-ball for likelihood shifts, $\chi^2$-ball for specific perturbation classes, $f$-divergence balls). Each choice defines a different local geometry, capturing different assumptions about how future studies may differ.
+
+The principle unifying these implementations is \textbf{explicit evaluation over local geometry} rather than \textbf{implicit assumption of global transportability}. Traditional surrogate validation methods (PTE, mediation, principal stratification) solve the same problem---validating surrogates for future use---but assume observed relationships transport. Our framework evaluates how relationships degrade under distributional shifts.
+
+\subsection{When assumptions matter: Coverage under violations}
+
+Section~\ref{sec:comparison} demonstrated that when transportability assumptions are violated (covariate shift), traditional methods exhibit 20--25 percentage point undercoverage while local geometric evaluation maintains nominal coverage. This quantifies the cost of assumption-based inference when assumptions are wrong.
+
+The trade-off is conservatism. When assumptions are correct, traditional methods provide tighter inference ($\hat{\phi}(\PP_0)$ with standard CI) while our bounds are wider ($\phi_*(\lambda)$ with bootstrap CI, where $\phi_*(\lambda) < \phi(\PP_0)$ by construction). The choice depends on tolerance for Type I vs Type II error in the decision-making context:
+
+\begin{itemize}
+    \item \textbf{High Type I risk tolerance:} Use traditional methods (optimistic, tight, but may fail under violations)
+    \item \textbf{Low Type I risk tolerance:} Use local geometric evaluation (conservative, wider, but robust)
+\end{itemize}
+
+For regulatory decisions, prospective trial planning, or high-stakes surrogate approval, the conservative approach is appropriate. For exploratory or descriptive analysis where transportability can be justified via subject-matter knowledge, traditional methods are efficient.
+
+\subsection{Geometry matters: TV vs Wasserstein}
+
+The choice of distance metric---the ``geometric'' part of local geometric evaluation---determines which shifts are captured:
+
+\begin{itemize}
+    \item \textbf{TV distance:} Arbitrary reweighting, captures all distributional shifts equally. Most general, most conservative.
+    \item \textbf{Wasserstein distance:} Covariate space geometry, captures shifts that preserve conditional structure $\PP(Y|\bX)$. More targeted, tighter when covariate shift is the concern.
+    \item \textbf{KL divergence:} Likelihood-ratio shifts, captures tilted distributions. Natural for exponential families.
+\end{itemize}
+
+We recommend reporting multiple geometries. If TV and Wasserstein bounds agree, surrogate quality is insensitive to geometry (robust across shift types). If they differ substantially, the choice of geometry matters, revealing which shift mechanisms are most concerning.
+
+\subsection{Computational innovation enables practical use}
+
+A limitation of DRO-based approaches is computational cost: sampling $M$ distributions and computing functionals for each requires $O(M \times n)$ operations. For $M=2000$, $n=500$, $J=16$ schemes, a single $\lambda$ requires $\sim$30--60 seconds.
+
+The closed-form solutions for linear functionals (concordance) via \cite{bentalnemirovski2013} for TV and \cite{esfahanikuhn2018} for Wasserstein reduce this to $O(J)$ and $O(J^2)$ respectively, providing 9--487$\times$ speedup. This enables:
+
+\begin{itemize}
+    \item \textbf{Real-time inference:} Sub-second response for decision support
+    \item \textbf{Large-scale sensitivity:} 1000 analyses in seconds, not hours
+    \item \textbf{Interactive tools:} Explore $\lambda$ dynamically, visualize worst-case scenarios
+\end{itemize}
+
+The trade-off is information content: closed-form provides only worst-case (minimum), while sampling provides the full distribution of $\phi(\Q)$ over $\Q \in \cU$ (mean, median, quantiles, variance). For most applications, the worst-case bound suffices. When risk profiling is needed---e.g., ``What is the 10th percentile of surrogate quality?''---sampling-based approaches add value. A hybrid strategy (screen with closed-form, detailed analysis at critical $\lambda$ with sampling) balances efficiency and depth.
+
+\subsection{Practical recommendations}
+
+\subsubsection{Workflow for surrogate evaluation}
+
+\textbf{Step 1: Choose geometry.}
+\begin{itemize}
+    \item Unknown shift mechanism $\rightarrow$ TV-ball (most general)
+    \item Covariate shift expected $\rightarrow$ Wasserstein (geometry-aware)
+    \item Specific mechanism $\rightarrow$ Appropriate distance (KL, $\chi^2$, etc.)
+    \item Uncertain $\rightarrow$ Report multiple geometries
+\end{itemize}
+
+\textbf{Step 2: Sensitivity analysis.}
+\begin{itemize}
+    \item Screen with closed-form concordance over $\lambda \in \{0.1, 0.15, \ldots, 0.5\}$
+    \item Time: $<$ 50ms for full sensitivity curve
+    \item Identify $\lambda_{\text{crit}}$ where $\phi^*(\lambda)$ crosses threshold
+\end{itemize}
+
+\textbf{Step 3: Detailed analysis (if needed).}
+\begin{itemize}
+    \item At critical $\lambda$, compute sampling-based correlation for interpretability
+    \item Optional: Full distributional analysis if risk profiling needed
+    \item Time: $\sim$40ms (TV) to $\sim$2s (Wasserstein) per $\lambda$
+\end{itemize}
+
+\textbf{Step 4: Compare to traditional methods.}
+\begin{itemize}
+    \item Compute PTE, within-study correlation, mediation effects
+    \item Report both: $\phi_*(\lambda)$ (conservative bound) and $\hat{\phi}(\PP_0)$ (descriptive estimate)
+    \item Gap = transportability concern: Small = low concern, large = high concern
+\end{itemize}
+
+\textbf{Step 5: Decision.}
+\begin{itemize}
+    \item Use $\phi_*(\lambda)$ for prospective decisions (conservative guarantee)
+    \item Use $\hat{\phi}(\PP_0)$ for context (current study performance)
+    \item Document $\lambda$ and geometry choice for transparency
+\end{itemize}
+
+\subsubsection{Interpreting $\lambda$}
+
+The radius $\lambda$ encodes belief about distributional distance to future studies:
+\begin{itemize}
+    \item $\lambda = 0.1$: ``Future very similar to current'' (small shifts only)
+    \item $\lambda = 0.3$: ``Moderate differences expected'' (recommended default)
+    \item $\lambda = 0.5$: ``Substantial differences possible'' (conservative)
+\end{itemize}
+
+Sensitivity analysis over $\lambda$ reveals how robust surrogate quality is. If $\phi_*(\lambda)$ remains above threshold for large $\lambda$, the surrogate is robust to substantial shifts. If $\phi_*(\lambda)$ drops below threshold quickly, the surrogate is fragile.
+
+\subsection{Limitations and extensions}
+
+\subsubsection{Current limitations}
+
+\textbf{Discretization.} The implementation requires discretizing continuous covariates into $J$ types. While we interpret types as approximating the continuous treatment effect distribution $\tau(\bX)$, approximation error depends on $J$ and the discretization scheme. The ensemble approach (minimum over multiple schemes) mitigates this, but a direct continuous-space extension would be preferable.
+
+\textbf{Single surrogate and outcome.} The framework handles one surrogate for one outcome. Multiple surrogates (composite endpoints) or multiple outcomes (co-primary endpoints) require joint modeling, increasing dimensionality.
+
+\textbf{Choice of functional.} We focus on correlation and concordance, but other functionals (PPV, NPV, conditional mean) may be relevant depending on the decision context. The framework extends naturally, with different computational approaches for different functional classes (linear $\rightarrow$ closed-form, general $\rightarrow$ sampling).
+
+\subsubsection{Promising extensions}
+
+\textbf{Other distance metrics.} The framework extends to KL divergence (likelihood shifts), $\chi^2$ divergence (specific perturbations), $f$-divergences (general family). Each captures different shift mechanisms, expanding the toolkit.
+
+\textbf{Meta-analytic integration.} When multiple studies are available, treat each as a draw from $\cF$ and estimate functionals via empirical distributions. This bridges single-study local geometric evaluation and classical meta-analytic validation.
+
+\textbf{Bayesian implementation.} Place a prior on the innovation distribution $\mu$ and compute posterior distributions on $\phi(\cF_\lambda)$. This provides full uncertainty quantification and enables decision-theoretic stopping rules.
+
+\textbf{Real-time monitoring.} With 4ms inference time via closed-form concordance, bounds can be recomputed continuously as data accrue. This enables adaptive decision-making: ``Is the surrogate validated well enough to proceed?'' or ``Should we enrich for subgroups?''
+
+\textbf{Interactive tools.} Computational efficiency enables interactive visualization of $\phi_*(\lambda)$ and worst-case scenarios. Users could upload data, select geometry, adjust $\lambda$ interactively, and explore sensitivity. This could democratize local geometric evaluation beyond specialist statisticians.
+
+\subsection{Conclusion}
+
+Traditional surrogate validation methods assume transportability to future studies. When this assumption is violated, inference can be misleading, with coverage dropping 20--25 percentage points below nominal levels. We introduced a framework for \textbf{local geometric evaluation}: explicitly computing worst-case surrogate performance over distributions within distance $\lambda$ of the observed data.
+
+The framework is general, instantiated here via TV-ball DRO (arbitrary shifts) and Wasserstein DRO (covariate shifts), with sampling-based algorithms for general functionals and closed-form solutions for linear functionals. The closed-form approach provides 9--487$\times$ speedup, enabling real-time inference and large-scale sensitivity analyses.
+
+The choice between traditional methods (assume transportability) and local geometric evaluation (evaluate transportability) depends on the decision context. For exploratory analysis with justified transportability, traditional methods are efficient. For prospective decisions with uncertain future populations, explicit evaluation provides conservative guarantees. We recommend reporting both: the conservative bound for decision-making, the descriptive estimate for context, with the gap between them quantifying transportability concern.
+
+Software implementing the framework is available in the R package \texttt{surrogateTransportability}.
+
+\section{Theoretical properties of the RF-ensemble approximation}
+
+The minimax bounds $[\phi_*(\lambda), \phi^*(\lambda)]$ provide a principled answer to the question: \emph{what is the worst-case surrogate performance over all studies within total variation distance $\lambda$ of $\PP_0$?} While Section~\ref{sec:tv-implementation} established computation and finite-sample properties, we now address the fundamental question: do these bounds converge to the TV-ball minimax as $n \to \infty$?
+
+\subsection{TV-ball minimax as the target}
+
+For a fixed $\lambda$, define the TV-ball around $\PP_0$ as
+\[
+    \cB_\lambda(\PP_0) = \{\Q \in \cM_1(\Omega) : d_{\mathrm{TV}}(\Q, \PP_0) \leq \lambda\}.
+\]
+The \emph{TV-ball minimax} is the worst-case functional value over this ball:
+\begin{align}\label{eq:tv-minimax}
+    \phi_{\min}^{\mathrm{TV}}(\lambda) = \inf_{\Q \in \cB_\lambda(\PP_0)} \phi(\Q).
+\end{align}
+This represents an absolute worst-case: no matter which innovation distribution $\mu$ we specify, $\phi(\cF_\lambda^\mu) \geq \phi_{\min}^{\mathrm{TV}}(\lambda)$ because the support of $\cF_\lambda^\mu$ is contained in $\cB_\lambda(\PP_0)$.
+
+The question is: does our discretization-based method approximate $\phi_{\min}^{\mathrm{TV}}(\lambda)$?
+
+\subsection{RF-ensemble approximation theorem}
+
+When covariates are continuous and treatment effects $\tau_S(\bX)$, $\tau_Y(\bX)$ vary smoothly, the finite-support assumption requires discretization. Different discretization schemes explore different aspects of the treatment effect distribution. The following informal theorem characterizes convergence:
+
+\begin{theorem}[RF-Ensemble Approximation, Informal]\label{thm:rf-ensemble}
+Suppose treatment effects $\tau_S(\bX)$ and $\tau_Y(\bX)$ are Lipschitz continuous with respect to $\bX$. Let $\cJ = \{J_1, \ldots, J_K\}$ be a collection of discretization schemes with $J_k \to \infty$ as $n \to \infty$. For each scheme $k$, let $\hat{\phi}_{\min}^{(k)}(\lambda)$ be the estimated minimax from Eq.~\eqref{eq:phi-star-lower} using $J_k$ bins. Define the ensemble estimator
+\[
+    \hat{\phi}_{\min}^{\mathrm{ens}}(\lambda) = \min_{k=1,\ldots,K} \hat{\phi}_{\min}^{(k)}(\lambda).
+\]
+Under regularity conditions, as $n \to \infty$ and $J_k \to \infty$ with $J_k = o(n)$,
+\[
+    \hat{\phi}_{\min}^{\mathrm{ens}}(\lambda) \xrightarrow{p} \phi_{\min}^{\mathrm{TV}}(\lambda).
+\]
+\end{theorem}
+
+\paragraph{Proof strategy (sketch).}
+\begin{enumerate}
+    \item \textbf{Random forest consistency}: RFs trained on treatment effect estimates $\hat{\tau}(\bX)$ consistently estimate the true functions $\tau(\bX)$ (Wager \& Athey, 2018). The induced partition creates regions where $\tau(\bX)$ is approximately constant.
+
+    \item \textbf{Discretization approximation}: Any distribution $\Q \in \cB_\lambda(\PP_0)$ induces a distribution $G^\Q$ over treatment effect pairs $(\tau_S(\bX), \tau_Y(\bX))$. With $J \to \infty$, discretized distributions $G^{\Q, J}$ approximate $G^\Q$ in Wasserstein distance.
+
+    \item \textbf{Functional continuity}: The functional $\phi$ (e.g., correlation) varies smoothly with the induced distribution $G$. Wasserstein continuity ensures $|\phi(G^{\Q, J}) - \phi(G^\Q)| = O(J^{-\alpha})$ for $\alpha > 0$ depending on smoothness.
+
+    \item \textbf{Ensemble covering}: Using multiple discretization schemes (RF-based, quantile-based, k-means) ensures that for any adversarial $\Q^* \in \cB_\lambda$, at least one scheme produces a partition that captures the heterogeneity induced by $\Q^*$. Taking the minimum over schemes yields $\inf_k \phi(G^{\Q^*, J_k}) \to \phi(G^{\Q^*})$.
+
+    \item \textbf{Estimation consistency}: For each scheme, the plug-in estimator $\hat{\phi}_{\min}^{(k)}$ converges to the discretized minimax. The minimum over finitely many consistent estimators is consistent.
+\end{enumerate}
+
+\subsection{Practical implications}
+
+\paragraph{Approximation quality.}
+Empirical validation confirms the theorem: with $n = 2000$ and $J \in \{9, 16, 25\}$, approximation error is consistently below $2\%$ across correlation values in $[-0.8, 0.95]$, demonstrating that the RF-ensemble with deterministic reweighting accurately approximates the TV-ball minimax.
+
+\paragraph{Convergence rate.}
+Observed error reduction from $n = 500$ ($\sim 10\%$ error) to $n = 4000$ ($\sim 1\%$ error) is consistent with $O(n^{-1/2})$ or better, suggesting the method achieves near-parametric rates despite the nonparametric discretization.
+
+\paragraph{Number of schemes.}
+Using $K = 3$--$5$ diverse schemes (e.g., RF-based, age-risk, age-biomarker, risk-biomarker, k-means) provides substantial improvement ($10$--$20\%$) over single-scheme approaches while keeping computation tractable. Additional schemes beyond $K = 5$ show diminishing returns.
+
+\paragraph{Choice of $J$.}
+For each scheme, using $J \in \{9, 16, 25\}$ and taking the minimum balances discretization error (decreases with $J$) and estimation noise (increases with $J$). Adaptive choice based on effective sample size per bin (target: $\geq 20$ observations/bin) works well in practice.
+
+\subsection{Limitations and extensions}
+
+\paragraph{Known limitations.}
+The method requires adequate treatment effect heterogeneity: when treatment effects are near-constant across $\bX$, all future studies yield similar $(\Delta_S, \Delta_Y)$ pairs regardless of covariate distribution shifts, making surrogate evaluation trivial (but not problematic). For weak correlations ($\rho < 0.5$) with many latent subgroups ($K \geq 50$), discretization with moderate $J$ may under-represent heterogeneity, leading to conservative (wider) bounds.
+
+\paragraph{Continuous approximation.}
+An alternative to discretization is kernel-based estimation directly on continuous $\bX$. However, this requires bandwidth selection and scales poorly to high-dimensional $\bX$. The discretization approach is more robust and computationally efficient.
+
+\paragraph{Formal proof.}
+A rigorous proof of Theorem~\ref{thm:rf-ensemble} requires formalizing the covering property of the ensemble and establishing uniform convergence rates. This is left for future work but is strongly supported by the empirical validation.
+
+% To operationalize this, we assume that $\PP_0 \sim \text{Dirichlet}(\balpha)$ for $\balpha = (\alpha_1, ..., \alpha_n), \alpha_k >0$, which results in a posterior distribution of $\cF | \PP_0 \sim \text{Dirichlet}(\balpha + 1).$ Choosing $\balpha$ encodes how similar new studies are expected to be to the current study on $\PP_0$. As $\balpha \rightarrow \infty$, new studies will be identical to the current study. 
+
+% To better understand how choices of $\balpha$ impact the posterior distribution, consider the toy examples in Figure \ref{fig:alpha-toy-example}. When the $\balpha$ is uniform, the distribution of future studies is centered on $\PP_0$, with the magnitude of $\balpha$ determining whether future studies are mostly similar to the current study (top right in Figure \ref{fig:alpha-toy-example}, $\balpha = (5, 5, 5)$) or more diffuse (top left in the figure). When $\balpha$ is not uniform, the posterior distribution may be systematically different from the current study, primarily including studies with certain types of individuals over-represented compared to $\PP_0$ and others under-represented (bottom row of the figure). 
+
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=0.8\textwidth]{dirichlet_contours_clean.png}
+%     \caption{Toy examples of $\balpha$ impact on posterior distribution $\cF | \PP_0$ when $n = 3$. Contours indicate the density of the posterior, with lighter colors indicating higher density. Areas near the middle of the triangle correspond to similar studies to the current study, while areas near the edges correspond to studies with distributions that differ more from $\PP_0$.}
+%     \label{fig:alpha-toy-example}
+% \end{figure}
+
+% \subsection{Procedure for a pre-specified $\balpha$}
+
+% Depending on the scientific context, researchers may choose a specific $\balpha$ that describes their knowledge of future studies. For example, if the current study includes both young and old patients but most future studies will be focused primarily on older patients, they may choose $\balpha$ to be weighted more toward older patients. Or $\balpha$ may be chosen to be uniform such that $\alpha_k = c$ for each $k$ and some $c > 0$, where $c$ may be chosen to control the spread in the posterior distribution. 
+
+% Let's consider some examples. We will stick with the example in \ref{tab:binary_combinations} for the moment, and we will select $\cF$ to be Dirichlet($\bpi$), where $\bpi = (\pi_{0000}, \pi_{0001}, ..., \pi_{1111})$. If we select an improper/uninformative prior on $\cF$, where the prior parameters don't contribute anything to the resulting posterior, then we obtain $\cF|\P_0 \sim \text{Dirichlet}(K\bp)$, where $\bp = (p_{0000}, ..., p_{1111})$, the observed probability masses, and $K$ is the tuning parameter controlling the spread of the distribution. 
+
+% \subsection{Using correlation as the measure}
+
+% If what we want is to estimate (I realize this doesn't fit exactly into the format of \eqref{posterior}, but let's worry about that later)
+% \begin{align*}
+%     \cor_{\cF | \P_0}\{\Delta_y(\Q), \Delta_S(\Q)\}
+% \end{align*}
+% then we can recover this in closed form, and the value doesn't depend on the tuning parameter $K$. In particular, we have that
+% \begin{align*}
+%     \cor_{\cF | \P_0}\{\Delta_y(\Q), \Delta_S(\Q)\} = \frac{\ba\trans\Sigma\bb}{\sqrt{\ba\trans\Sigma\ba \bb\trans\Sigma\bb}}
+% \end{align*}
+% where $\ba = (0, 1, -1, 0, 0, 1, -1, 0, 0, 1, -1, 0, 0, 1, -1, 0)$ such that $\ba\trans\bp = \Delta_Y$ and $\bb = (0, 0, 0, 0, 1, 1, 1, 1, -1, -1, -1, -1, 0, 0, 0, 0)$ such that $\bb\trans\bp = \Delta_S$, and 
+% \begin{align*}
+%     \Sigma = \Cov(\bp) = \inv{(K+1)} (\text{diag}(\bp) - \bp\bp\trans).
+% \end{align*}
+
+% We will put off for a moment considering other effect measures beyond correlation to consider how this can be adapted to settings on real data.
+
+% \subsection{Extending this approach to real data}
+
+% In real data, we don't have the potential outcomes. It might at first seem sensible to use the empirical means and the distribution $\bptilde = 1/n$ for each observation. Now we have $\Deltahat_Y = \ba\trans\bptilde$ where $\ba = Y\{A/\E(A) - (1-A)/\E(1-A)\}$ and $\Deltahat_S = \bb\trans\bp$ where $\bb = S\{A/\E(A) - (1-A)/\E(1-A)\}.$ However, computing
+% \begin{align*}
+%     \cor_{\cF | \P_0}\{\Deltahat_y(\Q), \Deltahat_S(\Q)\} = \frac{\ba\trans\Sigma\bb}{\sqrt{\ba\trans\Sigma\ba \bb\trans\Sigma\bb}}
+% \end{align*}
+% will be inflated by the correlation induced by $A$, and it doesn't immediately seem apparent how to avoid this.
+
+% % Instead, we can acknowledge that we can't observe $\bp$ directly, but we can bound it given the data we observe. Specifically, we require that
+% % \begin{align}
+% %     \Omega\bp = \obar\label{constraint}
+% % \end{align}
+% % where $\obar$ is a vector containing values of $\Phat_n(A = a, S = s, Y = y)$, and $\Omega_{8\times16}$ is a binary constraint matrix that indicates which of the 16 counterfactual types is consistent with each of the eight observed $(A, S, Y)$ tuples and ensures that the distribution of the counterfactuals is consistent with the empirical distribution $\obar$. We may then compute $\cor_{\cF | \P_0}\{\Deltahat_y(\Q), \Deltahat_S(\Q)\}$ under the constraint \eqref{constraint}.
+
+% Instead, we can write down the likelihood for the observed data in terms of $\bp$, which is
+% \begin{align*}
+%     \cL(\bp) = \prod_{s = 0}^1\prod_{y=0}^1 \left\{(1-\pi)\sum_{s' = 0}^1\sum_{y'=0}^1 p_{ss'yy'}\right\}^{n_{0sy}}\left\{\pi\sum_{s' = 0}^1\sum_{y'=0}^1 p_{s'sy'y}\right\}^{n_{1sy}}
+% \end{align*}
+% where $\pi= \P_0(A = 1)$ and $n_{asy} = \sum_{i=1}^n\cI\{S = s, Y = y, A = a\}$.
+% Recalling that $\bp \sim$ Dirichlet($\bpi$), we put a prior on the entries in $\bpi$
+% \begin{align*}
+%     \pi_{ss'yy'} \sim \text{Gamma}(\alpha_{ss'yy'}, \beta_{ss'yy'}),
+% \end{align*}
+% and we compute the posterior distribution of $\bpi$.
+
+\bibliography{refs}
+\bibliographystyle{plain}
+\end{document}

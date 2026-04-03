@@ -25,7 +25,7 @@ set.seed(20260323)
 
 N_BASELINE <- 1000        # Baseline study sample size
 N_REPLICATIONS <- 1000    # Number of replications (for reliable coverage)
-N_TRUE_STUDIES <- 5000    # Studies for computing TRUE φ(F_λ) (large for accuracy)
+N_TRUE_STUDIES <- 1000    # Studies for computing TRUE φ(F_λ) (balance accuracy vs speed)
 N_INNOVATIONS <- 1000     # Innovations for method (M)
 CONFIDENCE_LEVEL <- 0.95
 
@@ -105,21 +105,35 @@ for (scenario_name in names(lambda_scenarios)) {
 
     # Step 2: Compute TRUE φ(F_λ) using many Dirichlet innovations
     # This is the "oracle" - what φ(F_λ) actually equals under the model
+    # CRITICAL: Use REWEIGHTING not resampling
 
-    # Generate large number of future studies using Dirichlet innovations
-    true_studies <- generate_future_study(
-      baseline,
-      lambda = scenario$lambda,
-      n_future_studies = N_TRUE_STUDIES,
-      alpha = 1  # Dirichlet(1,...,1) - same as method assumes
-    )
+    n <- nrow(baseline)
 
-    # Compute treatment effects in each future study
-    delta_s_vec <- true_studies$treatment_effects[, "delta_s"]
-    delta_y_vec <- true_studies$treatment_effects[, "delta_y"]
+    # Draw M Dirichlet innovations
+    innovations <- MCMCpack::rdirichlet(N_TRUE_STUDIES, rep(1, n))
 
-    # True correlation under F_λ (empirical from large sample)
-    true_correlation <- cor(delta_s_vec, delta_y_vec)
+    # For each innovation, compute treatment effects via reweighting
+    true_effects <- matrix(NA, nrow = N_TRUE_STUDIES, ncol = 2)
+
+    for (m in 1:N_TRUE_STUDIES) {
+      # Current study weights (uniform empirical)
+      p0_weights <- rep(1/n, n)
+
+      # Innovation weights
+      p_tilde <- innovations[m, ]
+
+      # Mixture: Q_m = (1-λ)P₀ + λP̃
+      q_weights <- (1 - scenario$lambda) * p0_weights + scenario$lambda * p_tilde
+
+      # Treatment effects via reweighting (same data, different weights)
+      delta_s <- compute_treatment_effect_weighted(baseline, "S", q_weights)
+      delta_y <- compute_treatment_effect_weighted(baseline, "Y", q_weights)
+
+      true_effects[m, ] <- c(delta_s, delta_y)
+    }
+
+    # TRUE correlation (across population mixtures, net of sampling variability)
+    true_correlation <- cor(true_effects[, 1], true_effects[, 2])
 
     # Step 3: Apply METHOD with same assumptions
     method_result <- tryCatch({
