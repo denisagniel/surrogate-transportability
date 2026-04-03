@@ -1,13 +1,10 @@
 # R package files
-package/.Rproj.user/
-package/.Rhistory
-package/.RData
-package/.Ruserdata
-package/*.tar.gz
-package/*.zip
-package/inst/doc/
-package/vignettes/*.html
-package/vignettes/*.pdf
+.Rproj.user/
+*.tar.gz
+*.zip
+inst/doc/
+vignettes/*.html
+vignettes/*.pdf
 
 # Simulation results and data
 sims/data/
@@ -49,16 +46,22 @@ Thumbs.db
 *.swp
 *.swo
 
-# LaTeX files
-*.aux
-*.bbl
-*.blg
-*.fdb_latexmk
-*.fls
-*.log
-*.out
-*.synctex.gz
-*.toc
+# LaTeX files (inst/paper/ build artifacts)
+inst/paper/*.aux
+inst/paper/*.bbl
+inst/paper/*.blg
+inst/paper/*.fdb_latexmk
+inst/paper/*.fls
+inst/paper/*.log
+inst/paper/*.out
+inst/paper/*.synctex.gz
+inst/paper/*.toc
+inst/paper/*.xdv
+inst/paper/*.pdf
+inst/paper/*_backup_*.tex
+inst/paper/*_backup_*.aux
+inst/paper/*_backup_*.log
+inst/paper/*_backup_*.out
 
 # Agent-assisted workflow
 quality_reports/

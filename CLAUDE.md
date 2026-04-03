@@ -48,25 +48,30 @@ surrogate-transportability/
 ├── README.md                 # Project overview and quick start
 ├── .claude/                  # Rules, skills, agents, hooks
 ├── meta-spec/                # Research constitution, background (authoritative)
-├── package/                  # R package: surrogateTransportability v0.1.0
-│   ├── R/                    # Package functions (data generators, functionals, inference)
-│   ├── tests/                # Unit tests
-│   └── DESCRIPTION           # Package metadata
+├── DESCRIPTION               # Package metadata
+├── NAMESPACE                 # Package exports
+├── R/                        # Package functions (data generators, functionals, inference)
+├── tests/                    # Unit tests
+├── man/                      # Generated documentation (roxygen2)
+├── examples/                 # Package examples
+├── validation/               # Validation scripts
+├── inst/
+│   └── paper/                # LaTeX manuscript (canonical: R package + paper)
+│       ├── main.tex          # Primary manuscript (~221 lines)
+│       ├── common-defs.tex   # Shared definitions
+│       └── refs.bib          # Bibliography
 ├── sims/                     # Simulation environment
 │   ├── classes/              # R6 simulation classes
 │   ├── scripts/              # Scenario scripts (01-06)
 │   ├── config/               # YAML configuration (scenarios.yaml)
 │   └── results/              # Simulation outputs (.rds, .csv, plots)
-├── methods/                  # LaTeX manuscript
-│   ├── main.tex              # Primary manuscript (~221 lines)
-│   ├── common-defs.tex       # Shared definitions
-│   └── refs.bib              # Bibliography
 ├── refs/                     # Reference papers
 ├── latex-dotfiles/           # Shared LaTeX style
 ├── templates/                # Session logs, quality reports, requirements
 ├── session_notes/            # Dated session summaries (YYYY-MM-DD.md)
 ├── quality_reports/          # Plans, session logs, merge reports (created as needed)
-└── explorations/             # Research sandbox (see rules)
+├── explorations/             # Research sandbox (see rules)
+└── archive/                  # Archived clutter files (cleanup-YYYY-MM-DD)
 ```
 
 **Session notes:** Updated with session logs (post-plan, incremental, end-of-session); feed daily notes at `$AGENT_ASSISTED_RESEARCH_META_NOTES`. See [meta-spec/META_PROJECT_NOTES.md](meta-spec/META_PROJECT_NOTES.md).
@@ -153,11 +158,11 @@ surrogate-transportability/
 
 ## Critical Files
 
-- [package/R/posterior_inference.R](package/R/posterior_inference.R) - Main inference function with nested Bayesian bootstrap
-- [package/R/generate_future_study.R](package/R/generate_future_study.R) - Innovation approach: Q = (1-λ)P₀ + λP̃
-- [package/R/surrogate_functionals.R](package/R/surrogate_functionals.R) - Correlation, probability, conditional mean
+- [R/posterior_inference.R](R/posterior_inference.R) - Main inference function with nested Bayesian bootstrap
+- [R/generate_future_study.R](R/generate_future_study.R) - Innovation approach: Q = (1-λ)P₀ + λP̃
+- [R/surrogate_functionals.R](R/surrogate_functionals.R) - Correlation, probability, conditional mean
 - [sims/classes/SurrogateSimulation.R](sims/classes/SurrogateSimulation.R) - R6 simulation framework
-- [methods/main.tex](methods/main.tex) - Methods manuscript (~221 lines)
+- [inst/paper/main.tex](inst/paper/main.tex) - Methods manuscript (~221 lines)
 - [sims/config/scenarios.yaml](sims/config/scenarios.yaml) - Simulation parameter definitions
 
 ---
