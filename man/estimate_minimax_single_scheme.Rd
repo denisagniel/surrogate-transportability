@@ -9,7 +9,8 @@ estimate_minimax_single_scheme(
   bins,
   lambda,
   M = 500,
-  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv"),
+  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv",
+    "concordance"),
   epsilon_s = NULL,
   epsilon_y = NULL,
   delta_s_value = NULL
@@ -38,6 +39,7 @@ List with:
   \item{effects}{Matrix of treatment effects (M x 2)}
   \item{J}{Number of types}
   \item{innovations}{Matrix of type-level innovations (M x J)}
+  \item{method}{Character: "closed_form_tv" or "sampling"}
 }
 \description{
 Computes minimax estimate of surrogate functional for a single
@@ -52,6 +54,12 @@ This implements the core type-level minimax algorithm:
    - Map to observation weights
    - Compute treatment effects via deterministic reweighting
 3. Compute functional from treatment effect distribution
+
+**FAST PATH for concordance:** When functional_type = "concordance",
+uses closed-form TV-ball solution (instant, no sampling):
+  min_{Q: TV(Q,P0)<=lambda} E_Q[delta_S*delta_Y]
+  where Q = (1-lambda)*P0 + lambda*P_tilde
+    = (1-lambda)*E_P0[delta_S*delta_Y] + lambda*min_j(tau_j^s * tau_j^y)
 
 KEY: Uses deterministic reweighting, not bootstrap. We're exploring
 the TV-ball, not estimating sampling variability.

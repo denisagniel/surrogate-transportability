@@ -46,7 +46,30 @@
 #' This implementation follows the fixed-λ framework from the methods paper (Section 3).
 #' For grid search over multiple λ values, see \code{\link{grid_search_lambda}}.
 #'
-#' @seealso \code{\link{grid_search_lambda}} for evaluating surrogate quality across λ values
+#' @section Total Variation Distance Constraint:
+#' The innovation mechanism satisfies the total variation (TV) distance constraint:
+#' \deqn{d_{TV}(Q, P_0) = d_{TV}((1-\lambda)P_0 + \lambda\tilde{P}, P_0) = \lambda \cdot d_{TV}(\tilde{P}, P_0) \le \lambda}
+#'
+#' This constraint ensures that future studies Q remain within a TV ball of radius λ
+#' around the current study P₀. The inequality becomes an equality when P̃ has
+#' disjoint support from P₀.
+#'
+#' Key properties (see Theorem 5 in the methods paper):
+#' \itemize{
+#'   \item \strong{Existence:} Any distribution Q in the TV ball B_λ(P₀) can be expressed
+#'         as Q = (1-λ')P₀ + λ'P̃ for some λ' ≤ λ and P̃
+#'   \item \strong{Density:} Repeated sampling with P̃ ~ Dirichlet densely covers the TV ball
+#'   \item \strong{Convergence:} With M samples, min φ(Q_m) converges to inf φ(Q) over
+#'         the TV ball almost surely as M → ∞
+#' }
+#'
+#' To verify that a generated future study satisfies the TV constraint, use
+#' \code{\link{verify_tv_constraint}}. To compute TV distance explicitly, use
+#' \code{\link{compute_tv_distance}}.
+#'
+#' @seealso \code{\link{grid_search_lambda}} for evaluating surrogate quality across λ values,
+#' \code{\link{verify_tv_constraint}} for checking TV distance constraints,
+#' \code{\link{compute_tv_distance}} for computing TV distance between distributions
 #'
 #' @examples
 #' # Generate current study data

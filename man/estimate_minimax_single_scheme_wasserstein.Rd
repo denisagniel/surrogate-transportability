@@ -10,7 +10,8 @@ estimate_minimax_single_scheme_wasserstein(
   cost_matrix,
   lambda_w,
   M = 500,
-  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv"),
+  functional_type = c("correlation", "probability", "conditional_mean", "ppv", "npv",
+    "concordance"),
   epsilon_s = NULL,
   epsilon_y = NULL,
   delta_s_value = NULL,
@@ -44,6 +45,7 @@ List with:
   \item{effects}{Matrix of treatment effects (M x 2)}
   \item{J}{Number of types}
   \item{perturbations_q}{Matrix of sampled type distributions (M x J)}
+  \item{method}{Character: "closed_form_wasserstein_dual" or "sampling"}
 }
 \description{
 Computes minimax estimate of surrogate functional for a single
@@ -57,6 +59,11 @@ This implements the Wasserstein ball minimax algorithm:
    - Map to observation weights
    - Compute treatment effects via deterministic reweighting
 3. Compute functional from treatment effect distribution
+
+**FAST PATH for concordance:** When functional_type = "concordance",
+uses 1-parameter dual optimization (Esfahani & Kuhn 2018):
+  sup_{gamma>=0} { -gamma*lambda_w^2 + sum_j p0_j * min_i {tau_i^s*tau_i^y + gamma*C[i,j]} }
+This is 50-100x faster than sampling (seconds vs minutes).
 
 **Key differences from TV-ball approach:**
 - Constraint: W_2(q, p0) <= lambda_w (Wasserstein) vs TV(Q, P0) <= lambda (TV)

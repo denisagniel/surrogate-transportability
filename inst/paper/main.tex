@@ -20,7 +20,6 @@
 \newcommand{\PP}{\mathbb{P}}
 
 \input{typography-preamble}
-
 % \def\cor{\text{cor}}
 % \def\cF{\cF}
 
@@ -594,6 +593,95 @@ The width $\phi^*(\lambda) - \phi_*(\lambda)$ quantifies the cost of not knowing
 
     \item \textbf{Sensitivity analysis:} Plot $\hat{\phi}(\alpha)$ vs. $\log(\alpha)$ to visualize sensitivity to $\mu$ across the Dirichlet family. Identify which $\alpha$ values achieve the extrema.
 \end{itemize}
+
+\subsection{Coverage properties of the innovation mechanism}
+
+The innovation mechanism $\Q_\lambda(\mu) = (1-\lambda)\PP_0 + \lambda\tilde{\PP}$ with $\tilde{\PP} \sim \mu$ generates future study distributions within the TV ball $B_\lambda(\PP_0) = \{\Q : d_{\mathrm{TV}}(\Q, \PP_0) \le \lambda\}$. We now establish that repeated sampling from this mechanism densely covers the TV ball, ensuring that the minimax approach adequately explores all plausible future distributions.
+
+\begin{theorem}[Dense coverage of TV ball]\label{thm:tv-coverage}
+Let $\PP_0$ be a discrete probability measure on finite support $\Omega = \{x_1, \ldots, x_n\}$ with $p_{0,i} > 0$ for all $i$. Let $\lambda \in [0,1]$ and let $\mu$ be a probability measure on the probability simplex $\Delta_n$ with full support (e.g., $\mu = \mathrm{Dirichlet}(\alpha, \ldots, \alpha)$ for $\alpha > 0$). Define the innovation mechanism
+\[
+    A_\lambda^\mu = \{(1-\lambda')\PP_0 + \lambda'\tilde{\PP} : \lambda' \in [0, \lambda], \tilde{\PP} \sim \mu\}.
+\]
+Then:
+\begin{enumerate}
+    \item[(a)] \textbf{Existence (constructive):} For any $\Q_0 \in B_\lambda(\PP_0)$, there exist $\lambda' \in [0,\lambda]$ and $\tilde{\PP}$ such that $\Q_0 = (1-\lambda')\PP_0 + \lambda'\tilde{\PP}$.
+
+    \item[(b)] \textbf{Density:} The support of $A_\lambda^\mu$ is dense in $B_\lambda(\PP_0)$ with respect to the total variation topology. That is, for any $\Q_0 \in B_\lambda(\PP_0)$ and any $\epsilon > 0$, there exists $\Q \in A_\lambda^\mu$ such that $d_{\mathrm{TV}}(\Q, \Q_0) < \epsilon$.
+
+    \item[(c)] \textbf{Convergence:} Let $\phi: \cM_1(\Omega) \to \mathbb{R}$ be continuous with respect to weak convergence. Let $\Q_1, \Q_2, \ldots \sim A_\lambda^\mu$ be independent samples. Then
+    \[
+        \min_{m \le M} \phi(\Q_m) \xrightarrow{M \to \infty} \inf_{\Q \in B_\lambda} \phi(\Q) \quad \text{almost surely}.
+    \]
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[Proof]
+\emph{Roadmap:} Part (a) provides a constructive algorithm to express any $\Q_0$ in the TV ball as an innovation mechanism output. Part (b) leverages the full support of $\mu$ to show that the set of reachable distributions is dense. Part (c) combines parts (a)--(b) with the Weierstrass theorem to establish almost sure convergence of the minimum.
+
+\paragraph{Part (a): Constructive algorithm.}
+Given $\Q_0 \in B_\lambda(\PP_0)$, we construct $(\lambda', \tilde{\PP})$ such that $\Q_0 = (1-\lambda')\PP_0 + \lambda'\tilde{\PP}$.
+
+\emph{Step 1:} Compute $\lambda_{\text{min}}$ as the minimum value such that
+\[
+    \tilde{\PP} = \frac{\Q_0 - (1-\lambda_{\text{min}})\PP_0}{\lambda_{\text{min}}}
+\]
+has all non-negative entries. For $\tilde{\PP}_i \ge 0$, we need
+\[
+    q_{0,i} \ge (1-\lambda_{\text{min}}) p_{0,i} \quad \iff \quad \lambda_{\text{min}} \ge \frac{p_{0,i} - q_{0,i}}{p_{0,i}}.
+\]
+Thus,
+\[
+    \lambda_{\text{min}} = \max_{i : q_{0,i} < p_{0,i}} \frac{p_{0,i} - q_{0,i}}{p_{0,i}}.
+\]
+If $q_{0,i} \ge p_{0,i}$ for all $i$, set $\lambda_{\text{min}} = d_{\mathrm{TV}}(\Q_0, \PP_0)$.
+
+\emph{Step 2:} Set $\lambda' = \lambda_{\text{min}}$ and
+\[
+    \tilde{\PP} = \frac{\Q_0 - (1-\lambda')\PP_0}{\lambda'}.
+\]
+
+\emph{Step 3:} Verify $\tilde{\PP}$ is a probability distribution. By construction, $\tilde{\PP}_i \ge 0$ for all $i$. For normalization:
+\[
+    \sum_i \tilde{p}_i = \frac{1}{\lambda'} \sum_i (q_{0,i} - (1-\lambda')p_{0,i}) = \frac{1}{\lambda'} (1 - (1-\lambda')) = 1.
+\]
+Thus $\tilde{\PP}$ is a valid probability distribution, and $\Q_0 = (1-\lambda')\PP_0 + \lambda'\tilde{\PP}$.
+
+\emph{Step 4:} Verify $\lambda' \le \lambda$. Since $\Q_0 \in B_\lambda(\PP_0)$, we have $d_{\mathrm{TV}}(\Q_0, \PP_0) \le \lambda$. For the mixture,
+\[
+    d_{\mathrm{TV}}(\Q_0, \PP_0) = d_{\mathrm{TV}}((1-\lambda')\PP_0 + \lambda'\tilde{\PP}, \PP_0) = \lambda' \cdot d_{\mathrm{TV}}(\tilde{\PP}, \PP_0) \le \lambda'.
+\]
+The worst case is $d_{\mathrm{TV}}(\tilde{\PP}, \PP_0) = 1$ (disjoint support), giving $\lambda' = d_{\mathrm{TV}}(\Q_0, \PP_0) \le \lambda$.
+
+\paragraph{Part (b): Density.}
+Fix $\Q_0 \in B_\lambda(\PP_0)$ and $\epsilon > 0$. By part (a), there exist $\lambda'$ and $\tilde{\PP}_0$ such that $\Q_0 = (1-\lambda')\PP_0 + \lambda'\tilde{\PP}_0$.
+
+Since $\mu$ has full support on $\Delta_n$, there exists $\delta > 0$ such that $\mu(B_\delta(\tilde{\PP}_0)) > 0$, where $B_\delta(\tilde{\PP}_0)$ is the TV-ball of radius $\delta$ around $\tilde{\PP}_0$.
+
+For any $\tilde{\PP} \in B_\delta(\tilde{\PP}_0)$, define $\Q = (1-\lambda')\PP_0 + \lambda'\tilde{\PP}$. Then
+\[
+    d_{\mathrm{TV}}(\Q, \Q_0) = d_{\mathrm{TV}}(\lambda'\tilde{\PP}, \lambda'\tilde{\PP}_0) = \lambda' \cdot d_{\mathrm{TV}}(\tilde{\PP}, \tilde{\PP}_0) < \lambda' \delta.
+\]
+Choose $\delta < \epsilon / \lambda'$ to ensure $d_{\mathrm{TV}}(\Q, \Q_0) < \epsilon$. Since $\mu(B_\delta(\tilde{\PP}_0)) > 0$, such $\Q \in A_\lambda^\mu$ exist with positive probability. This establishes density.
+
+\paragraph{Part (c): Convergence.}
+Let $\phi: \cM_1(\Omega) \to \mathbb{R}$ be continuous. The TV ball $B_\lambda(\PP_0)$ is compact in the weak topology (closed subset of a compact space). By the Weierstrass theorem, $\phi$ attains its infimum on $B_\lambda(\PP_0)$:
+\[
+    \phi_{\min} = \inf_{\Q \in B_\lambda} \phi(\Q) = \min_{\Q \in B_\lambda} \phi(\Q).
+\]
+
+By part (b), $A_\lambda^\mu$ is dense in $B_\lambda(\PP_0)$. For any $\epsilon > 0$, there exists $\Q_\epsilon \in A_\lambda^\mu$ such that $\phi(\Q_\epsilon) < \phi_{\min} + \epsilon$. Since $\mu$ has full support, $\PP(\Q \in A_\lambda^\mu : \phi(\Q) < \phi_{\min} + \epsilon) > 0$ for any $\epsilon > 0$.
+
+Let $\Q_1, \Q_2, \ldots \sim A_\lambda^\mu$ be independent samples. Define $Z_M = \min_{m \le M} \phi(\Q_m)$. Then $Z_M$ is non-increasing in $M$, and
+\[
+    \PP(Z_M < \phi_{\min} + \epsilon) \ge 1 - (1 - p_\epsilon)^M \to 1 \quad \text{as } M \to \infty,
+\]
+where $p_\epsilon = \PP(\phi(\Q) < \phi_{\min} + \epsilon) > 0$. Since this holds for all $\epsilon > 0$, we have $Z_M \to \phi_{\min}$ almost surely.
+\end{proof}
+
+\begin{remark}[Post-proof audit]
+\textbf{Assumptions:} All stated (finite support, $\mu$ full support, $\phi$ continuous). \textbf{Dependencies:} Weierstrass theorem (compact set, continuous function); density implies almost sure convergence (standard probability result). \textbf{Rates:} Non-parametric---convergence speed depends on $\phi$ smoothness and dimension $n$. \textbf{Edge cases:} If $\lambda = 0$, $B_\lambda(\PP_0) = \{\PP_0\}$ (trivial). If $\lambda = 1$, reduces to sampling from $\mu$ on full simplex. \textbf{Tightness:} Density is the strongest claim without additional structure on $\phi$ or $\mu$. \textbf{Fragility:} If $\mu$ has concentrated mass (e.g., $\alpha \to 0$ in Dirichlet), convergence may be slow in practice, though theoretical guarantee remains.
+\end{remark}
 
 \subsection{Closed-form solutions for linear functionals}
 

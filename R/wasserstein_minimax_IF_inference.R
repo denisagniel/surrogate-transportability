@@ -88,13 +88,21 @@
 #' cat(sprintf("Concordance under P0: %.4f\n", result$concordance_p0))
 #' }
 #'
+#' @param method Character. Method for estimating treatment effects: "lm" (linear
+#'   regression), "gam" (generalized additive model), "rf" (random forest), or
+#'   "kernel" (local linear regression). Default: "lm"
+#' @param bandwidth Numeric. Bandwidth for kernel method. If NULL, uses Silverman's
+#'   rule. Default: NULL. Only used when method="kernel"
+#'
 #' @export
 wasserstein_minimax_IF_inference <- function(data,
                                               covariates,
                                               gamma = 0.5,
                                               tau = 0.1,
                                               K = 5,
-                                              alpha = 0.05) {
+                                              alpha = 0.05,
+                                              method = "lm",
+                                              bandwidth = NULL) {
 
   # Validate inputs
   required_cols <- c("A", "S", "Y")
@@ -128,7 +136,8 @@ wasserstein_minimax_IF_inference <- function(data,
     test_data <- data[test_idx, ]
 
     # Estimate nuisances on training data
-    nuisances <- estimate_nuisances_crossfit(train_data, test_data, covariates)
+    nuisances <- estimate_nuisances_crossfit(train_data, test_data, covariates,
+                                              method, bandwidth)
 
     # Store treatment effect estimates
     tau_s_hat_all[test_idx] <- nuisances$tau_S_hat
@@ -188,36 +197,55 @@ wasserstein_minimax_IF_inference <- function(data,
 #' Estimate Nuisances via Cross-Fitting (Internal)
 #'
 #' Fits E[S|A,X] and E[Y|A,X] on training data, predicts on test data.
+#' Uses shared nuisance estimation infrastructure for flexible methods.
 #'
 #' @param train_data Training fold
 #' @param test_data Test fold
 #' @param covariates Covariate names
+#' @param method Method for treatment effect estimation ("lm", "gam", "rf", "kernel")
+#' @param bandwidth Bandwidth for kernel method (optional)
 #'
 #' @return List with tau_S_hat, tau_Y_hat, h_hat, and conditional means
 #' @keywords internal
-estimate_nuisances_crossfit <- function(train_data, test_data, covariates) {
+estimate_nuisances_crossfit <- function(train_data, test_data, covariates,
+                                         method = "lm", bandwidth = NULL) {
 
-  # Build formula
-  formula_S1 <- as.formula(paste("S ~", paste(covariates, collapse = " + ")))
-  formula_S0 <- as.formula(paste("S ~", paste(covariates, collapse = " + ")))
-  formula_Y1 <- as.formula(paste("Y ~", paste(covariates, collapse = " + ")))
-  formula_Y0 <- as.formula(paste("Y ~", paste(covariates, collapse = " + ")))
+  # Combine train+test for shared infrastructure
+  # (estimate_treatment_effects will handle the train/test split internally)
+  combined_data <- rbind(train_data, test_data)
+  n_test <- nrow(test_data)
 
-  # Fit on training data
-  fit_S1 <- lm(formula_S1, data = train_data[train_data$A == 1, ])
-  fit_S0 <- lm(formula_S0, data = train_data[train_data$A == 0, ])
-  fit_Y1 <- lm(formula_Y1, data = train_data[train_data$A == 1, ])
-  fit_Y0 <- lm(formula_Y0, data = train_data[train_data$A == 0, ])
+  # Estimate treatment effects for S
+  result_S <- estimate_treatment_effects(
+    data = combined_data,
+    outcome = "S",
+    covariates = covariates,
+    method = method,
+    cross_fit = FALSE,  # Already in external cross-fit loop
+    bandwidth = bandwidth,
+    return_diagnostics = FALSE
+  )
 
-  # Predict on test data
-  mu_S1_hat <- predict(fit_S1, newdata = test_data)
-  mu_S0_hat <- predict(fit_S0, newdata = test_data)
-  mu_Y1_hat <- predict(fit_Y1, newdata = test_data)
-  mu_Y0_hat <- predict(fit_Y0, newdata = test_data)
+  # Estimate treatment effects for Y
+  result_Y <- estimate_treatment_effects(
+    data = combined_data,
+    outcome = "Y",
+    covariates = covariates,
+    method = method,
+    cross_fit = FALSE,  # Already in external cross-fit loop
+    bandwidth = bandwidth,
+    return_diagnostics = FALSE
+  )
 
-  # Treatment effects
-  tau_S_hat <- mu_S1_hat - mu_S0_hat
-  tau_Y_hat <- mu_Y1_hat - mu_Y0_hat
+  # Extract test set predictions (last n_test rows)
+  tau_S_hat <- tail(result_S$tau_hat, n_test)
+  tau_Y_hat <- tail(result_Y$tau_hat, n_test)
+  mu_S1_hat <- tail(result_S$mu1_hat, n_test)
+  mu_S0_hat <- tail(result_S$mu0_hat, n_test)
+  mu_Y1_hat <- tail(result_Y$mu1_hat, n_test)
+  mu_Y0_hat <- tail(result_Y$mu0_hat, n_test)
+
+  # Concordance h(X) = τ_S(X) * τ_Y(X)
   h_hat <- tau_S_hat * tau_Y_hat
 
   list(
