@@ -1,8 +1,8 @@
 # Presentation Outline: Surrogate Transportability (20 Minutes)
 
-**Date:** 2026-04-27
-**Target:** 20-minute talk (22-25 slides at ~50-60 seconds each)
-**Status:** DRAFT - Awaiting approval
+**Date:** 2026-04-27 (Updated: 2026-04-29)
+**Target:** 20-minute talk (21-24 slides at ~50-60 seconds each)
+**Status:** REVISED - Comparative advantage framing, general framework, two geometry approaches, simulation results removed pending validation
 
 ---
 
@@ -11,19 +11,20 @@
 **Main message:** General framework for evaluating surrogate transportability via local geometric analysis. X-level (compositional changes) and observation-level (general changes) provide complementary evidence. Noise attenuation explains why observation-level shows lower correlation, with reliability coefficient quantifying the gap.
 
 **Pedagogical structure:**
-1. **Introduction (5-6 min):** What are surrogates, why they matter, current methods, our approach
-2. **Framework (3-4 min):** Defining future studies, local geometries, estimand
+1. **Introduction (7-8 min):** What are surrogates (across domains), why they matter, systematic review of existing methods (mediation/PTE, principal stratification, meta-analysis), comparative advantage summary, our approach
+2. **Framework (3-4 min):** Distribution of future studies, general estimand (any functional), local geometries (one operationalization)
 3. **Methodology (3-4 min):** Estimator, sampling, inference
-4. **X-Level Analysis (3-4 min):** Compositional changes, assumptions, results
-5. **Observation-Level Analysis (3-4 min):** General changes, differences from X-level, results
-6. **Theoretical Comparison (2 min):** Noise attenuation, when to use which
-7. **Practical Use (2 min):** Workflow, decision rules, summary
+4. **Two Approaches to Geometries (5-6 min):** Choosing geometry, X-level (compositional + assumptions + expectations), observation-level (general + expectations)
+5. **Theoretical Comparison (2 min):** Noise attenuation, when to use which
+6. **Practical Use (2 min):** Workflow, software, sample sizes, summary
+
+**Key narrative arc:** Systematically show limitations of each existing approach → Our method addresses ALL limitations → General framework (distribution + functionals + operationalization) → Two geometry approaches with trade-offs → Evidence both work → Practical guidance
 
 ---
 
-## Slide-by-Slide Outline (22-25 Slides)
+## Slide-by-Slide Outline (21-24 Slides)
 
-### Part 1: Introduction and Motivation (5-6 minutes, 6 slides)
+### Part 1: Introduction and Motivation (7-8 minutes, 8 slides)
 
 #### Slide 1: Title
 **Main point:** Evaluating Surrogate Transportability via Local Geometric Analysis
@@ -39,200 +40,374 @@
 ---
 
 #### Slide 2: What is a Surrogate Endpoint?
-**Main point:** S is a surrogate for Y if measuring S allows prediction of treatment effect on Y (earlier, cheaper, less invasive)
+**Main point:** S is a surrogate for Y if measuring S allows prediction of treatment effect on Y (earlier, cheaper, more abundant)
 
 **Content:**
-- **Definition:** Surrogate S measured early/cheaply to predict treatment effect on clinical outcome Y
-- **Examples:**
-  - CD4 count → AIDS mortality (years vs months)
-  - Tumor shrinkage → Overall survival (weeks vs years)
-  - Blood pressure → Cardiovascular events
-  - Biomarkers → Clinical outcomes
+- **General definition:** Surrogate S measured cheaply/abundantly to predict treatment/intervention effect on gold-standard outcome Y
 
-**Visual:** Simple table or diagram showing S → Y for 2-3 examples
+- **Examples across domains:**
 
-**Script:** "A surrogate endpoint is a marker measured earlier or more easily than the clinical outcome of interest. If treatment affects the surrogate, we hope to infer its effect on the outcome without waiting years or spending millions."
+  | Domain | Surrogate (S) | Outcome (Y) | Why S is useful |
+  |--------|---------------|-------------|-----------------|
+  | Clinical trials | CD4 count | AIDS mortality | Months vs years |
+  | Clinical trials | Tumor shrinkage | Overall survival | Weeks vs years |
+  | PPI / ML | ML prediction from features | Gold-standard label | Small n_Y vs large n_S |
+  | Observational | Administrative claims | Chart-reviewed outcome | Always available vs costly |
+  | Observational | Sensor/wearable data | Clinical assessment | Continuous vs intermittent |
+
+**Visual:** Table with 5 rows showing cross-domain applications
+
+**Script:** "A surrogate is any measurement that's cheaper, faster, or more abundant than the gold-standard outcome. In clinical trials, that's CD4 count measured in months versus mortality in years. In machine learning and prediction-powered inference, it's an ML prediction from cheap features versus expensive gold-standard labels. In observational studies, it's administrative claims versus chart review, or wearable sensors versus clinical visits. The common thread: we want to use the abundant surrogate S to infer treatment effects on the rare outcome Y."
 
 **Sources:**
-- Session notes (basic surrogate definition)
-- Will need to create examples table/figure
+- Clinical: Standard surrogate literature
+- PPI: Angelopoulos et al. (2023)
+- Observational: Healthcare data applications
 
 ---
 
-#### Slide 3: Why Surrogates Matter
-**Main point:** Enable faster trials, reduce cost, protect patients from unnecessary exposure
+#### Slide 3: Why Surrogates Matter (Beyond Clinical Trials)
+**Main point:** Surrogate endpoints enable faster decisions across clinical trials, prediction-powered inference, and observational studies with limited gold-standard outcomes
 
 **Content:**
-- **Benefits:**
+- **Applications span multiple domains:**
+
+  **Clinical Trials:**
   - Accelerate drug development (years → months)
-  - Reduce trial costs (smaller samples, shorter follow-up)
+  - Reduce costs (smaller samples, shorter follow-up)
   - Enable early stopping (efficacy or futility)
-  - Protect patients (avoid unnecessary long-term exposure)
-- **Challenge:** Must work in **future studies**, not just the one where validated
 
-**Visual:** Perhaps a timeline comparison: Traditional trial (5 years) vs Surrogate-based (1 year)
+  **Prediction-Powered Inference (PPI) & ML Applications:**
+  - Small gold-standard labeled dataset (Y) + large surrogate dataset (S)
+  - ML model predicts Y from cheap features
+  - Use surrogate to improve inference when gold-standard outcomes are expensive/rare
 
-**Script:** "But there's a catch: a surrogate validated in one study must also work in future trials with different populations, different effect heterogeneity, different covariate distributions. This is fundamentally a question of transportability."
+  **Observational Studies:**
+  - Administrative data (S) abundant, chart review (Y) costly
+  - Sensor data (S) continuous, clinical assessment (Y) intermittent
+  - Self-report (S) cheap, biomarker (Y) expensive
+
+- **Universal challenge:** Must work in **future studies/populations**, not just the one where validated
+
+**Visual:** Three-panel figure showing clinical trial timeline, PPI workflow (small Y + large S), and observational data hierarchy
+
+**Script:** "Surrogates matter far beyond clinical trials. In prediction-powered inference, we have small gold-standard datasets and large surrogate datasets—ML models predict expensive outcomes from cheap features. In observational studies, administrative data is abundant while chart review is costly. The common thread: we need to know if the surrogate relationship will hold in future studies with different populations, different covariate distributions, different effect heterogeneity. This is fundamentally a question of transportability."
 
 **Sources:**
-- Common knowledge in surrogate literature
-- Will draft content from general surrogate literature
+- Clinical trials: Standard surrogate literature
+- PPI: Angelopoulos et al. (2023), "Prediction-Powered Inference"
+- Observational: Healthcare applications (claims → outcomes)
 
 ---
 
-#### Slide 4: Current Single-Study Methods
-**Main point:** Traditional approaches (PTE, mediation, principal stratification) assess surrogate quality within ONE study
+#### Slide 4: Current Methods 1/3: Mediation & PTE
+**Main point:** Standard single-study approaches identify functionals of the CURRENT study, not future studies
 
 **Content:**
-- **Table:**
-  | Method | What It Measures | Limitation |
-  |--------|------------------|------------|
-  | PTE (Proportion of Treatment Effect) | % of outcome effect mediated by surrogate | Assumes proportion stable across studies |
-  | Mediation | Indirect effect through S vs direct | Assumes pathway structure transports |
-  | Principal Stratification | Within-stratum effects | Assumes strata definitions transfer |
+- **Mediation framework:**
+  - Treatment A affects outcome Y through two pathways:
+    - **Indirect effect:** A → S → Y (effect mediated by surrogate)
+    - **Direct effect:** A → Y (not through surrogate)
+  - **PTE (Proportion of Treatment Effect):** Indirect effect / Total effect
+  - Good surrogate: High PTE (most of effect goes through S)
 
-- **Key issue:** All **assume** transportability, don't **evaluate** it
+- **Key decomposition:**
+  - Total effect = Indirect + Direct
+  - PTE = Indirect / Total
+  - If PTE ≈ 1, knowing ΔS tells you most of ΔY **in this study**
 
-**Visual:** Clean table with three rows
+- **PTE vs Mediation:**
+  - **Mediation:** Assumes S lies on causal pathway from A to Y
+  - **PTE:** Can be computed even if S is not on pathway (just needs correlation structure)
 
-**Script:** "Current methods are designed for this use case but they make a critical assumption: they assume the observed relationship will hold in future studies. PTE assumes the proportion stays stable, mediation assumes pathways persist, principal stratification assumes strata transfer."
+- **CRITICAL LIMITATION: Current study estimand**
+  - Measures how S and Y relate **in the observed study**
+  - Assumes this relationship transports to future studies
+  - **Evaluates association, assumes transportability**
+
+**Visual:** Mediation DAG with three panels + limitation box:
+- Panel A: Causal structure (A → S → Y with direct path A → Y)
+- Panel B: Effect decomposition (Total = Indirect + Direct)
+- Panel C: PTE formula (Indirect / Total)
+- **Red box:** "Estimand: Functional of P₀ only. Assumes transportability to future studies."
+
+**Script:** "The standard approach is mediation analysis. Treatment affects the outcome through an indirect path via the surrogate and a direct path. PTE—proportion of treatment effect—is the indirect divided by total. If PTE is high, most of the effect goes through S. Mediation assumes S is on the causal pathway; PTE just needs the correlation structure. But both share a critical limitation: they measure how S and Y relate in the current study and assume this relationship transports. They identify functionals of P₀, not functionals that quantify transportability across future studies."
 
 **Sources:**
-- Paper intro (lines 36-37)
-- Session notes 2026-04-14 (lines 234-240)
-- Need to draft detailed descriptions
+- VanderWeele (2015), *Explanation in Causal Inference*
+- Freedman et al. (1992) on PTE
+- Pearl (2001) on mediation formulas
+- Need to create mediation DAG figure with limitation callout
 
 ---
 
-#### Slide 5: Meta-Analytic Methods
-**Main point:** Trial-level correlation approach (Buyse et al.) uses multiple trials to validate surrogates
+#### Slide 5: Current Methods 2/3: Principal Stratification
+**Main point:** Alternative single-study approach with TWO major limitations: current study estimand + requires binary/categorical S
+
+**Content:**
+- **Principal stratification framework (Frangakis & Rubin, 2002):**
+  - Define strata based on potential surrogate values: S(0) and S(1)
+  - For binary S: 4 strata (2×2 combinations)
+    - "Always-high": S(0) = high, S(1) = high
+    - "Responders": S(0) = low, S(1) = high
+    - "Always-low": S(0) = low, S(1) = low
+  - Examine treatment effect on Y **within** each stratum
+  - Good surrogate: ΔY large in strata where S responds, small where S doesn't
+
+- **Surrogate quality via principal effects (ASOCE):**
+  - If treatment only affects Y in strata where it affects S → good surrogate
+  - Association of surrogate and outcome causal effects
+
+- **CRITICAL LIMITATIONS:**
+  1. **Current study estimand:** Measures within-stratum effects **in P₀**, assumes they transport
+  2. **Binary/categorical S only:** Continuous S → infinite strata → intractable
+     - In practice: Must discretize (e.g., CD4 count → high/low)
+     - Loses information, arbitrary cutpoints
+     - Not applicable for naturally continuous surrogates
+
+**Visual:** Diagram showing:
+- Panel A: Four principal strata (2×2 table for binary S)
+- Panel B: Treatment effects on Y within each stratum
+- Panel C: Good surrogate pattern
+- **Red box 1:** "Estimand: Functional of P₀ only"
+- **Red box 2:** "Requires binary/categorical S. Continuous S intractable."
+
+**Script:** "Principal stratification defines strata based on potential surrogate values—for binary S, four strata. The idea: if treatment only affects the outcome in strata where it affects the surrogate, that's a good surrogate. But this approach has two critical limitations. First, like mediation, it identifies functionals of the current study and assumes they transport. Second, it essentially requires binary or categorical surrogates. With continuous S, you have infinite strata, which is intractable. In practice, you must discretize—CD4 count becomes high versus low—losing information and imposing arbitrary cutpoints. This limits applicability severely."
+
+**Sources:**
+- Frangakis & Rubin (2002), "Principal Stratification in Causal Inference"
+- Gilbert & Hudgens (2008) - HIV vaccine trials with binary markers
+- Li et al. (2010) on ASOCE
+- Wolfson & Gilbert (2010) - binary biomarker applications
+- Need to create principal stratification diagram with dual limitation callouts
+
+---
+
+#### Slide 6: Current Methods 3/3: Meta-Analytic Approach
+**Main point:** The GOLD STANDARD approach that addresses transportability directly, but requires multiple completed studies
 
 **Content:**
 - **Buyse et al. (2000) approach:**
-  - Collect data from multiple completed trials
-  - Compute trial-level treatment effects on S and Y
-  - Correlate ΔS(trial) with ΔY(trial) across trials
+  - Collect data from multiple completed studies (trials, cohorts, etc.)
+  - Compute study-level treatment effects on S and Y
+  - Correlate ΔS(study) with ΔY(study) **across studies**
   - High correlation → good surrogate
-- **Limitation:** Requires many (5-10+) completed trials with both S and Y measured
-- **Our motivation:** Can we assess transportability from a **single study**?
 
-**Visual:** Schematic showing multiple trials → correlation plot
+- **KEY ADVANTAGE: Future study estimand**
+  - Directly measures variation **across studies**
+  - Evaluates transportability, doesn't just assume it
+  - If cor(ΔS, ΔY) high across realized studies → will likely hold in future studies
 
-**Script:** "A different approach comes from meta-analysis. Buyse and colleagues showed you can validate surrogates by collecting multiple trials, computing treatment effects in each, and correlating them. This directly addresses transportability by examining variation across studies. But it requires many completed trials. Can we do something similar with just one study?"
+- **CRITICAL LIMITATION: Requires multiple studies**
+  - Need 5-10+ completed studies with both S and Y measured
+  - Often not available (new treatments, rare diseases, novel surrogates)
+  - Must wait years for sufficient studies to accumulate
+
+**Visual:** Schematic showing:
+- Panel A: Multiple studies (Study 1, Study 2, ..., Study K)
+- Panel B: Scatter plot of (ΔS(k), ΔY(k)) across studies
+- Panel C: Correlation estimate
+- **Green box:** "Estimand: cor(ΔS(Q), ΔY(Q)) across studies ✓"
+- **Red box:** "Requires K ≥ 5-10 completed studies"
+
+**Script:** "Meta-analysis offers a fundamentally different approach. Buyse and colleagues collect multiple studies, compute treatment effects in each, and correlate them across studies. This is the gold standard because it directly addresses transportability—it measures variation across realized studies, so if the correlation is high across past studies, it likely holds for future ones. But there's a major practical limitation: you need many completed studies—typically 5 to 10 or more—all measuring both S and Y. This data is often unavailable for new treatments, rare diseases, or novel surrogates. Can we get the advantages of meta-analysis from a single study?"
 
 **Sources:**
-- Paper refs (meta-analytic citation)
-- Need to look up Buyse et al. (2000) for details
-- Session notes mention this as motivation
+- Buyse et al. (2000), "Validation of Surrogate Endpoints in Multiple Randomized Trials"
+- Burzykowski et al. (2005) on trial-level surrogacy
+- Paper intro (meta-analytic motivation)
 
 ---
 
-#### Slide 6: Our Approach: Future Study Reweighting
-**Main point:** Similar motivation to meta-analysis (across-study thinking), but applicable with single study by considering hypothetical future studies
+#### Slide 7: Summary of Existing Methods: Trade-offs
+**Main point:** Each existing method has critical limitations—no single approach addresses transportability without restrictions
 
 **Content:**
-- **Key idea:** Instead of waiting for multiple trials, consider hypothetical future studies Q that differ from observed P₀
-- **How it works:**
-  1. Define "plausible" future studies via local geometry U(P₀, λ; d)
-  2. Sample future studies Q from this geometry
-  3. Compute ΔS(Q), ΔY(Q) for each via reweighting observed data
-  4. Measure correlation across future studies
-- **Connection to meta-analysis:** We're computing trial-level correlation, but over hypothetical rather than realized trials
+- **Comparison table:**
 
-**Visual:** Flow diagram: P₀ → U(P₀, λ) → {Q₁, Q₂, ..., Qₘ} → cor(ΔS, ΔY)
+| Method | Future Study Estimand? | Applicable to Continuous S? | Requires Multiple Studies? |
+|--------|------------------------|----------------------------|----------------------------|
+| **Mediation/PTE** | ✗ (Current study only) | ✓ Yes | ✗ No |
+| **Principal Stratification** | ✗ (Current study only) | ✗ Binary/categorical only | ✗ No |
+| **Meta-Analysis** | ✓ Yes (gold standard) | ✓ Yes | ✗ Yes (5-10+ studies) |
 
-**Script:** "Our approach has the same motivation as meta-analysis—thinking about variation across studies—but we can do it with a single study by considering hypothetical future studies that differ from what we observed. We define plausible futures, sample them, and measure how surrogate quality varies."
+- **The dilemma:**
+  - Single-study methods (mediation, PS): Don't address transportability directly
+  - Meta-analysis: Addresses transportability but requires data often unavailable
+
+- **What we want:**
+  - ✓ Future study estimand (like meta-analysis)
+  - ✓ Applicable to any surrogate type (like mediation)
+  - ✓ Works with single study (like mediation/PS)
+
+**Visual:** Table with checkmarks (✓) and X's (✗), highlighting the tension
+
+**Script:** "Let's step back and compare these approaches. Mediation and PTE measure relationships in the current study, not across future studies. Principal stratification has that same limitation plus it only works for binary or categorical surrogates—continuous surrogates are intractable. Meta-analysis is the gold standard because it directly addresses transportability by examining variation across studies, but it requires many completed studies that are often unavailable. We face a dilemma: single-study methods don't address transportability directly, while meta-analysis requires data we often don't have. What we want is the best of both worlds: a future study estimand like meta-analysis, applicable to any surrogate type like mediation, but working with a single study. Can we achieve this?"
 
 **Sources:**
-- Session notes 2026-04-17 (across-study paradigm, lines 92-123)
+- Synthesis from Slides 4-6
+- Motivates the approach
+
+---
+
+#### Slide 8: Our Approach: Future Study Reweighting
+**Main point:** Addresses ALL three limitations: future study estimand, any surrogate type, single study
+
+**Content:**
+- **Key idea:** Instead of waiting for multiple realized studies, consider hypothetical future studies Q that differ from observed P₀
+
+- **How it works:**
+  1. Define "plausible" future studies: a distribution of future studies
+  2. Sample future studies Q₁, ..., Qₘ from this distribution
+  3. Compute ΔS(Q), ΔY(Q) for future study
+  4. Estimate any functional you want: one example: cor(ΔS, ΔY) **across** sampled future studies
+
+- **Connection to meta-analysis:** Same estimand—study-level correlation—but over hypothetical rather than realized studies
+
+- **Addresses all limitations:**
+  - ✓ **Future study estimand:** cor(ΔS(Q), ΔY(Q)) across distributions Q (like meta-analysis)
+  - ✓ **Any surrogate type:** Binary, continuous, count—framework is fully general
+  - ✓ **Single study:** Reweight observed data to create hypothetical futures (like mediation/PS)
+
+**Visual:** Two panels:
+- Panel A: Flow diagram: P₀ → U(P₀, λ) → {Q₁, ..., Qₘ} → cor(ΔS, ΔY)
+- Panel B: Comparison table showing checkmarks for all three desiderata
+
+**Script:** "Our approach achieves all three desiderata simultaneously. The key idea: instead of waiting for multiple realized studies, we consider a distribution of hypothetical future studies. We sample from this distribution, compute treatment effects in each hypothetical study, and estimate functionals across studies—for example, the correlation between surrogate and outcome effects. This gives us a future study estimand like meta-analysis, works for any surrogate type like mediation, and requires only a single study. It's meta-analysis without waiting for the data."
+
+**Sources:**
+- Session notes 2026-04-17 (across-study paradigm)
 - Paper framework section
+- Motivated by comparison in Slide 7
 
 ---
 
 ### Part 2: Framework and Estimand (3-4 minutes, 3 slides)
 
-#### Slide 7: Defining Future Studies
-**Main point:** Future study Q characterized by different covariate or individual distribution from observed P₀
+#### Slide 9: A Distribution of Future Studies
+**Main point:** Instead of one future study, consider a DISTRIBUTION over many possible future studies
 
 **Content:**
 - **Observed study:** P₀ is the distribution of (X, A, S, Y) in current data
-- **Future study:** Q is a different distribution on the same space
-- **How studies differ:**
-  - Covariate distribution P(X) shifts (population composition changes)
-  - Individual-level distributions change (different mix of individuals)
-  - Treatment effect heterogeneity may change
-- **Treatment effects in each study:**
+
+- **Future studies:** Many possible distributions Q that differ from P₀
+  - Different patient populations (age, severity, demographics)
+  - We assume that the new study is different, but not *too different* from the current study
+
+- **Each Q yields treatment effects:**
   - ΔS(Q) = E_Q[S(1) - S(0)]
   - ΔY(Q) = E_Q[Y(1) - Y(0)]
 
-**Visual:** Two panels showing P₀ vs Q (perhaps histograms of X or treatment effects)
+- **A distribution μ over future studies:**
+  - Not just one Q, but many Q's drawn from distribution μ
+  - μ represents our uncertainty about which future study will occur
+  - Different choices of μ encode different assumptions about plausibility
 
-**Script:** "A future study is characterized by a different distribution Q. This could mean different covariate distributions—older patients, different disease severity—or more general changes in the individual-level composition. Each distribution Q yields treatment effects ΔS(Q) and ΔY(Q)."
+**Visual:** Three panels:
+- Panel A: Current study P₀
+- Panel B: Several example future studies Q₁, Q₂, Q₃, ...
+- Panel C: Distribution μ over the space of possible studies
+
+**Script:** "Here's the key conceptual shift: instead of imagining one specific future study, we consider a distribution over many possible future studies. The current study is P₀. Future studies are different distributions Q—different populations, different settings, different time periods. Each Q yields treatment effects ΔS(Q) and ΔY(Q). We characterize our uncertainty with a distribution μ over possible future studies. This distribution μ encodes what we think is plausible."
 
 **Sources:**
-- Paper setting section (lines 73-82)
+- Paper framework section
 - Session notes on across-study paradigm
 
 ---
 
-#### Slide 8: The Transportability Estimand
-**Main point:** cor(ΔS(Q), ΔY(Q)) across distribution Q ~ μ on plausible future studies
+#### Slide 10: General Estimand: Any Functional Across Studies
+**Main point:** Framework estimates E_μ[φ(Q)]—ANY functional φ of treatment effects across the distribution μ
 
 **Content:**
-- **Estimand:** Θ(P₀; λ) = cor{ΔS(Q), ΔY(Q)} where Q ~ μ on U(P₀, λ; d)
-- **NOT "correlation across types"** — always **"correlation across studies"**
-- **Interpretation:**
-  - Positive correlation: Studies with high ΔS tend to have high ΔY
-  - High correlation (≈ 0.8-0.9): Knowing ΔS strongly predicts ΔY
-  - Low/zero correlation: ΔS provides little information about ΔY
-- **This is a transportability question:** Will S predict Y in future studies?
+- **General form:** Θ(μ) = E_μ[φ(Q)] where Q ~ μ
+  - φ(Q): Any function of treatment effects ΔS(Q), ΔY(Q)
+  - E_μ[·]: Expectation over the distribution of future studies
 
-**Visual:** Equation for Θ(P₀; λ) prominently displayed, perhaps with scatter plot showing cor(ΔS, ΔY) across hypothetical studies
+- **Examples of functionals φ:**
+  - **Correlation:** φ(Q) = cor{ΔS(Q), ΔY(Q)} across studies (our focus today)
+  - **Probability:** φ(Q) = P(sign(ΔS(Q)) = sign(ΔY(Q))) (concordance)
+  - **Conditional mean:** φ(Q) = E[ΔY(Q) | ΔS(Q) ∈ range] (regression)
+  - **Proportion:** φ(Q) = P(|ΔY(Q)| ≥ c | |ΔS(Q)| ≥ c) (effect size threshold)
+  - Custom functionals for specific applications
 
-**Script:** "Our estimand is the correlation between surrogate and outcome treatment effects, computed **across** studies Q drawn from some distribution μ. This is always an across-study correlation, never across types or individuals. It directly measures transportability: if correlation is high, knowing the surrogate effect in a future study tells you about the outcome effect."
+- **Today's example: Correlation**
+  - φ(Q) = cor{(ΔS(Qᵢ), ΔY(Qᵢ))} for Qᵢ ~ μ
+  - Interpretation: Studies with high ΔS tend to have high ΔY
+  - High correlation (≈ 0.8-0.9) → knowing ΔS predicts ΔY
+  - **NOT "correlation across types"** — always **"correlation across studies"**
+
+**Visual:**
+- Panel A: General form Θ(μ) = E_μ[φ(Q)]
+- Panel B: List of example functionals
+- Panel C: Today's focus—correlation, with scatter plot of (ΔS(Q), ΔY(Q))
+
+**Script:** "The framework is fully general. We estimate the expectation of any functional φ across the distribution μ of future studies. Examples: correlation of treatment effects across studies, probability that effects have the same sign, conditional means for specific effect ranges, proportion exceeding thresholds—whatever quantifies surrogate quality for your application. Today we'll focus on correlation as our running example, but the machinery works for any φ. And crucially, this is always a functional across studies, never across types or individuals within a study."
 
 **Sources:**
-- Session notes 2026-04-17 (lines 92-123: "ALWAYS across-study")
-- Paper estimand definition (lines 295-298)
+- Paper estimand section
+- Session notes 2026-04-17 (across-study paradigm)
+- Framework generality
 
 ---
 
-#### Slide 9: Local Geometries
-**Main point:** Operationalize "plausible future studies" via U(P₀, λ; d) = {Q : d(Q, P₀) ≤ λ}
+#### Slide 11: One Operationalization: Local Geometries
+**Main point:** Local geometries are ONE way to define μ—uniform distribution on {Q : d(Q, P₀) ≤ λ}
 
 **Content:**
-- **Local geometry:** U(P₀, λ; d) = {Q : d(Q, P₀) ≤ λ}
-- **Parameters:**
-  - d: distance metric (how we measure similarity)
-  - λ: radius (how far future studies can deviate)
-- **Common metrics:**
-  - TV (total variation): General distributional shifts
-  - Wasserstein: Covariate shifts preserving geometry
-  - KL, chi-squared, L2: Other f-divergences
-- **Framework generality:** Applies to ANY distance metric d
+- **The question:** How do we choose μ (the distribution over future studies)?
 
-**Visual:** Geometric illustration showing P₀ in center, U(P₀, λ) as neighborhood, different Q's within the ball
+- **Many possible approaches:**
+  - Expert elicitation: Ask domain experts which Q's are plausible
+  - Historical data: If multiple past studies exist, μ based on empirical variation
+  - Sensitivity analysis: Try multiple μ's, see how results change
+  - **Local geometries:** Our approach today (conservative, non-informative)
 
-**Script:** "We formalize 'plausible futures' using local geometries: the set of all distributions Q within distance λ of P₀. The distance metric d determines how we measure similarity—TV for general shifts, Wasserstein for covariate shifts, and so on. The framework applies to any metric, giving flexibility to match the application."
+- **Local geometry approach:**
+  - Define U(P₀, λ; d) = {Q : d(Q, P₀) ≤ λ}
+  - μ = Uniform(U(P₀, λ; d)) (all Q's within distance λ equally likely)
+  - Parameters:
+    - d: distance metric (TV, Wasserstein, KL, chi-squared, L2, ...)
+    - λ: radius (how far future studies can deviate)
+  - **Interpretation:** Treats all directions of deviation equally (conservative)
+
+- **Why local geometries?**
+  - Non-informative: No privileged directions
+  - Flexible: Works with any distance metric d
+  - Interpretable: λ directly controls deviation magnitude
+  - Computationally feasible
+
+**Visual:**
+- Panel A: General question "How to choose μ?"
+- Panel B: List of approaches (expert, historical, sensitivity, local geometry)
+- Panel C: Geometric illustration—P₀ in center, U(P₀, λ) as ball, uniform μ
+
+**Script:** "Now, how do we choose the distribution μ? There are several approaches. You could elicit expert opinions about plausible futures, use historical variation if multiple studies exist, or perform sensitivity analysis across multiple μ's. Our approach today—local geometries—provides a conservative, non-informative baseline. We define a ball: all distributions within distance λ of P₀. Then we use the uniform distribution on that ball, treating all directions of deviation equally. This is conservative because it doesn't privilege any particular direction of change. And it's flexible—you can use any distance metric that captures the deviations you care about."
 
 **Sources:**
 - Paper setting section (lines 83-109)
-- Session notes 2026-04-14 (general framework reframing)
+- Framework generality
+- Local geometry as one operationalization
 
-**Need:** Geometry illustration figure (TikZ or ggplot2)
+**Need:** Three-panel figure showing operationalization choices + geometry illustration
+
+---
+
+**Transition to Methodology:**
+
+We've now defined the framework: a distribution μ over future studies Q, the general estimand E_μ[φ(Q)] for any functional φ, and local geometries as one way to operationalize μ. The next question: **How do we actually estimate this?**
 
 ---
 
 ### Part 3: Methodology (3-4 minutes, 3 slides)
 
-#### Slide 10: The Estimator
+#### Slide 12: The Estimator
 **Main point:** Sample M future studies Q_m from U(P₀, λ; d), compute ΔS(Q_m), ΔY(Q_m) for each, estimate correlation
 
 **Content:**
 - **Algorithm:**
   1. Sample Q₁, ..., Qₘ from U(P₀, λ; d) via MCMC
-  2. For each Qₘ, compute treatment effects via deterministic reweighting:
-     - Weights: wᵢ = qₘ(Oᵢ) / p₀(Oᵢ)
+  2. For each Qₘ, compute treatment effects via
      - RCTs: Weighted means
      - Observational: AIPW with cross-fitting
   3. Compute correlation: Θ̂ = cor{(ΔS(Q₁), ΔY(Q₁)), ..., (ΔS(Qₘ), ΔY(Qₘ))}
@@ -248,7 +423,7 @@
 
 ---
 
-#### Slide 11: Sampling Algorithm: Hit-and-Run MCMC
+#### Slide 13: Sampling Algorithm: Hit-and-Run MCMC
 **Main point:** Uniform sampling from convex geometries via random walk
 
 **Content:**
@@ -258,8 +433,6 @@
   3. Compute line segment within U(P₀, λ; d)
   4. Sample uniformly along line → Q_{t+1}
   5. Repeat with burn-in
-- **Convergence:** Validated via Gelman-Rubin R-hat = 1.0002 (essentially perfect)
-- **Why uniform?** Non-informative: treats all directions of deviation equally (conservative assessment)
 
 **Visual:** Illustration of hit-and-run on simplex with TV ball constraint, or convergence trace plot
 
@@ -274,7 +447,7 @@
 
 ---
 
-#### Slide 12: Inference: Asymptotic Theory and EIF
+#### Slide 14: Inference: Asymptotic Theory and EIF
 **Main point:** Two-stage functional delta method → √n-consistency; efficient influence function (EIF) for variance estimation
 
 **Content:**
@@ -301,222 +474,181 @@
 
 ---
 
-### Part 4: X-Level Analysis (3-4 minutes, 3-4 slides)
+### Part 4: Two Approaches to Local Geometries (5-6 minutes, 5 slides)
 
-#### Slide 13: X-Level Geometry: Compositional Changes
-**Main point:** Studies differ in P(X) only; assumes treatment effect functions ΔS(X), ΔY(X) are constant
+#### Slide 15: Choosing the Local Geometry: Two Approaches
+**Main point:** The geometry choice determines what types of future studies we consider—two natural approaches with complementary strengths
 
 **Content:**
-- **X-level geometry:** U_X(P₀, λ) = {Q over X-distributions: TV(Q_X, P₀,X) ≤ λ}
-- **What changes:** Covariate distribution P(X)
-  - Example: Study 1 has 30% elderly, Study 2 has 60% elderly
-- **What stays constant:** Treatment effect functions ΔS(X), ΔY(X)
-  - Elderly always have effect ΔS(elderly), ΔY(elderly)
-  - Young always have effect ΔS(young), ΔY(young)
-- **Interpretation:** Surrogate quality under **compositional changes** (different mixes of types)
+- **Recall:** Local geometry μ = Uniform(U(P₀, λ; d)) where U(P₀, λ; d) = {Q : d(Q, P₀) ≤ λ}
 
-**Visual:** Two panels:
-- Left: Histogram showing P₀(X) vs Q(X) (compositional shift)
-- Right: Treatment effects ΔS(X), ΔY(X) stay same across studies
+- **Key design choice: What space do we define Q over?**
+  - Different spaces lead to different interpretations of "future study"
+  - Trade-off: Interpretability vs. Robustness
 
-**Script:** "X-level geometry focuses on compositional changes: future studies differ in their covariate distributions P(X), but the treatment effect functions ΔS(X) and ΔY(X) remain constant. If a study has more elderly patients, we assume elderly patients have the same treatment effects as in the original study—just the proportion changed."
+- **Two natural approaches:**
+
+  **Approach 1: X-Level Geometry** (Compositional changes)
+  - Q defined over covariate distributions: Q(X)
+  - Interpretation: Future studies differ in patient mix (more elderly, more severe disease)
+  - Assumption: Treatment effect functions ΔS(X), ΔY(X) stay constant
+  - **Strengths:** Clear interpretation, targets compositional transportability
+  - **Weaknesses:** Requires X captures all effect modifiers, assumes mechanisms transport
+
+  **Approach 2: Observation-Level Geometry** (General changes)
+  - Q defined over individual observations: Q(individual)
+  - Interpretation: Future studies differ in individual-level composition (includes within-X variation)
+  - No assumption about which variables drive effects
+  - **Strengths:** Robust to unmeasured effect modifiers, no mechanistic assumptions
+  - **Weaknesses:** Includes idiosyncratic noise, more conservative
+
+- **Complementary evidence:**
+  - X-level: "If my X's capture effect modification and mechanisms transport..."
+  - Observation-level: "Even with unmeasured heterogeneity and noise..."
+  - Report both to bracket the answer
+
+**Visual:** Two-panel comparison table:
+- Panel A: X-level (Definition, Interpretation, Strengths, Weaknesses)
+- Panel B: Observation-level (Definition, Interpretation, Strengths, Weaknesses)
+
+**Script:** "Now we need to choose the local geometry. Recall: we define Q over some space within distance λ of P₀. The key question: what space? Two natural approaches emerge. X-level geometry defines Q over covariate distributions—future studies differ in patient mix. This gives clear interpretation for compositional changes, but assumes treatment effect functions transport. Observation-level geometry defines Q over individuals—future studies differ in individual-level composition, including noise. This is robust to unmeasured heterogeneity but more conservative. These provide complementary evidence: X-level tells you about compositional transportability under strong assumptions, observation-level provides a conservative bound even with unmeasured factors. We'll examine both."
 
 **Sources:**
-- Session notes 2026-04-17 (lines 128-137)
-- Need to draft this content clearly
+- Session notes 2026-04-17 (X-level vs observation-level distinction)
+- Framework generality
+
+**Need:** Two-panel comparison table figure
 
 ---
 
-#### Slide 14: X-Level Assumptions
-**Main point:** Requires (1) no unmeasured effect modifiers, (2) treatment-covariate interaction functions stable across studies
+#### Slide 16: X-Level Geometry: Details and Assumptions
+**Main point:** X-level geometry reweights covariate distributions—requires strong assumptions about effect modification
 
 **Content:**
+- **Definition:** U_X(P₀, λ) = {Q over X-distributions: TV(Q_X, P₀,X) ≤ λ}
+  - What changes: Covariate distribution P(X) (compositional shifts)
+  - What stays constant: Treatment effect functions ΔS(X), ΔY(X)
+  - Interpretation: Surrogate quality under compositional changes (different patient mix)
+
 - **Assumptions:**
-  1. **X completely determines effect heterogeneity**
-     - No unmeasured effect modifiers U
-     - Two people with same X have same treatment effects
-  2. **Mechanisms transport**
-     - Functions ΔS(X), ΔY(X) stable across studies
-     - Only P(X) changes, not how X relates to effects
+  1. **X completely determines effect heterogeneity** (no unmeasured effect modifiers U)
+  2. **Mechanisms transport** (functions ΔS(X), ΔY(X) stable across studies)
+
 - **When appropriate:**
-  - X captures key effect modifiers (age, disease severity, biomarkers)
-  - Future studies draw from same population (mechanistic transportability)
+  - Well-chosen X captures key effect modifiers (age, disease severity, biomarkers)
+  - Future studies involve same mechanisms, different compositions
   - Large-sample transportability (noise averages out)
-- **Strong but plausible:** With well-chosen X, often reasonable
 
-**Visual:** Assumption diagram or simple bullet points
+**Visual:** Two panels: (1) Compositional shift P₀(X) → Q(X), (2) Assumption list with checkmarks
 
-**Script:** "X-level makes strong assumptions: X completely determines treatment effect heterogeneity, and the functions ΔS(X) and ΔY(X) transport. This is plausible when X captures key effect modifiers and future studies involve the same mechanisms, just different population compositions. With well-chosen X—age, disease severity, relevant biomarkers—this is often reasonable."
+**Script:** "X-level geometry reweights across covariate distributions—future studies differ in patient mix but the treatment effect functions stay constant. This requires strong assumptions: X must completely determine effect heterogeneity, and the mechanisms must transport. When X captures key effect modifiers and future studies involve the same biology just with different compositions, this is plausible. With well-chosen X—age, disease severity, relevant biomarkers—often reasonable."
 
 **Sources:**
-- Session notes 2026-04-17 (lines 32-38, 133-136)
+- Session notes 2026-04-17 (lines 32-38, 128-137)
 
 ---
 
-#### Slide 15: X-Level Simulation Results
-**Main point:** With type-level DGP, X-level correlation ≈ 0.9 (high); correctly identifies transportable surrogates
+#### Slide 17: X-Level Analysis: What to Expect
+**Main point:** X-level targets compositional transportability—when DGP matches assumptions, should recover high correlation
 
 **Content:**
-- **DGP:** Treatment effects defined at type level (K=30 types)
-  - True type-level correlation: ρ = 0.74
-  - Effects vary systematically with X
-- **X-level results:**
-  - Estimated correlation: ρ̂_X ≈ 0.9
-  - Bootstrap 95% CI: [0.85, 0.93]
-  - Correctly identifies good surrogate
-- **Interpretation:** When effects truly correlate across types, X-level recovers high correlation
+- **What X-level should show (when assumptions hold):**
+  - If treatment effects truly correlate across types (high ρ)
+  - And X captures effect modification
+  - And mechanisms transport
+  - Then: X-level correlation should be high (≈ 0.8-0.9)
 
-**Visual:** Point estimate with confidence interval, perhaps compared to truth
-
-**Script:** "When we simulate data where treatment effects are defined at the type level and truly correlate, X-level analysis recovers high correlation—around 0.9 with tight confidence intervals. This correctly identifies that the surrogate transports well under compositional changes."
-
-**Sources:**
-- Session notes 2026-04-17 (expected X-level results)
-- Work plan Step 4: Need to run X-level simulation
-
-**Need:** X-level simulation results (1-2 hours work, Step 4 of plan)
-
----
-
-#### Slide 16 (Optional): X-Level vs Traditional Methods
-**Main point:** X-level correlation (71% accuracy) vastly outperforms PTE (32%) and within-study (49%) at classification
-
-**Content:**
-- **Method comparison (classification task):**
-  | Method | Accuracy | Type |
-  |--------|----------|------|
-  | X-level correlation | 71% | Across-study transportability |
-  | Within-study correlation | 49% | Within-study association |
-  | PTE | 32% | Within-study mediation |
 - **Interpretation:**
-  - X-level directly measures transportability
-  - Traditional methods measure within-study properties
-  - Different questions → different performance
+  - High X-level correlation → surrogate transports under compositional changes
+  - Low X-level correlation → even compositional changes break surrogacy
+  - This is the "best case" scenario (strong assumptions)
 
-**Visual:** Bar chart showing 71% vs 49% vs 32%
+- **Simulation validation needed:**
+  - Comprehensive simulation study planned (500-1000 replications)
+  - Will test: performance under assumption violations, coverage properties, power
+  - Results forthcoming
 
-**Script:** "When we compare methods at a classification task—identifying good vs poor surrogates—X-level correlation achieves 71% accuracy, far exceeding within-study correlation at 49% and PTE at 32%. This makes sense: X-level directly measures transportability, while traditional methods measure within-study properties."
+**Visual:** Conceptual diagram showing: True type-level correlation → X-level recovers it (when assumptions hold)
+
+**Script:** "What should X-level analysis show when assumptions hold? If treatment effects truly correlate across types, X captures effect modification, and mechanisms transport, then X-level should recover high correlation—typically 0.8 to 0.9. This represents the best-case scenario for compositional transportability. We're conducting comprehensive simulation validation with 500-1000 replications to verify these properties and test performance under assumption violations."
 
 **Sources:**
-- Session notes 2026-04-14 (method comparison results, lines 508-662)
-- sims/results/31_method_comparison_summary.csv
+- Theoretical expectations from framework
+- Session notes 2026-04-17 (expected X-level behavior)
 
-**Note:** Optional slide—include if time allows and results are compelling
+**Note:** SIMULATION RESULTS REMOVED - Need comprehensive sims with 500-1000 reps before presenting results
 
 ---
 
-### Part 5: Observation-Level Analysis (3-4 minutes, 3-4 slides)
-
-#### Slide 17: Observation-Level Geometry: General Changes
-**Main point:** Studies differ in individuals (treating each as unique); allows unmeasured heterogeneity and noise
+#### Slide 18: Observation-Level Geometry: How It Differs
+**Main point:** Observation-level treats individuals as unique, including unmeasured heterogeneity—fundamentally different from X-level
 
 **Content:**
-- **Observation-level geometry:** U_obs(P₀, λ) = {Q over individuals: TV(Q, P₀) ≤ λ}
-- **What changes:** Individual-level distributions
+- **Observation-level definition:** U_obs(P₀, λ) = {Q over individuals: TV(Q, P₀) ≤ λ}
   - Each person (X, S, Y) is unique
-  - Resampling creates different mixes of individuals
-- **What's allowed:**
-  - Unmeasured effect modifiers U (not observed)
-  - Idiosyncratic variation ε_i (individual noise)
-  - More general than just P(X) shifts
-- **Interpretation:** Surrogate quality under **most general distributional changes**
+  - Allows unmeasured effect modifiers U and idiosyncratic variation ε_i
+  - Most general distributional changes
 
-**Visual:** Schematic showing individuals as points, resampling creating different Q
+- **Direct comparison:**
 
-**Script:** "Observation-level takes a more general approach: we treat each individual as unique and resample them. This allows unmeasured heterogeneity beyond X, idiosyncratic variation, and any general distributional change—not just compositional shifts. It's the most flexible geometry, but also mixes signal with noise."
+  | Aspect | X-level (Compositional) | Observation-level (General) |
+  |--------|------------------------|----------------------------|
+  | What changes | Reweights types/strata | Resamples individuals |
+  | Variation | Between-X only | Between-X + within-X |
+  | Formula | ΔS(Q) = Σ Q_X(x)·ΔS(x) | ΔS(Q) = Σ Q(i)·[ΔS(X_i)+ε_i] |
+  | Appropriate for | Compositional changes | General changes, robustness |
 
-**Sources:**
-- Session notes 2026-04-17 (lines 138-147)
-- Need to draft clear description
+**Visual:** Two-panel schematic: X-level (discrete types, reweighting) vs Observation-level (individuals as points, resampling with noise)
 
----
-
-#### Slide 18: How Observation-Level Differs from X-Level
-**Main point:** X-level reweights types; observation-level resamples individuals (including idiosyncratic variation)
-
-**Content:**
-- **Two-panel comparison:**
-
-  **Panel A: X-level (Compositional)**
-  - Reweight across types/strata
-  - Only between-X variation matters
-  - ΔS(Q) = Σ Q_X(x) · ΔS(x)
-  - Appropriate for: Compositional changes
-
-  **Panel B: Observation-level (General)**
-  - Resample individuals
-  - Both between-X and within-X variation
-  - ΔS(Q) = Σ Q(i) · [ΔS(X_i) + ε_i]
-  - Appropriate for: General changes, robustness
-
-**Visual:** Two-panel schematic (TikZ or ggplot2):
-- Left: Discrete types with arrows showing reweighting
-- Right: Individuals as points with resampling including noise
-
-**Script:** "The key difference: X-level reweights types, observation-level resamples individuals. X-level only includes between-X variation—the signal. Observation-level includes both signal and within-X noise—the idiosyncratic variation that doesn't predict aggregate effects. This makes observation-level more robust but also conflates signal with noise."
+**Script:** "Observation-level treats individuals as unique and resamples them. This allows unmeasured heterogeneity and noise—fundamentally different from X-level. X-level reweights types, capturing only between-X variation—the signal. Observation-level resamples individuals, including both signal and within-X noise. This makes observation-level more robust but also conflates signal with noise."
 
 **Sources:**
-- Session notes 2026-04-17 (lines 148-169)
-- Work plan Step 6: Need schematic figure
+- Session notes 2026-04-17 (lines 138-169)
 
 **Need:** Two-panel schematic figure (2 hours, Step 9 of plan)
 
 ---
 
-#### Slide 19: Observation-Level Simulation Results
-**Main point:** With same DGP, observation-level correlation ≈ 0.42 (lower than X-level)
+#### Slide 19: Observation-Level Analysis: What to Expect
+**Main point:** Observation-level includes both signal and noise—expect lower correlation than X-level due to attenuation
 
 **Content:**
-- **Same DGP as X-level:**
-  - Type-level correlation: ρ = 0.74
-  - X-level recovered: ρ̂_X ≈ 0.9
-- **Observation-level results:**
-  - Estimated correlation: ρ̂_obs = 0.42
-  - Bootstrap 95% CI: [0.29, 0.44]
-  - Still positive and significant, but much lower
-- **Why lower?** Noise attenuation (explained in next slides)
+- **What observation-level should show:**
+  - Same DGP as X-level (high type-level correlation)
+  - X-level: Recovers high correlation (signal only)
+  - Observation-level: Should show lower correlation
+  - Why lower? Includes within-X variation (noise attenuation)
 
-**Visual:** Point estimate with CI, perhaps side-by-side with X-level for comparison
+- **Theoretical prediction:**
+  - If reliability ≈ 0.5 (half signal, half noise)
+  - And X-level correlation = 0.9 (signal)
+  - Then observation-level correlation ≈ 0.45-0.65 (attenuated by noise)
 
-**Script:** "When we apply observation-level analysis to the same DGP, correlation drops to 0.42—still positive and significant, but much lower than the 0.9 from X-level. This isn't a failure of the method. It's real attenuation from including idiosyncratic noise that doesn't transport."
+- **This is expected, not a problem:**
+  - Observation-level is more conservative
+  - Provides lower bound when X assumptions uncertain
+  - Both approaches provide complementary evidence
+
+- **Simulation validation needed:**
+  - Comprehensive study planned (500-1000 replications)
+  - Will test: noise attenuation predictions, reliability estimation, robustness
+  - Results forthcoming
+
+**Visual:** Conceptual diagram showing: Signal + Noise → Lower correlation than signal alone
+
+**Script:** "What should observation-level show? With the same DGP, observation-level should give lower correlation than X-level because it includes within-X noise. If half the variation is signal and half is noise—reliability around 0.5—then a signal correlation of 0.9 would attenuate to around 0.45 to 0.65. This isn't a problem—it's expected. Observation-level provides a conservative bound. Comprehensive simulation validation is underway."
 
 **Sources:**
-- Exploration wrapup (cor ≈ 0.42, CI: [0.29, 0.44])
-- explorations/tv_ball_geometry/results/
+- Theoretical prediction from attenuation formula (inst/presentation/theory-supplements.md)
+- Session notes 2026-04-17 (noise attenuation)
 
-**Need:** Format existing observation-level results (30 min, Step 5 of plan)
+**Note:** SIMULATION RESULTS REMOVED - Need comprehensive sims with 500-1000 reps before presenting results
 
 ---
 
-#### Slide 20: Robustness: Correlation Across Geometries
-**Main point:** Finding robust across distance metrics: TV/chi-sq/L2/KL all give ≈ 0.57 (1.5% spread)
+### Part 5: Theoretical Comparison (2 minutes, 2 slides)
 
-**Content:**
-- **Robustness check:** Tested 4 different distance metrics
-  | Geometry | Correlation | SE |
-  |----------|-------------|-----|
-  | TV (total variation) | 0.575 | 0.011 |
-  | Chi-squared | 0.576 | 0.015 |
-  | L2 distance | 0.573 | 0.013 |
-  | KL divergence | 0.567 | 0.009 |
-- **Relative spread:** Only 1.5% across metrics
-- **Interpretation:** Positive correlation is robust property of local structure, not artifact of specific metric
-
-**Visual:** Bar chart with 4 bars (TV, chi-sq, L2, KL) showing correlation ± SE
-
-**Script:** "A natural question: is this an artifact of the specific metric? We tested four different geometries—TV, chi-squared, L2, and KL—and found remarkable consistency. Correlations range from 0.567 to 0.576, a relative spread of only 1.5%. The positive correlation is a genuine property of the local structure, not metric-specific."
-
-**Sources:**
-- Exploration wrapup (robustness results, lines 66-82)
-- explorations/tv_ball_geometry/results/geometry_comparison.rds
-
-**Need:** Bar chart from geometry comparison results (30 min, Step 9 of plan)
-
----
-
-### Part 6: Theoretical Comparison (2 minutes, 2 slides)
-
-#### Slide 21: The Noise Attenuation Problem
+#### Slide 20: The Noise Attenuation Problem
 **Main point:** Observation-level has ceiling due to within-X noise: cor_obs ≈ cor_signal × √(reliability_S × reliability_Y)
 
 **Content:**
@@ -544,7 +676,7 @@
 
 ---
 
-#### Slide 22: Guidance: Which Geometry to Use?
+#### Slide 21: Guidance: Which Geometry to Use?
 **Main point:** Report BOTH with reliability coefficient
 
 **Content:**
@@ -570,9 +702,9 @@
 
 ---
 
-### Part 7: Practical Use and Conclusion (2 minutes, 2-3 slides)
+### Part 6: Practical Use and Conclusion (2 minutes, 2-3 slides)
 
-#### Slide 23: How to Use in Practice
+#### Slide 22: How to Use in Practice
 **Main point:** Fit over range of λ values (e.g., λ = 0.05, 0.10, 0.15, 0.20) - performance degradation with λ measures surrogate robustness
 
 **Content:**
@@ -588,6 +720,15 @@
   - Flat line: Robust surrogate (works even for dissimilar studies)
   - Steep decline: Fragile surrogate (only works for very similar studies)
 - **Decision rule:** Approve if Θ̂(λ) ≥ c (e.g., 0.7) for meaningful range of λ (e.g., λ ≤ 0.15)
+- **Software implementation:**
+  - R package in development
+  - Functions for X-level and observation-level analysis
+  - Built-in MCMC sampling and EIF-based inference
+  - [Repository/documentation forthcoming]
+- **Sample size considerations:**
+  - Observed data: n ≥ 500 for stable correlation estimates
+  - MCMC samples: M = 100-500 (larger for tighter CIs)
+  - Bootstrap replications: B = 200-500 for variance estimation
 
 **Visual:** Line plot showing correlation vs λ, with two examples (robust: flat, fragile: steep decline)
 
@@ -601,8 +742,8 @@
 
 ---
 
-#### Slide 24: Summary
-**Main point:** General framework for surrogate transportability via local geometries; robust across distance metrics; X-level (compositional) vs observation-level (general) provide complementary evidence
+#### Slide 23: Summary
+**Main point:** General framework for surrogate transportability via local geometries; X-level (compositional) vs observation-level (general) provide complementary evidence
 
 **Content:**
 - **Key contributions:**
@@ -610,7 +751,6 @@
   2. X-level: High correlation under compositional changes (strong assumptions)
   3. Observation-level: Conservative bound under general changes (robust)
   4. Noise attenuation explains gap via reliability coefficient
-  5. Robust across geometries (TV, chi-sq, L2, KL)
 - **Practical guidance:**
   - Report both X-level and observation-level
   - Compute reliability to understand gap
@@ -620,11 +760,11 @@
 
 **Visual:** Clean slide with 3-5 key bullets, no overwhelming text
 
-**Script:** "To summarize: we've introduced a general framework for evaluating surrogate transportability using local geometric analysis. X-level analysis assumes compositional changes and recovers high correlation. Observation-level is more general and robust but shows lower correlation due to noise attenuation. The reliability coefficient quantifies this gap. The finding is robust across different distance metrics. Report both analyses to provide complementary evidence about surrogate quality."
+**Script:** "To summarize: we've introduced a general framework for evaluating surrogate transportability using local geometric analysis. X-level analysis assumes compositional changes and recovers high correlation. Observation-level is more general and robust but shows lower correlation due to noise attenuation. The reliability coefficient quantifies this gap. Report both analyses to provide complementary evidence about surrogate quality."
 
 ---
 
-#### Slide 25 (Optional): Extensions and Future Work
+#### Slide 24 (Optional): Extensions and Future Work
 **Main point:** Meta-analytic synthesis, real-time monitoring, Bayesian priors, interactive tools for regulators
 
 **Content:**
