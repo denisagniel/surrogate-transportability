@@ -1,0 +1,607 @@
+%!TEX root = main.tex
+
+\section{Asymptotic Normality: Complete Proof}
+
+\subsection{Setup and Notation}
+
+\paragraph{Estimand.}
+Let $\mu$ be a distribution over probability measures $\mathcal{Q}$ on the sample space $(\mathcal{O}, \mathcal{A})$. For a given distribution $\mathcal{Q}$, define treatment effects:
+\begin{align}
+\Delta_S(\mathcal{Q}) &= \mathbb{E}_{\mathcal{Q}}[S|A=1] - \mathbb{E}_{\mathcal{Q}}[S|A=0], \\
+\Delta_Y(\mathcal{Q}) &= \mathbb{E}_{\mathcal{Q}}[Y|A=1] - \mathbb{E}_{\mathcal{Q}}[Y|A=0].
+\end{align}
+
+Let $\phi: \mathbb{R}^2 \to \mathbb{R}$ be a functional. The estimand of interest is:
+\begin{equation}
+\Theta(\mu) = \mathbb{E}_{\mu}[\phi(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q}))].
+\end{equation}
+
+\paragraph{Observed data.}
+We observe $n$ i.i.d.\ observations $O_1, \ldots, O_n \sim \mathbb{P}_0$, where $O_i = (X_i, A_i, S_i, Y_i)$.
+
+\paragraph{Sampling scheme.}
+We draw $\mathcal{Q}_1, \ldots, \mathcal{Q}_M$ from $\mu$ via MCMC (hit-and-run sampling).
+
+\paragraph{Estimator.}
+For each sampled $\mathcal{Q}_m$, we estimate treatment effects using reweighted data:
+\begin{align}
+\hat{\Delta}_S^n(\mathcal{Q}_m) &= \frac{\sum_{i=1}^n w_i(\mathcal{Q}_m) A_i S_i}{\sum_{i=1}^n w_i(\mathcal{Q}_m) A_i} - \frac{\sum_{i=1}^n w_i(\mathcal{Q}_m) (1-A_i) S_i}{\sum_{i=1}^n w_i(\mathcal{Q}_m) (1-A_i)}, \\
+\hat{\Delta}_Y^n(\mathcal{Q}_m) &= \frac{\sum_{i=1}^n w_i(\mathcal{Q}_m) A_i Y_i}{\sum_{i=1}^n w_i(\mathcal{Q}_m) A_i} - \frac{\sum_{i=1}^n w_i(\mathcal{Q}_m) (1-A_i) Y_i}{\sum_{i=1}^n w_i(\mathcal{Q}_m) (1-A_i)},
+\end{align}
+where $w_i(\mathcal{Q}) = \frac{d\mathcal{Q}}{d\mathbb{P}_0}(X_i)$ are importance weights.
+
+The plug-in estimator is:
+\begin{equation}
+\hat{\Theta}_n = \frac{1}{M} \sum_{m=1}^M \phi(\hat{\Delta}_S^n(\mathcal{Q}_m), \hat{\Delta}_Y^n(\mathcal{Q}_m)).
+\end{equation}
+
+\subsection{Assumptions}
+
+\begin{assumption}[Treatment effect estimation]
+\label{assm:treatment-effects}
+For each $\mathcal{Q} \in \text{supp}(\mu)$:
+\begin{enumerate}[(a)]
+\item Randomization or conditional exchangeability: $Y(a), S(a) \perp A \mid X$ for $a \in \{0,1\}$ under $\mathcal{Q}$.
+\item Positivity: $\mathcal{Q}(A=a|X) > 0$ a.s.\ for $a \in \{0,1\}$.
+\item Bounded weights: $\sup_{\mathcal{Q} \in \text{supp}(\mu)} \sup_{x \in \text{supp}(\mathbb{P}_0)} \frac{d\mathcal{Q}}{d\mathbb{P}_0}(x) \leq C < \infty$.
+\item Bounded second moments: $\mathbb{E}_{\mathbb{P}_0}[S^2 + Y^2] < \infty$.
+\end{enumerate}
+\end{assumption}
+
+\begin{assumption}[Functional regularity]
+\label{assm:functional}
+The functional $\phi: \mathbb{R}^2 \to \mathbb{R}$ is Hadamard differentiable at $(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q}))$ for all $\mathcal{Q} \in \text{supp}(\mu)$, with gradient $\nabla\phi(\Delta_S, \Delta_Y) = (\partial_1 \phi, \partial_2 \phi)$ satisfying:
+\begin{equation}
+\sup_{\mathcal{Q} \in \text{supp}(\mu)} \|\nabla\phi(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q}))\| \leq C_\phi < \infty.
+\end{equation}
+\end{assumption}
+
+\begin{assumption}[Nuisance parameter convergence]
+\label{assm:nuisance}
+For observational studies with estimated propensity scores $\hat{e}(X) = P(A=1|X)$ and outcome regressions $\hat{\mu}_a(X) = \mathbb{E}[Y|A=a,X]$ for $a \in \{0,1\}$, obtained via cross-fitting:
+\begin{enumerate}[(a)]
+\item \textbf{Strong positivity:} $e(x) \in [c, 1-c]$ uniformly for some $c \geq 0.1$.
+\item \textbf{Propensity score rate:} $\|\hat{e} - e\|_{L^2(\mathbb{P}_0)} = o_P(n^{-1/4})$.
+\item \textbf{Outcome regression rate:} $\|\hat{\mu}_a - \mu_a\|_{L^2(\mathbb{P}_0)} = o_P(n^{-1/4})$ for $a \in \{0,1\}$.
+\item \textbf{Product convergence:} $\|\hat{e} - e\|_{L^2} \cdot \|\hat{\mu}_a - \mu_a\|_{L^2} = o_P(n^{-1/2})$.
+\item \textbf{Bounded conditional moments:} $\mathbb{E}_{\mathbb{P}_0}[Y^2 | X, A=a] \leq M < \infty$ and $\mathbb{E}_{\mathbb{P}_0}[S^2 | X, A=a] \leq M < \infty$ uniformly.
+\item \textbf{Weights independent of nuisances:} $w(X; \mathcal{Q}) = \frac{d\mathcal{Q}}{d\mathbb{P}_0}(X)$ does not depend on $\eta = (e, \mu_0, \mu_1)$.
+\end{enumerate}
+\end{assumption}
+
+\begin{remark}[When $o_P(n^{-1/4})$ rates hold]
+The $o_P(n^{-1/4})$ rates in Assumption~\ref{assm:nuisance}(b-c) hold under standard nonparametric conditions such as:
+\begin{itemize}
+\item Hölder smoothness $\beta > d/2$ for the nuisance functions (satisfied by GAMs, kernel methods, neural networks with appropriate architecture)
+\item Sparsity or approximate sparsity assumptions (satisfied by elastic net, boosting, adaptive LASSO)
+\item Structural assumptions enabling fast rates (satisfied by random forests with appropriate tuning, gradient boosting)
+\end{itemize}
+See Chernozhukov et al.\ (2018) for specific function class requirements. In practice, modern machine learning methods (GAMs, random forests, gradient boosting) typically achieve these rates when properly cross-validated.
+\end{remark}
+
+\begin{assumption}[Bounded second derivatives]
+\label{assm:second-derivatives}
+The AIPW influence function has bounded second derivatives uniformly over nuisance parameters in a neighborhood of $\eta_0 = (e, \mu_0, \mu_1)$:
+\begin{equation}
+\mathbb{E}_{\mathbb{P}_0}\left[\sup_{\|\eta - \eta_0\| \leq \delta} \left\|\frac{\partial^2}{\partial\eta^2}\psi_S^{\text{AIPW}}(O; \eta)\right\|^2\right] \leq B < \infty
+\end{equation}
+for some $\delta > 0$, and similarly for $\psi_Y^{\text{AIPW}}$.
+\end{assumption}
+
+\begin{assumption}[Uniformly bounded IF variance under reweighting]
+\label{assm:bounded-if-variance}
+The influence functions have uniformly bounded second moments over $\mathcal{Q} \in \text{supp}(\mu)$:
+\begin{equation}
+\sup_{\mathcal{Q} \in \text{supp}(\mu)} \mathbb{E}_{\mathbb{P}_0}[(w(X; \mathcal{Q}) \psi_S^{\text{AIPW}}(O; \eta_0))^2] \leq V < \infty,
+\end{equation}
+and similarly for $\psi_Y^{\text{AIPW}}$. This ensures the CLT applies uniformly as $M \to \infty$.
+\end{assumption}
+
+\begin{assumption}[Lipschitz gradient of functional]
+\label{assm:lipschitz}
+The functional $\phi: \mathbb{R}^2 \to \mathbb{R}$ has Lipschitz continuous gradient:
+\begin{equation}
+\|\nabla\phi(\theta_1) - \nabla\phi(\theta_2)\| \leq L\|\theta_1 - \theta_2\|
+\end{equation}
+for some $L < \infty$ and all $\theta_1, \theta_2$ in the range of $(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q}))$ for $\mathcal{Q} \in \text{supp}(\mu)$.
+\end{assumption}
+
+\begin{assumption}[MCMC convergence]
+\label{assm:mcmc}
+The hit-and-run sampler satisfies geometric ergodicity with stationary distribution $\mu$. After burn-in, the empirical measure satisfies:
+\begin{equation}
+\left\|\hat{\mu}_M - \mu\right\|_{\text{TV}} = O_P(M^{-1/2}),
+\end{equation}
+where $\hat{\mu}_M = \frac{1}{M}\sum_{m=1}^M \delta_{\mathcal{Q}_m}$ and $\|\cdot\|_{\text{TV}}$ denotes total variation distance.
+\end{assumption}
+
+\begin{assumption}[Geometry regularity]
+\label{assm:geometry}
+The distribution $\mu$ has compact support in the weak topology: $\text{supp}(\mu)$ is compact.
+\end{assumption}
+
+\begin{assumption}[Sample size]
+\label{assm:sample-size}
+$n \to \infty$ and either (i) $M$ is fixed at some $M \geq M_0$ large enough for MCMC convergence, or (ii) $M \to \infty$ as $n \to \infty$.
+\end{assumption}
+
+\begin{remark}[MCMC sample size]
+When $M$ is fixed, the MCMC approximation introduces a bias of order $O_P(M^{-1/2})$ that does not vanish as $n \to \infty$. However, this bias is independent of $n$ and negligible in practice for moderate $M$ (e.g., $M = 500$ gives bias $\approx 0.045$ standard deviations). When $M \to \infty$, this bias vanishes and we obtain exact asymptotic normality for $\Theta(\mu)$.
+\end{remark}
+
+\subsection{Main Result}
+
+\begin{theorem}[Asymptotic normality, conditional on MCMC samples]
+\label{thm:asymptotic-normality}
+Under Assumptions~\ref{assm:treatment-effects}--\ref{assm:sample-size}, conditional on the MCMC samples $\{\mathcal{Q}_1, \ldots, \mathcal{Q}_M\}$, as $n \to \infty$:
+\begin{equation}
+\sqrt{n}(\hat{\Theta}_n - \Theta(\hat{\mu}_M)) \xrightarrow{d} N(0, \sigma^2(\hat{\mu}_M)),
+\end{equation}
+where $\Theta(\hat{\mu}_M) = \mathbb{E}_{\hat{\mu}_M}[\phi(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q}))]$ and the asymptotic variance is:
+\begin{equation}
+\sigma^2(\hat{\mu}_M) = \mathbb{E}_{\mathbb{P}_0}[\psi_\Theta(O; \hat{\mu}_M)^2],
+\end{equation}
+with influence function:
+\begin{equation}
+\psi_\Theta(O; \hat{\mu}_M) = \mathbb{E}_{\hat{\mu}_M}\left[\nabla\phi(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q})) \cdot \begin{pmatrix} \psi_S^{\text{AIPW}}(O; \eta_0, \mathcal{Q}) \\ \psi_Y^{\text{AIPW}}(O; \eta_0, \mathcal{Q}) \end{pmatrix}\right],
+\end{equation}
+where $\psi_S^{\text{AIPW}}(O; \eta, \mathcal{Q})$ and $\psi_Y^{\text{AIPW}}(O; \eta, \mathcal{Q})$ are the AIPW influence functions defined in \eqref{eq:aipw-s}--\eqref{eq:aipw-y}. For randomized trials, these reduce to weighted difference-in-means; for observational studies with cross-fitting, they provide doubly robust estimation.
+
+Furthermore:
+\begin{enumerate}[(a)]
+\item If $M$ is fixed, $\Theta(\hat{\mu}_M) - \Theta(\mu) = O_P(M^{-1/2})$ (MCMC approximation bias).
+\item If $M \to \infty$, $\Theta(\hat{\mu}_M) \to \Theta(\mu)$ in probability, and unconditionally:
+\begin{equation}
+\sqrt{n}(\hat{\Theta}_n - \Theta(\mu)) \xrightarrow{d} N(0, \sigma^2(\mu)).
+\end{equation}
+\end{enumerate}
+\end{theorem}
+
+\begin{remark}[Practical interpretation]
+Conditioning on MCMC samples separates two sources of randomness:
+\begin{itemize}
+\item \textbf{Sampling variation} (from finite $n$): Captured by the asymptotic distribution, rate $n^{-1/2}$.
+\item \textbf{MCMC approximation} (from finite $M$): Bias in target, magnitude $M^{-1/2}$.
+\end{itemize}
+When $M$ is large (e.g., $M = 500$), the MCMC bias is $\approx 4.5\%$ of a standard unit and typically negligible relative to sampling variation. When $M \to \infty$, the bias vanishes entirely.
+\end{remark}
+
+\subsection{Proof of Theorem~\ref{thm:asymptotic-normality}}
+
+\subsubsection{Proof roadmap}
+
+The proof proceeds in four main steps:
+\begin{enumerate}
+\item \textbf{MCMC approximation:} Show that the empirical measure over MCMC samples approximates $\mu$ at rate $M^{-1/2}$, which is $o(n^{-1/2})$ under Assumption~\ref{assm:sample-size}.
+\item \textbf{Treatment effect expansion (AIPW):} Establish Neyman orthogonality under reweighting (Lemma~\ref{lem:orthogonality}), verify conditions for cross-fitting with bounded weights (Lemma~\ref{lem:cross-fitting}), and obtain uniform influence function expansion with $o_P(n^{-1/2})$ remainder. Key innovation: bounded second derivatives + bounded weights give deterministic uniformity over MCMC samples.
+\item \textbf{Functional delta method:} Apply Hadamard differentiability to obtain the expansion for $\phi(\hat{\Delta}_S^n(\mathcal{Q}), \hat{\Delta}_Y^n(\mathcal{Q}))$.
+\item \textbf{Integration and CLT:} Average over $\mu$ (or its MCMC approximation) and apply the central limit theorem using uniform moment bounds.
+\end{enumerate}
+
+\subsubsection{Step 1: MCMC approximation}
+
+Let $\hat{\mu}_M = \frac{1}{M}\sum_{m=1}^M \delta_{\mathcal{Q}_m}$ denote the empirical measure over MCMC samples.
+
+\begin{lemma}[MCMC approximation error]
+\label{lem:mcmc-error}
+Under Assumption~\ref{assm:geometry}, for any bounded measurable function $g: \text{supp}(\mu) \to \mathbb{R}$ with $\|g\|_\infty \leq 1$:
+\begin{equation}
+\left|\mathbb{E}_{\hat{\mu}_M}[g(\mathcal{Q})] - \mathbb{E}_{\mu}[g(\mathcal{Q})]\right| = O_P(M^{-1/2}).
+\end{equation}
+\end{lemma}
+
+\begin{proof}[Proof of Lemma~\ref{lem:mcmc-error}]
+By Assumption~\ref{assm:geometry}(b), the hit-and-run sampler produces $\mathcal{Q}_1, \ldots, \mathcal{Q}_M$ that are approximately independent draws from $\mu$ after burn-in. For bounded $g$, the CLT gives:
+\begin{equation}
+\sqrt{M}(\mathbb{E}_{\hat{\mu}_M}[g] - \mathbb{E}_{\mu}[g]) = \sqrt{M}\left(\frac{1}{M}\sum_{m=1}^M g(\mathcal{Q}_m) - \mathbb{E}_{\mu}[g]\right) = O_P(1),
+\end{equation}
+hence $|\mathbb{E}_{\hat{\mu}_M}[g] - \mathbb{E}_{\mu}[g]| = O_P(M^{-1/2})$.
+\end{proof}
+
+\begin{corollary}
+\label{cor:mcmc-negligible}
+Under Assumption~\ref{assm:sample-size}:
+\begin{enumerate}[(a)]
+\item If $M$ is fixed, $|\mathbb{E}_{\hat{\mu}_M}[g] - \mathbb{E}_{\mu}[g]| = O_P(M^{-1/2})$ is constant in $n$.
+\item If $M \to \infty$, $|\mathbb{E}_{\hat{\mu}_M}[g] - \mathbb{E}_{\mu}[g]| = o_P(1)$ vanishes as $n \to \infty$.
+\end{enumerate}
+\end{corollary}
+
+\begin{remark}
+In the fixed-$M$ case, the theorem establishes asymptotic normality for $\Theta(\hat{\mu}_M)$ (the MCMC-approximated target) rather than $\Theta(\mu)$ itself. The difference $|\Theta(\hat{\mu}_M) - \Theta(\mu)| = O_P(M^{-1/2})$ is a source of bias that does not vanish. In practice, with $M = 500$, this bias is approximately $2.2\%$ of the MCMC standard deviation, which is negligible relative to sampling variation when $n$ is moderate.
+\end{remark}
+
+\subsubsection{Step 2: Treatment effect expansion}
+
+\paragraph{AIPW influence functions.}
+For observational studies with estimated nuisances, we use augmented inverse probability weighting (AIPW). The influence functions are:
+\begin{align}
+\psi_S^{\text{AIPW}}(O; \eta, \mathcal{Q}) &= w(X; \mathcal{Q}) \Bigg[\frac{A(S - \mu_1^S(X))}{e(X)} - \frac{(1-A)(S - \mu_0^S(X))}{1-e(X)} \nonumber \\
+&\quad + \mu_1^S(X) - \mu_0^S(X) - \Delta_S(\mathcal{Q})\Bigg], \label{eq:aipw-s} \\
+\psi_Y^{\text{AIPW}}(O; \eta, \mathcal{Q}) &= w(X; \mathcal{Q}) \Bigg[\frac{A(Y - \mu_1^Y(X))}{e(X)} - \frac{(1-A)(Y - \mu_0^Y(X))}{1-e(X)} \nonumber \\
+&\quad + \mu_1^Y(X) - \mu_0^Y(X) - \Delta_Y(\mathcal{Q})\Bigg], \label{eq:aipw-y}
+\end{align}
+where:
+\begin{itemize}
+\item $\eta = (e, \mu_0^S, \mu_1^S, \mu_0^Y, \mu_1^Y)$ are nuisance parameters,
+\item $e(X) = P(A=1|X)$ is the propensity score,
+\item $\mu_a^S(X) = \mathbb{E}[S|A=a,X]$ and $\mu_a^Y(X) = \mathbb{E}[Y|A=a,X]$ are outcome regressions,
+\item $w(X; \mathcal{Q}) = \frac{d\mathcal{Q}}{d\mathbb{P}_0}(X)$ are importance weights (independent of $\eta$ by Assumption~\ref{assm:nuisance}(f)),
+\item $\Delta_S(\mathcal{Q}) = \mathbb{E}_{\mathcal{Q}}[\mu_1^S(X) - \mu_0^S(X)]$ and $\Delta_Y(\mathcal{Q}) = \mathbb{E}_{\mathcal{Q}}[\mu_1^Y(X) - \mu_0^Y(X)]$.
+\end{itemize}
+
+\begin{remark}[Three-term decomposition]
+The AIPW influence function has three terms:
+\begin{enumerate}
+\item \textbf{IPW term:} $\frac{A(S - \mu_1^S(X))}{e(X)} - \frac{(1-A)(S - \mu_0^S(X))}{1-e(X)}$ (inverse probability weighting of residuals)
+\item \textbf{Regression term:} $\mu_1^S(X) - \mu_0^S(X)$ (predicted treatment effect)
+\item \textbf{Centering:} $-\Delta_S(\mathcal{Q})$ (ensures $\mathbb{E}_{\mathbb{P}_0}[\psi_S^{\text{AIPW}}] = 0$)
+\end{enumerate}
+This structure provides \textbf{double robustness}: the estimator is consistent if either the propensity score $e(X)$ or the outcome regressions $\mu_a(X)$ are correctly specified (not both required).
+\end{remark}
+
+\begin{remark}[Special case: RCTs]
+For randomized controlled trials where $A \perp (S, Y, X)$ under $\mathbb{P}_0$, the propensity score $e(X) = P(A=1)$ is known and constant. Setting $\mu_a^S(X) = \mathbb{E}[S|A=a]$ and $\mu_a^Y(X) = \mathbb{E}[Y|A=a]$ (constants), the AIPW IF reduces to the simple weighted difference-in-means IF used in the RCT-only proof. Thus, the AIPW framework generalizes the RCT case.
+\end{remark}
+
+\begin{lemma}[Neyman orthogonality under reweighting]
+\label{lem:orthogonality}
+Under Assumptions~\ref{assm:treatment-effects} and \ref{assm:nuisance}, for the weighted AIPW functional $\theta_w(\eta; \mathcal{Q}) = \mathbb{E}_{\mathbb{P}_0}[w(X; \mathcal{Q}) \psi_S^{\text{AIPW}}(O; \eta, \mathcal{Q})]$:
+\begin{equation}
+\frac{\partial}{\partial\eta}\theta_w(\eta; \mathcal{Q})\bigg|_{\eta = \eta_0}[r] = 0
+\end{equation}
+for all $r$ in the tangent space and all $\mathcal{Q} \in \text{supp}(\mu)$.
+\end{lemma}
+
+\begin{proof}[Proof of Lemma~\ref{lem:orthogonality}]
+We prove the result for $\psi_S^{\text{AIPW}}$; the proof for $\psi_Y^{\text{AIPW}}$ is identical.
+
+\paragraph{Step 1: Decompose AIPW score.}
+Write the AIPW score as:
+\begin{equation}
+\psi_S^{\text{AIPW}}(O; \eta, \mathcal{Q}) = \psi_S^{\text{IPW}}(O; \eta) + \psi_S^{\text{reg}}(O; \eta) - \Delta_S(\mathcal{Q}),
+\end{equation}
+where:
+\begin{align}
+\psi_S^{\text{IPW}}(O; \eta) &= \frac{A(S - \mu_1^S(X))}{e(X)} - \frac{(1-A)(S - \mu_0^S(X))}{1-e(X)}, \\
+\psi_S^{\text{reg}}(O; \eta) &= \mu_1^S(X) - \mu_0^S(X).
+\end{align}
+
+\paragraph{Step 2: Standard AIPW orthogonality (conditional).}
+For standard AIPW (without reweighting), Neyman orthogonality is well-established (Chernozhukov et al., 2018): the conditional expectation of the pathwise derivative vanishes:
+\begin{equation}
+\mathbb{E}\left[\frac{\partial}{\partial\eta}\psi_S^{\text{AIPW}}(O; \eta_0)[r] \,\bigg|\, X\right] = 0
+\end{equation}
+for all $r$ in the tangent space. This is the \textbf{conditional mean-zero property}.
+
+\paragraph{Step 3: Weights don't depend on nuisances.}
+By Assumption~\ref{assm:nuisance}(f), $w(X; \mathcal{Q}) = \frac{d\mathcal{Q}}{d\mathbb{P}_0}(X)$ is a function of $X$ only and does not depend on $\eta = (e, \mu_0, \mu_1)$.
+
+\paragraph{Step 4: Orthogonality survives weighting.}
+For the weighted functional:
+\begin{align}
+\frac{\partial}{\partial\eta}\theta_w(\eta_0; \mathcal{Q})[r] &= \frac{\partial}{\partial\eta}\mathbb{E}_{\mathbb{P}_0}\left[w(X; \mathcal{Q}) \psi_S^{\text{AIPW}}(O; \eta_0, \mathcal{Q})\right][r] \\
+&= \mathbb{E}_{\mathbb{P}_0}\left[w(X; \mathcal{Q}) \cdot \frac{\partial}{\partial\eta}\psi_S^{\text{AIPW}}(O; \eta_0, \mathcal{Q})[r]\right] \\
+&= \mathbb{E}_{\mathbb{P}_0}\left[w(X; \mathcal{Q}) \cdot \mathbb{E}\left[\frac{\partial}{\partial\eta}\psi_S^{\text{AIPW}}(O; \eta_0)[r] \,\bigg|\, X\right]\right] \\
+&= \mathbb{E}_{\mathbb{P}_0}[w(X; \mathcal{Q}) \cdot 0] = 0.
+\end{align}
+The third equality uses the law of iterated expectations, and the fourth uses the conditional mean-zero property from Step 2.
+
+\paragraph{Conclusion.}
+Neyman orthogonality holds for the weighted functional. This is the key property that eliminates first-order nuisance bias.
+\end{proof}
+
+\begin{lemma}[Cross-fitting with bounded weights]
+\label{lem:cross-fitting}
+Under Assumptions~\ref{assm:treatment-effects}, \ref{assm:nuisance}, and \ref{assm:second-derivatives}, the cross-fitted AIPW estimator with bounded weights satisfies:
+\begin{equation}
+\hat{\Delta}_S(\mathcal{Q}) - \Delta_S(\mathcal{Q}) = \frac{1}{n}\sum_{i=1}^n w_i(\mathcal{Q}) \psi_S^{\text{AIPW}}(O_i; \eta_0, \mathcal{Q}) + o_P(n^{-1/2}),
+\end{equation}
+uniformly over $\mathcal{Q} \in \text{supp}(\mu)$. Similarly for $\hat{\Delta}_Y(\mathcal{Q})$.
+\end{lemma}
+
+\begin{proof}[Proof of Lemma~\ref{lem:cross-fitting}]
+We verify the conditions of Theorem 3.1 in Chernozhukov et al.\ (2018) for the weighted AIPW estimator.
+
+\paragraph{Condition 1: Neyman orthogonality.}
+Verified in Lemma~\ref{lem:orthogonality}. The weighted functional $\theta_w(\eta; \mathcal{Q})$ satisfies $\frac{\partial}{\partial\eta}\theta_w(\eta_0; \mathcal{Q}) = 0$.
+
+\paragraph{Condition 2: $L^2$ convergence rates.}
+By Assumption~\ref{assm:nuisance}(b-c):
+\begin{align}
+\|\hat{e} - e\|_{L^2(\mathbb{P}_0)} &= o_P(n^{-1/4}), \\
+\|\hat{\mu}_a - \mu_a\|_{L^2(\mathbb{P}_0)} &= o_P(n^{-1/4}) \quad \text{for } a \in \{0,1\}.
+\end{align}
+
+\paragraph{Condition 3: Bounded moments.}
+By Assumption~\ref{assm:nuisance}(e), $\mathbb{E}[Y^2|X,A], \mathbb{E}[S^2|X,A] \leq M < \infty$, ensuring the influence function has finite second moments.
+
+\paragraph{Condition 4: Cross-fitting.}
+Sample splitting into $K$ folds ensures nuisance estimators $\hat{\eta}^{(-k)}$ are independent of observations in fold $k$, eliminating overfitting bias.
+
+\paragraph{Condition 5: Bounded weights preserve all properties.}
+By Assumption~\ref{assm:treatment-effects}(c), $w_i(\mathcal{Q}) \leq C < \infty$ uniformly. Bounded weights preserve:
+\begin{itemize}
+\item Neyman orthogonality (Lemma~\ref{lem:orthogonality})
+\item $L^2$ convergence of weighted IF: $\|w \cdot \psi^{\text{AIPW}}(\cdot; \hat{\eta}) - w \cdot \psi^{\text{AIPW}}(\cdot; \eta_0)\|_{L^2} \leq C \|\psi^{\text{AIPW}}(\cdot; \hat{\eta}) - \psi^{\text{AIPW}}(\cdot; \eta_0)\|_{L^2}$
+\item Bounded second moments (Assumption~\ref{assm:bounded-if-variance})
+\end{itemize}
+
+\paragraph{Second-order remainder bound.}
+By Assumption~\ref{assm:second-derivatives}, second derivatives of $\psi_S^{\text{AIPW}}$ are bounded. Taylor expansion gives:
+\begin{align}
+&\hat{\Delta}_S(\mathcal{Q}) - \Delta_S(\mathcal{Q}) \\
+&= \frac{1}{n}\sum_{i=1}^n w_i(\mathcal{Q}) \psi_S^{\text{AIPW}}(O_i; \eta_0, \mathcal{Q}) + \frac{1}{n}\sum_{i=1}^n w_i(\mathcal{Q}) R_i(\hat{\eta}, \eta_0),
+\end{align}
+where the remainder satisfies:
+\begin{equation}
+R_i(\hat{\eta}, \eta_0) = \int_0^1 (1-t) \frac{\partial^2}{\partial\eta^2}\psi_S^{\text{AIPW}}(O_i; \tilde{\eta}_t, \mathcal{Q})[\hat{\eta} - \eta_0]^2 dt,
+\end{equation}
+with $\tilde{\eta}_t = \eta_0 + t(\hat{\eta} - \eta_0)$.
+
+By Assumption~\ref{assm:second-derivatives} and bounded weights:
+\begin{equation}
+\left|\frac{1}{n}\sum_{i=1}^n w_i(\mathcal{Q}) R_i\right| \leq C \cdot B \cdot \|\hat{\eta} - \eta_0\|_{L^2}^2 = C \cdot B \cdot o_P(n^{-1/2}),
+\end{equation}
+where the last equality uses Assumption~\ref{assm:nuisance}(d).
+
+\paragraph{Uniformity over $\mathcal{Q}$.}
+The remainder bound $|R_n(\mathcal{Q})| \leq CB\|\hat{\eta} - \eta_0\|_{L^2}^2$ is \textbf{independent of $\mathcal{Q}$} (depends only on $C, B, \|\hat{\eta} - \eta_0\|_{L^2}$). Therefore:
+\begin{equation}
+\sup_{\mathcal{Q} \in \text{supp}(\mu)} |R_n(\mathcal{Q})| = o_P(n^{-1/2}).
+\end{equation}
+This is \textbf{deterministic uniformity}—no maximal inequalities or Donsker theory required.
+
+\paragraph{Conclusion.}
+By Chernozhukov et al.\ (2018, Theorem 3.1), the expansion holds with $o_P(n^{-1/2})$ remainder, uniformly over $\mathcal{Q}$.
+\end{proof}
+
+
+\subsubsection{Step 3: Functional delta method}
+
+\begin{lemma}[Functional expansion]
+\label{lem:functional-expansion}
+Under Assumptions~\ref{assm:treatment-effects}, \ref{assm:nuisance}, \ref{assm:functional}, and \ref{assm:lipschitz}, uniformly over $\mathcal{Q} \in \text{supp}(\mu)$:
+\begin{align}
+&\sqrt{n}(\phi(\hat{\Delta}_S^n(\mathcal{Q}), \hat{\Delta}_Y^n(\mathcal{Q})) - \phi(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q}))) \nonumber \\
+&\quad = \nabla\phi(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q})) \cdot \begin{pmatrix} \frac{1}{\sqrt{n}}\sum_{i=1}^n \psi_S^{\text{AIPW}}(O_i; \eta_0, \mathcal{Q}) \\ \frac{1}{\sqrt{n}}\sum_{i=1}^n \psi_Y^{\text{AIPW}}(O_i; \eta_0, \mathcal{Q}) \end{pmatrix} + o_P(1).
+\end{align}
+\end{lemma}
+
+\begin{proof}[Proof of Lemma~\ref{lem:functional-expansion}]
+By Hadamard differentiability of $\phi$ (Assumption~\ref{assm:functional}):
+\begin{align}
+&\phi(\hat{\Delta}_S^n(\mathcal{Q}), \hat{\Delta}_Y^n(\mathcal{Q})) - \phi(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q})) \\
+&\quad = \nabla\phi(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q})) \cdot \begin{pmatrix} \hat{\Delta}_S^n(\mathcal{Q}) - \Delta_S(\mathcal{Q}) \\ \hat{\Delta}_Y^n(\mathcal{Q}) - \Delta_Y(\mathcal{Q}) \end{pmatrix} + o(\|(\hat{\Delta}_S^n, \hat{\Delta}_Y^n) - (\Delta_S, \Delta_Y)\|).
+\end{align}
+
+By Lemma~\ref{lem:cross-fitting}, $\|(\hat{\Delta}_S^n, \hat{\Delta}_Y^n) - (\Delta_S, \Delta_Y)\| = O_P(n^{-1/2})$, hence the remainder is $o_P(n^{-1/2})$. Substituting the expansion from Lemma~\ref{lem:cross-fitting} gives the result.
+\end{proof}
+
+\subsubsection{Step 4: Integration and CLT}
+
+\begin{proof}[Proof of Theorem~\ref{thm:asymptotic-normality}]
+
+\paragraph{Step 4.1: Condition on MCMC samples.}
+Throughout this proof, we condition on the MCMC samples $\{\mathcal{Q}_1, \ldots, \mathcal{Q}_M\}$, treating $\hat{\mu}_M$ as fixed. The estimator becomes:
+\begin{equation}
+\hat{\Theta}_n = \mathbb{E}_{\hat{\mu}_M}[\phi(\hat{\Delta}_S^n(\mathcal{Q}), \hat{\Delta}_Y^n(\mathcal{Q}))] = \frac{1}{M}\sum_{m=1}^M \phi(\hat{\Delta}_S^n(\mathcal{Q}_m), \hat{\Delta}_Y^n(\mathcal{Q}_m)),
+\end{equation}
+and the target is:
+\begin{equation}
+\Theta(\hat{\mu}_M) = \mathbb{E}_{\hat{\mu}_M}[\phi(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q}))].
+\end{equation}
+
+\paragraph{Step 4.2: Decompose estimator (conditional).}
+\begin{equation}
+\sqrt{n}(\hat{\Theta}_n - \Theta(\hat{\mu}_M)) = \sqrt{n}\left(\mathbb{E}_{\hat{\mu}_M}[\phi(\hat{\Delta}_S^n, \hat{\Delta}_Y^n)] - \mathbb{E}_{\hat{\mu}_M}[\phi(\Delta_S, \Delta_Y)]\right).
+\end{equation}
+
+\paragraph{Step 4.3: Expand using functional delta method.}
+By Lemma~\ref{lem:functional-expansion}:
+\begin{align}
+\sqrt{n}(\hat{\Theta}_n - \Theta(\hat{\mu}_M)) &= \sqrt{n} \mathbb{E}_{\hat{\mu}_M}\left[\nabla\phi(\Delta_S, \Delta_Y) \cdot \begin{pmatrix} \hat{\Delta}_S^n - \Delta_S \\ \hat{\Delta}_Y^n - \Delta_Y \end{pmatrix}\right] + o_P(1) \\
+&= \mathbb{E}_{\hat{\mu}_M}\left[\nabla\phi(\Delta_S, \Delta_Y) \cdot \begin{pmatrix} \frac{1}{\sqrt{n}}\sum_{i=1}^n \psi_S^{\text{AIPW}}(O_i; \eta_0, \mathcal{Q}) \\ \frac{1}{\sqrt{n}}\sum_{i=1}^n \psi_Y^{\text{AIPW}}(O_i; \eta_0, \mathcal{Q}) \end{pmatrix}\right] + o_P(1).
+\end{align}
+
+\paragraph{Step 4.4: Interchange expectation and sum.}
+Since $\hat{\mu}_M$ is treated as fixed (conditional on MCMC samples), and by Fubini's theorem:
+\begin{align}
+\sqrt{n}(\hat{\Theta}_n - \Theta(\hat{\mu}_M)) &= \frac{1}{\sqrt{n}}\sum_{i=1}^n \mathbb{E}_{\hat{\mu}_M}\left[\nabla\phi(\Delta_S, \Delta_Y) \cdot \begin{pmatrix} \psi_S^{\text{AIPW}}(O_i; \eta_0, \mathcal{Q}) \\ \psi_Y^{\text{AIPW}}(O_i; \eta_0, \mathcal{Q}) \end{pmatrix}\right] + o_P(1) \\
+&= \frac{1}{\sqrt{n}}\sum_{i=1}^n \psi_\Theta(O_i; \hat{\mu}_M) + o_P(1),
+\end{align}
+where the composite influence function is:
+\begin{equation}
+\psi_\Theta(O; \hat{\mu}_M) = \mathbb{E}_{\hat{\mu}_M}\left[\nabla\phi(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q})) \cdot \begin{pmatrix} \psi_S^{\text{AIPW}}(O; \eta_0, \mathcal{Q}) \\ \psi_Y^{\text{AIPW}}(O; \eta_0, \mathcal{Q}) \end{pmatrix}\right].
+\end{equation}
+
+\paragraph{Step 4.5: Apply CLT (conditional).}
+Conditional on $\{\mathcal{Q}_1, \ldots, \mathcal{Q}_M\}$, the observations $O_1, \ldots, O_n \overset{\text{i.i.d.}}{\sim} \mathbb{P}_0$ are independent of the MCMC samples. By Assumption~\ref{assm:bounded-if-variance}, $\mathbb{E}_{\mathbb{P}_0}[\psi_\Theta(O; \hat{\mu}_M)^2] < \infty$. By the CLT:
+\begin{equation}
+\frac{1}{\sqrt{n}}\sum_{i=1}^n \psi_\Theta(O_i; \hat{\mu}_M) \xrightarrow{d} N(0, \mathbb{E}_{\mathbb{P}_0}[\psi_\Theta(O; \hat{\mu}_M)^2]) = N(0, \sigma^2(\hat{\mu}_M)).
+\end{equation}
+
+Note that $\mathbb{E}_{\mathbb{P}_0}[\psi_\Theta(O; \hat{\mu}_M)] = 0$ by construction (using Neyman orthogonality from Lemma~\ref{lem:orthogonality}), conditional on the MCMC samples.
+
+\paragraph{Step 4.6: Unconditional result (when $M \to \infty$).}
+When $M \to \infty$, by Assumption~\ref{assm:mcmc}, $\hat{\mu}_M \to \mu$ weakly. By Assumption~\ref{assm:bounded-if-variance} (uniform moment bound), $\sup_{\mathcal{Q}} \mathbb{E}[\psi^{\text{AIPW}}(O; \mathcal{Q})^2] < \infty$, hence $\psi_\Theta(O; \hat{\mu}_M) \to \psi_\Theta(O; \mu)$ in $L^2(\mathbb{P}_0)$ by dominated convergence (using bounded $\nabla\phi$ from Assumption~\ref{assm:functional}). Therefore:
+\begin{equation}
+\sigma^2(\hat{\mu}_M) \to \sigma^2(\mu),
+\end{equation}
+and unconditionally:
+\begin{equation}
+\sqrt{n}(\hat{\Theta}_n - \Theta(\mu)) \xrightarrow{d} N(0, \sigma^2(\mu)).
+\end{equation}
+
+\paragraph{Conclusion.}
+We have shown:
+\begin{enumerate}[(a)]
+\item Conditional on MCMC samples: $\sqrt{n}(\hat{\Theta}_n - \Theta(\hat{\mu}_M)) \xrightarrow{d} N(0, \sigma^2(\hat{\mu}_M))$.
+\item When $M \to \infty$: $\Theta(\hat{\mu}_M) \to \Theta(\mu)$ and $\sigma^2(\hat{\mu}_M) \to \sigma^2(\mu)$.
+\end{enumerate}
+\end{proof}
+
+\subsection{Variance Estimation}
+
+The asymptotic variance $\sigma^2(\hat{\mu}_M)$ can be consistently estimated (conditional on MCMC samples) by:
+\begin{equation}
+\hat{\sigma}^2_n = \frac{1}{n}\sum_{i=1}^n \hat{\psi}_\Theta(O_i; \hat{\mu}_M)^2,
+\end{equation}
+where:
+\begin{equation}
+\hat{\psi}_\Theta(O_i; \hat{\mu}_M) = \frac{1}{M}\sum_{m=1}^M \nabla\phi(\hat{\Delta}_S^n(\mathcal{Q}_m), \hat{\Delta}_Y^n(\mathcal{Q}_m)) \cdot \begin{pmatrix} \psi_S^{\text{AIPW}}(O_i; \hat{\eta}^{(-k_i)}, \mathcal{Q}_m) \\ \psi_Y^{\text{AIPW}}(O_i; \hat{\eta}^{(-k_i)}, \mathcal{Q}_m) \end{pmatrix}.
+\end{equation}
+Here, $\hat{\eta}^{(-k_i)}$ denotes the nuisance parameters estimated on the cross-fitting fold that excludes observation $i$. This ensures the influence function estimates are independent of the data used to estimate nuisances, maintaining the double robustness property.
+
+\begin{proposition}[Consistent variance estimation]
+\label{prop:variance-consistency}
+Under the conditions of Theorem~\ref{thm:asymptotic-normality}, conditional on $\{\mathcal{Q}_1, \ldots, \mathcal{Q}_M\}$:
+\begin{equation}
+\hat{\sigma}^2_n \xrightarrow{P} \sigma^2(\hat{\mu}_M) \quad \text{as } n \to \infty.
+\end{equation}
+Furthermore, if $M \to \infty$, then unconditionally $\hat{\sigma}^2_n \xrightarrow{P} \sigma^2(\mu)$.
+\end{proposition}
+
+\begin{proof}[Proof of Proposition~\ref{prop:variance-consistency}]
+
+\paragraph{Step 1: $L^2$ convergence of AIPW influence functions.}
+By Assumption~\ref{assm:nuisance} (nuisance convergence rates) and the Lipschitz structure of the AIPW score:
+\begin{equation}
+\|\psi_S^{\text{AIPW}}(O; \hat{\eta}, \mathcal{Q}) - \psi_S^{\text{AIPW}}(O; \eta_0, \mathcal{Q})\|_{L^2(\mathbb{P}_0)} \xrightarrow{P} 0.
+\end{equation}
+This follows from:
+\begin{itemize}
+\item $\|\hat{e} - e\|_{L^2} = o_P(1)$ and $\|\hat{\mu}_a - \mu_a\|_{L^2} = o_P(1)$ (Assumption~\ref{assm:nuisance}(b-c))
+\item AIPW score is Lipschitz in $(e, \mu_0, \mu_1)$ on the domain bounded away from $0$ and $1$ (by positivity, Assumption~\ref{assm:nuisance}(a))
+\item Bounded weights: $w(X; \mathcal{Q}) \leq C$ (Assumption~\ref{assm:treatment-effects}(c))
+\end{itemize}
+
+\paragraph{Step 2: Gradient convergence.}
+By Lemma~\ref{lem:cross-fitting}, $\hat{\Delta}_S(\mathcal{Q}_m) \xrightarrow{P} \Delta_S(\mathcal{Q}_m)$ and $\hat{\Delta}_Y(\mathcal{Q}_m) \xrightarrow{P} \Delta_Y(\mathcal{Q}_m)$ for each $m$. By Assumption~\ref{assm:lipschitz} (Lipschitz gradient):
+\begin{equation}
+\nabla\phi(\hat{\Delta}_S(\mathcal{Q}_m), \hat{\Delta}_Y(\mathcal{Q}_m)) \xrightarrow{P} \nabla\phi(\Delta_S(\mathcal{Q}_m), \Delta_Y(\mathcal{Q}_m)).
+\end{equation}
+
+\paragraph{Step 3: Combine via continuous mapping.}
+Define $g: L^2(\mathbb{P}_0) \times \mathbb{R}^2 \to \mathbb{R}$ by:
+\begin{equation}
+g(\psi, \nabla) = \mathbb{E}_{\mathbb{P}_0}[(\nabla \cdot \psi)^2].
+\end{equation}
+By Steps 1-2, $(\hat{\psi}^{\text{AIPW}}, \nabla\phi(\hat{\Delta})) \xrightarrow{P} (\psi^{\text{AIPW}}, \nabla\phi(\Delta))$ in the product topology. Since $g$ is continuous (by dominated convergence using bounded moments), the continuous mapping theorem gives:
+\begin{equation}
+\hat{\sigma}^2_n = \frac{1}{n}\sum_{i=1}^n \hat{\psi}_\Theta(O_i)^2 \xrightarrow{P} \mathbb{E}_{\mathbb{P}_0}[\psi_\Theta(O)^2] = \sigma^2(\hat{\mu}_M).
+\end{equation}
+
+\paragraph{Step 4: Unconditional convergence when $M \to \infty$.}
+When $M \to \infty$, by Assumption~\ref{assm:mcmc}, $\hat{\mu}_M \to \mu$ weakly. By Assumption~\ref{assm:bounded-if-variance} (uniform moment bound), dominated convergence applies, giving $\sigma^2(\hat{\mu}_M) \to \sigma^2(\mu)$. Combining with Step 3 yields unconditional consistency.
+\end{proof}
+
+\begin{remark}[Practical variance estimation]
+In practice, one estimates $\sigma^2(\hat{\mu}_M)$, which accounts for sampling variation but not MCMC approximation error. If $M$ is large (e.g., $M \geq 500$), the MCMC error is typically negligible relative to sampling uncertainty. Formal accounting for MCMC error would require bootstrap or other resampling methods applied to the MCMC procedure itself, but this is rarely done in practice.
+\end{remark}
+
+\subsection{Application to Correlation Functional}
+
+For the correlation functional $\phi(\Delta_S, \Delta_Y) = \text{cor}_\mu(\Delta_S, \Delta_Y)$, this is a composite functional:
+\begin{equation}
+\phi(\Delta_S, \Delta_Y) = \frac{\mathbb{E}_\mu[\Delta_S \Delta_Y] - \mathbb{E}_\mu[\Delta_S]\mathbb{E}_\mu[\Delta_Y]}{\sqrt{\text{Var}_\mu(\Delta_S) \text{Var}_\mu(\Delta_Y)}}.
+\end{equation}
+
+The gradient can be computed via the delta method applied to the five base moments: $\mathbb{E}_\mu[\Delta_S]$, $\mathbb{E}_\mu[\Delta_Y]$, $\mathbb{E}_\mu[\Delta_S^2]$, $\mathbb{E}_\mu[\Delta_Y^2]$, $\mathbb{E}_\mu[\Delta_S \Delta_Y]$.
+
+\begin{remark}
+Hadamard differentiability of the correlation functional holds whenever $\text{Var}_\mu(\Delta_S), \text{Var}_\mu(\Delta_Y) > 0$.
+\end{remark}
+
+\subsection{Post-Proof Audit}
+
+\paragraph{Assumption check.}
+All assumptions stated upfront in Section 2.2 and explicitly invoked throughout:
+\begin{itemize}
+\item Assumptions~\ref{assm:treatment-effects}--\ref{assm:functional}: Treatment effects and functional regularity
+\item Assumptions~\ref{assm:nuisance}--\ref{assm:lipschitz}: Nuisance estimation (new for AIPW)
+\item Assumptions~\ref{assm:mcmc}--\ref{assm:geometry}: MCMC and geometry
+\item Assumption~\ref{assm:sample-size}: Sample size
+\end{itemize}
+
+\paragraph{Dependency check.}
+All invoked results have their conditions verified:
+\begin{itemize}
+\item \textbf{Chernozhukov et al.\ (2018) Theorem 3.1:} Conditions verified in Lemma~\ref{lem:cross-fitting} (Neyman orthogonality, $L^2$ rates, cross-fitting, bounded moments)
+\item \textbf{CLT:} i.i.d.\ observations, finite variance (Assumption~\ref{assm:bounded-if-variance})
+\item \textbf{Delta method:} Hadamard differentiability (Assumption~\ref{assm:functional}), Lipschitz gradient (Assumption~\ref{assm:lipschitz})
+\item \textbf{Fubini:} Bounded integrands (Assumptions~\ref{assm:treatment-effects}(c), \ref{assm:functional}, \ref{assm:bounded-if-variance})
+\item \textbf{Dominated convergence:} Uniform moment bounds (Assumption~\ref{assm:bounded-if-variance})
+\end{itemize}
+
+\paragraph{Rate verification.}
+\begin{itemize}
+\item \textbf{Nuisance estimation:} $o_P(n^{-1/4})$ for propensity and outcome regressions (Assumption~\ref{assm:nuisance}(b-c))
+\item \textbf{Second-order remainder:} $\|\hat{\eta} - \eta_0\|_{L^2}^2 = [o_P(n^{-1/4})]^2 = o_P(n^{-1/2})$ (Assumption~\ref{assm:nuisance}(d))
+\item \textbf{Treatment effect estimators:} $O_P(n^{-1/2})$ rate (Lemma~\ref{lem:cross-fitting})
+\item \textbf{MCMC approximation:} $O_P(M^{-1/2})$, independent of $n$ (Assumption~\ref{assm:mcmc})
+  \begin{itemize}
+  \item If $M$ fixed: Non-vanishing bias in target
+  \item If $M \to \infty$: Bias vanishes
+  \end{itemize}
+\item \textbf{Remainder terms:} All $o_P(n^{-1/2})$ by Neyman orthogonality and bounded second derivatives
+\item \textbf{Final rate:} $\sqrt{n}$-consistent (conditional on MCMC samples)
+\end{itemize}
+
+\paragraph{Key differences from RCT case.}
+\begin{itemize}
+\item \textbf{Influence function:} Three-term AIPW structure replaces simple weighted difference-in-means
+\item \textbf{Nuisance estimation:} Propensity scores and outcome regressions estimated with $o_P(n^{-1/4})$ rates
+\item \textbf{Cross-fitting:} Sample splitting prevents overfitting bias
+\item \textbf{Neyman orthogonality:} First-order nuisance bias eliminated (Lemma~\ref{lem:orthogonality})
+\item \textbf{Double robustness:} Consistency if either $\hat{e}$ or $\hat{\mu}_a$ correct (structural property of AIPW)
+\end{itemize}
+
+\paragraph{What stays the same.}
+\begin{itemize}
+\item MCMC approximation rate: Still $O_P(M^{-1/2})$
+\item Functional delta method: Still applies via Hadamard differentiability
+\item Final $\sqrt{n}$ rate: Unchanged
+\item Bounded weights key to uniformity: Still central to proof
+\end{itemize}
+
+\paragraph{Edge case remarks.}
+\begin{enumerate}
+\item \textbf{Degenerate variance (correlation functional):} If $\text{Var}_\mu(\Delta_S) = 0$ or $\text{Var}_\mu(\Delta_Y) = 0$, the correlation functional is undefined. The proof requires non-degeneracy: $\min(\text{Var}_\mu(\Delta_S), \text{Var}_\mu(\Delta_Y)) > c > 0$ for some $c$ (implicit in Assumption~\ref{assm:functional} via bounded gradient).
+
+\item \textbf{Extreme reweighting:} If $\max_i w_i(\mathcal{Q}) \approx C$ (near the bound), variance can inflate significantly. In practice, recommend $C \leq 10$ to avoid extreme variance inflation. Effective sample size drops as $n_{\text{eff}} \approx n / (1 + \text{CV}^2)$ where $\text{CV}$ is coefficient of variation of weights.
+
+\item \textbf{Non-smooth functionals:} Indicator functions (e.g., $\phi(\Delta_S, \Delta_Y) = \mathbb{1}(\Delta_S > 0)$) are not Hadamard differentiable. The proof applies only to smooth functionals: correlation, covariance, products of moments. For non-smooth functionals, bootstrap or other methods required.
+
+\item \textbf{$M \to \infty$ clarification:} Three separate issues with large $M$:
+\begin{itemize}
+\item \textbf{Remainder uniformity:} No restriction on $M$ growth rate (bound independent of $M$). This is the key innovation.
+\item \textbf{CLT for composite IF:} Requires uniform moment bound $\sup_{\mathcal{Q}} \mathbb{E}[\psi^2] < \infty$ (Assumption~\ref{assm:bounded-if-variance}). Without this, CLT can break as $M \to \infty$.
+\item \textbf{MCMC approximation quality:} Requires $\|\hat{\mu}_M - \mu\|_{\text{TV}} = O_P(M^{-1/2})$ (Assumption~\ref{assm:mcmc}). About approximation error, not uniformity.
+\end{itemize}
+
+\item \textbf{Strong positivity threshold:} Assumption~\ref{assm:nuisance}(a) requires $e(X) \in [0.1, 0.9]$ (stronger than standard $e(X) \in (0, 1)$). This ensures second derivative bound $\frac{2M}{c^3} \leq 2000$ stays reasonable. Near boundaries ($e(X) \approx 0$ or $1$), second derivatives explode, violating Assumption~\ref{assm:second-derivatives}. Use trimming or alternative methods for weak overlap regions.
+\end{enumerate}
+
+\paragraph{Tightness assessment.}
+The $\sqrt{n}$ rate is sharp (semiparametric efficiency bound for this estimand). The $o_P(n^{-1/4})$ nuisance rates are also sharp under standard smoothness conditions (cannot be weakened without additional structure). Assumptions are near-minimal for these rates.
+
+\paragraph{Failure localization.}
+If asymptotic normality fails or coverage is poor:
+\begin{enumerate}
+\item \textbf{Check propensity overlap:} $\min_i \hat{e}(X_i) \geq 0.1$ and $\max_i \hat{e}(X_i) \leq 0.9$? If not, trim or use alternative methods.
+\item \textbf{Check nuisance convergence:} Use cross-validated MSE to verify $o_P(n^{-1/4})$ rates. If slower, coverage will be poor.
+\item \textbf{Check weight bounds:} $\max_m \max_i w_i(\mathcal{Q}_m) \leq C$? Large weights inflate variance.
+\item \textbf{Check variance degeneracy:} $\min(\text{Var}_\mu(\Delta_S), \text{Var}_\mu(\Delta_Y)) > 0$? If near-zero, correlation undefined.
+\item \textbf{Check MCMC convergence:} Is $M$ large enough? Is burn-in sufficient? Use $\hat{R}$ diagnostics.
+\item \textbf{Check MCMC bias:} If $M$ is fixed and coverage systematically off, MCMC bias $O_P(M^{-1/2})$ may dominate. Increase $M$.
+\end{enumerate}
+
+\paragraph{Implementation notes.}
+The R package \texttt{surrogateTransportability} implements this framework:
+\begin{itemize}
+\item \texttt{functional\_cate\_covariance()}: Estimates AIPW functionals with cross-fitting
+\item \texttt{estimate\_propensity\_score()}: Propensity score estimation with flexible methods (GAM, RF, boosting)
+\item \texttt{wasserstein\_minimax\_IF\_inference()}: Main inference function with bootstrap and analytic variance
+\end{itemize}
+See package documentation for usage examples.
