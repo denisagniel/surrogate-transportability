@@ -1,8 +1,8 @@
 # Specification: Observational AIPW Robustness Simulation
 
 **Date:** 2026-05-08
-**Status:** APPROVED
-**Purpose:** Assess robustness of AIPW-based correlation inference to nuisance function misspecification
+**Status:** REVISED
+**Purpose:** Assess robustness of AIPW-based correlation inference to nuisance function misspecification and test asymptotic convergence rates
 
 ---
 
@@ -37,26 +37,72 @@ This will quantify how estimation error in nuisances affects bias, variance, and
 
 ---
 
+## Asymptotic Theory Motivation
+
+### Expected Behavior Under Theory
+
+**AIPW is doubly robust:** If either e(X) or μ_a(X) estimated at rate n^(-α) with α > 0.25, then:
+- ρ̂ remains √n-consistent
+- Asymptotic variance = σ²(μ_M)/n
+- Coverage → 95% as n → ∞
+
+**Product of convergence rates:** For AIPW, what matters is the **product** of rates:
+- If α_e · α_μ > 0.25, double robustness kicks in
+- If α_e + α_μ > 0.5, first-order bias vanishes
+- Slower convergence → larger finite-sample bias
+
+**Fixed noise (α = 0):** Bias does not vanish as n → ∞
+- ρ̂ converges to wrong limit
+- Coverage breaks down at all n
+- Tests that theory fails without sufficient convergence
+
+### What We Should Observe
+
+**Oracle (Scenario 0):**
+- Bias ≈ 0 for all n
+- Coverage ≈ 95% for all n
+- SE ∝ 1/√n
+
+**Slow convergence (α = 0.25):**
+- Bias shrinks slowly with n
+- May need very large n for coverage
+- Finite-sample bias substantial
+
+**Standard rate (α = 0.5):**
+- Bias = O(n^(-0.5)) → vanishes like 1/√n
+- Coverage good for n ≥ 1000
+- Matches typical nonparametric estimation rates
+
+**Fast convergence (α = 0.75):**
+- Bias = O(n^(-0.75)) → vanishes faster than 1/√n
+- Coverage excellent even at n = 500
+- Theory predicts: indistinguishable from oracle for large n
+
 ## Research Questions
 
-**RQ1:** Does oracle AIPW (true nuisances) recover true correlation unbiasedly?
-- **Metric:** |E[ρ̂_oracle] - ρ_true| < 0.05
+**RQ1 (Theory Check):** Does oracle AIPW recover true correlation unbiasedly?
+- **Metric:** |E[ρ̂_oracle] - ρ_true| < 0.05 for all n
+- **Expected:** Yes (validates implementation)
 
-**RQ2:** How does nuisance noise affect bias?
-- **Metric:** Bias vs noise level curve
-- **Threshold:** Identify noise level where |bias| > 0.05
+**RQ2 (Convergence Rates):** How does convergence rate α affect bias as function of n?
+- **Metric:** Plot |bias| vs n for each α
+- **Expected:** Bias ∝ n^(-α) for propensity/outcome alone, depends on α_e + α_μ for both
 
-**RQ3:** How does nuisance noise affect coverage?
-- **Metric:** Coverage rate vs noise level
-- **Threshold:** Identify noise level where coverage < 93%
+**RQ3 (Coverage Breakdown):** At what (n, α) combinations does coverage break down?
+- **Metric:** Coverage < 93%
+- **Expected:** Fixed noise (α=0) fails all n; α=0.25 needs large n; α≥0.5 works at moderate n
 
-**RQ4:** Which nuisance (propensity or outcome) matters more?
-- **Design:** Vary e(X) noise holding μ_a(X) fixed, and vice versa
-- **Metric:** Compare bias curves
+**RQ4 (Double Robustness):** Does α_e + α_μ > 0.5 rule hold empirically?
+- **Design:** Scenario 3 grid of (α_e, α_μ)
+- **Expected:** Regions where α_e + α_μ > 0.5 have good coverage, others fail
 
-**RQ5:** Does sample size mitigate nuisance noise?
-- **Design:** Test n ∈ {500, 1000, 2000, 5000}
-- **Hypothesis:** Larger n → more robust to nuisance noise
+**RQ5 (Noise Magnitude):** How does constant c affect finite-sample bias?
+- **Design:** Vary c ∈ {0.5, 1.0, 2.0} holding α fixed
+- **Expected:** Larger c → larger bias, but rate α determines whether bias vanishes
+
+**RQ6 (Confounding Interaction):** Does confounding strength affect robustness to nuisance noise?
+- **Design:** Compare α₁ = 0 (RCT) vs α₁ = 0.6 (strong confounding)
+- **Expected:** Stronger confounding → more sensitive to propensity misspecification
 
 ---
 
@@ -94,28 +140,37 @@ where:
 
 ### Nuisance Estimation Scenarios
 
+**Key innovation:** Noise scales as **σ(n) = c · n^(-α)** to test asymptotic convergence rates.
+
 **Scenario 0: Oracle (Baseline)**
 - Use true e(X), true μ_a^S(X), true μ_a^Y(X)
 - No estimation error
-- **Purpose:** Establish best-case performance
+- **Purpose:** Establish best-case performance (should match theory regardless of n)
 
 **Scenario 1: Propensity Noise Only**
-- e_est(X) = expit(logit(e_true(X)) + ε_e) where ε_e ~ N(0, σ_e²)
+- e_est(X) = expit(logit(e_true(X)) + ε_e) where ε_e ~ N(0, σ_e(n)²)
+- σ_e(n) = c_e · n^(-α_e)
 - Use true μ_a^S(X), true μ_a^Y(X)
-- **Noise levels:** σ_e ∈ {0, 0.1, 0.2, 0.3, 0.5, 1.0}
-- **Purpose:** Isolate propensity misspecification
+- **Convergence rates:** α_e ∈ {0, 0.25, 0.5, 0.75}
+  - α_e = 0: Fixed noise (no convergence)
+  - α_e = 0.5: √n rate (standard for nonparametric estimation)
+  - α_e = 0.75: Fast convergence
+- **Noise constants:** c_e ∈ {0.5, 1.0, 2.0}
+- **Purpose:** Isolate propensity misspecification, test convergence rate requirements
 
 **Scenario 2: Outcome Noise Only**
 - Use true e(X)
-- μ_est^a(X) = μ_true^a(X) + ε_μ where ε_μ ~ N(0, σ_μ²)
-- **Noise levels:** σ_μ ∈ {0, 0.1, 0.2, 0.5, 1.0, 2.0}
-- **Purpose:** Isolate outcome regression misspecification
+- μ_est^a(X) = μ_true^a(X) + ε_μ where ε_μ ~ N(0, σ_μ(n)²)
+- σ_μ(n) = c_μ · n^(-α_μ)
+- **Convergence rates:** α_μ ∈ {0, 0.25, 0.5, 0.75}
+- **Noise constants:** c_μ ∈ {0.5, 1.0, 2.0}
+- **Purpose:** Isolate outcome regression misspecification, test convergence rate requirements
 
 **Scenario 3: Both Noisy**
-- e_est(X) = expit(logit(e_true(X)) + ε_e)
-- μ_est^a(X) = μ_true^a(X) + ε_μ
-- **Grid:** σ_e × σ_μ (4×4 = 16 combinations)
-- **Purpose:** Realistic scenario (both nuisances estimated)
+- e_est(X) = expit(logit(e_true(X)) + ε_e) with σ_e(n) = c_e · n^(-α_e)
+- μ_est^a(X) = μ_true^a(X) + ε_μ with σ_μ(n) = c_μ · n^(-α_μ)
+- **Grid:** α_e × α_μ (4×4 = 16 combinations) with c_e = c_μ = 1.0
+- **Purpose:** Realistic scenario, identify rate requirements for double robustness
 
 ### Simulation Parameters
 
@@ -124,22 +179,30 @@ where:
 - M = 500 (future studies, may use adaptive M for efficiency)
 - α = 0.05 (confidence level)
 - N_reps = 500 per setting
-- **n = 5000** (large sample to ensure good CATE estimation)
 
 **Varied:**
-- Confounding: α₁ ∈ {0, 0.3, 0.6}
-- Noise levels: σ_e, σ_μ (see scenarios)
+- **Sample size:** n ∈ {500, 1000, 2000, 5000, 10000}
+- **Confounding:** α₁ ∈ {0, 0.3, 0.6}
+- **Convergence rates:** α_e, α_μ ∈ {0, 0.25, 0.5, 0.75}
+- **Noise constants:** c_e, c_μ ∈ {0.5, 1.0, 2.0}
 
 **Total settings:**
-- Scenario 1: 6 noise levels × 3 confounding = 18 settings
-- Scenario 2: 6 noise levels × 3 confounding = 18 settings
-- Scenario 3: 16 combinations × 3 confounding = 48 settings
-- **Total: 84 settings × 500 reps = 42,000 replications**
+- **Scenario 0 (Oracle):** 5 sample sizes × 3 confounding = 15 settings
+- **Scenario 1 (Propensity noise):** 5 n × 3 α₁ × 4 α_e × 3 c_e = 180 settings
+- **Scenario 2 (Outcome noise):** 5 n × 3 α₁ × 4 α_μ × 3 c_μ = 180 settings
+- **Scenario 3 (Both):** 5 n × 3 α₁ × 4 α_e × 4 α_μ = 240 settings
+- **Total: 615 settings × 500 reps = 307,500 replications**
 
-**Rationale for n=5000:**
-- From CATE validation: n≥5000 ensures max |bias| < 0.11
-- Large enough to isolate nuisance noise from sampling variability
-- Can explore sample size sensitivity in follow-up if needed
+**Computational note:** This is large but parallelizable. Can reduce if needed:
+- Option A: Fewer reps (200 instead of 500) → 123,000 reps
+- Option B: Coarser grid (3 n values, 2 c values) → ~150,000 reps
+- Option C: Focus on Scenario 3 only → ~120,000 reps
+
+**Rationale for design:**
+- Multiple sample sizes test asymptotic theory (noise should vanish as n → ∞)
+- Different α values test convergence rate requirements
+- c values test sensitivity to noise magnitude
+- Theory predicts: If α_e + α_μ > 0.5, AIPW should be √n-consistent
 
 ---
 
@@ -214,6 +277,65 @@ where:
 
 ---
 
+## Theoretical Predictions (What We Should See)
+
+### Scenario 0: Oracle (Baseline)
+- **Bias:** O(n^(-1/2)) from sampling variability only
+- **Coverage:** ≈ 95% for all n ≥ 500
+- **Implication:** Validates implementation
+
+### Scenario 1: Propensity Noise Only
+
+**α_e = 0 (Fixed noise):**
+- Bias does NOT vanish (converges to wrong limit)
+- Coverage → 0 as n → ∞ (gets worse with more data!)
+- Demonstrates need for vanishing noise
+
+**α_e = 0.25 (Slow convergence):**
+- Bias = O(n^(-0.25)) → shrinks very slowly
+- Need n > 10,000 for acceptable bias
+- Coverage poor until very large n
+
+**α_e = 0.5 (Standard rate):**
+- Bias = O(n^(-0.5)) → vanishes like sampling error
+- Coverage ≈ 95% for n ≥ 2000
+- Theory: Sufficient for √n-consistency
+
+**α_e = 0.75 (Fast convergence):**
+- Bias = O(n^(-0.75)) → vanishes faster than sampling error
+- Coverage ≈ 95% even at n = 500
+- Nearly indistinguishable from oracle
+
+### Scenario 2: Outcome Noise Only
+
+Same patterns as Scenario 1, but for outcome regressions.
+
+### Scenario 3: Both Noisy (Double Robustness)
+
+**Key theoretical result:** AIPW is √n-consistent if **α_e + α_μ > 0.5**
+
+**Predicted behavior:**
+- **(α_e=0, α_μ=0):** Both fixed → complete failure
+- **(α_e=0.25, α_μ=0.25):** Sum = 0.5 (boundary) → very slow convergence
+- **(α_e=0.5, α_μ=0):** Propensity OK alone → good coverage
+- **(α_e=0, α_μ=0.5):** Outcome OK alone → good coverage
+- **(α_e=0.5, α_μ=0.5):** Both at standard rate → excellent
+- **(α_e=0.75, α_μ=0.75):** Both fast → nearly oracle
+
+**Visualization:** Heatmap of coverage rate as function of (α_e, α_μ)
+- Expect good coverage in upper-right region where α_e + α_μ > 0.5
+- Diagonal line α_e + α_μ = 0.5 is the boundary
+
+### Role of Noise Constant c
+
+- Larger c → larger finite-sample bias
+- But c does NOT affect asymptotic rate (that's determined by α)
+- Example: c=2 with α=0.5 still converges at rate n^(-0.5), just with larger constant
+
+**Expected pattern:**
+- At n=500: c=2 has much larger bias than c=0.5
+- At n=10000: c=2 and c=0.5 have similar bias (both small)
+
 ## Success Criteria
 
 **Criterion 1: Oracle works**
@@ -254,7 +376,13 @@ e_est(X) = expit(logit(e_true(X)) + ε)
 - **Pro:** Respects [0,1] bounds
 - **Con:** Harder to interpret (error is relative to baseline)
 
-**Decision:** Use Option B (logit scale) for propensity to respect bounds. Use Option A (direct) for outcome regressions (unbounded).
+**Decision:** ✓ Use Option B (logit scale) for propensity to respect bounds. Use Option A (direct) for outcome regressions (unbounded).
+
+**Noise scaling:** ε ~ N(0, σ²(n)) where σ(n) = c · n^(-α)
+- Tests asymptotic theory: noise should vanish at rate n^(-α)
+- α = 0: Fixed noise (no convergence)
+- α = 0.5: Standard √n rate
+- α = 0.75: Fast convergence
 
 ### Q2: Should noise be X-specific or global?
 
@@ -291,13 +419,18 @@ If noise creates e_est(X) = 0.001 or 0.999, AIPW weights explode.
 
 **Decision:** Use clipping (0.01, 0.99) to mimic trimming in practice.
 
-### Q5: Sample size grid - too fine?
+### Q5: Sample size grid - how many values?
 
-Current: n ∈ {500, 1000, 2000, 5000}
+Current (revised design): n ∈ {500, 1000, 2000, 5000, 10000}
 
-**Alternative:** n ∈ {1000, 5000} (2 levels only, reduce total settings by half)
+**Rationale:**
+- Need range to test asymptotic behavior (noise vanishing as n → ∞)
+- Five points allow clear visualization of convergence curves
+- 10000 tests whether "asymptopia" is reached in practice
 
-**Decision:** ✓ **n = 5000 only** - single large sample to ensure good CATE estimation and isolate nuisance effects
+**Alternative:** n ∈ {500, 2000, 10000} (3 values, reduces settings by ~40%)
+
+**Decision:** ✓ Use 5 sample sizes to clearly demonstrate convergence rates
 
 ---
 
@@ -307,14 +440,16 @@ Current: n ∈ {500, 1000, 2000, 5000}
 |--------|--------|-------|
 | DGP structure | CLEAR | Use DGP 1 with added confounding |
 | Propensity mechanism | CLEAR | e(X) = expit(α₀ + α₁·X) |
-| Noise model (propensity) | CLEAR | Logit-scale Gaussian, X-specific |
-| Noise model (outcome) | CLEAR | Direct Gaussian, X-specific |
-| Parameter grid | CLEAR | n=5000 only, 84 settings total |
-| Noise interpretation | CLEAR | X-specific independent noise |
+| Noise model (propensity) | CLEAR | Logit-scale Gaussian, X-specific, σ_e(n) = c_e · n^(-α_e) |
+| Noise model (outcome) | CLEAR | Direct Gaussian, X-specific, σ_μ(n) = c_μ · n^(-α_μ) |
+| Parameter grid | CLEAR | 5 n values, 4 α values, 3 c values, 3 confounding |
+| Sample size range | CLEAR | n ∈ {500, 1000, 2000, 5000, 10000} |
+| Convergence rates | CLEAR | α ∈ {0, 0.25, 0.5, 0.75} |
+| Noise constants | CLEAR | c ∈ {0.5, 1.0, 2.0} |
 | Prevalence matching | CLEAR | No matching - let noise create natural misalignment |
 | Extreme propensity handling | CLEAR | Clip e_est(X) ∈ [0.01, 0.99] |
-| Computational budget | CLEAR | 42k reps (~7 CPU hours, feasible) |
-| Analysis outputs | CLEAR | Bias/coverage curves, heatmaps |
+| Computational budget | ASSUMED | 307k reps (~50 CPU hours, feasible on O2 with parallelization) |
+| Analysis outputs | CLEAR | Bias/coverage vs n curves for each α, heatmaps for α_e × α_μ |
 
 ---
 
@@ -333,20 +468,28 @@ Current: n ∈ {500, 1000, 2000, 5000}
 
 ## Estimated Effort
 
-**Implementation:** 4-6 hours
-- Observational DGP: 1 hour
-- Noise generators: 1 hour
+**Implementation:** 5-7 hours
+- Observational DGP with confounding: 1 hour
+- n^(-α) noise generators: 1-2 hours (need to implement scaling correctly)
 - Oracle AIPW validation: 1 hour
-- Simulation loop: 1 hour
-- Analysis scripts: 1-2 hours
+- Simulation loop (nested over n, α, c, confounding): 1-2 hours
+- Analysis scripts (convergence curves, heatmaps): 1-2 hours
 
 **Computation:**
-- Pilot (10 reps × 10 settings): ~5 minutes local
-- Full (500 reps × 84 settings): ~7 hours CPU (~30-40 min wall time on O2 with 12-15 cores)
+- Pilot (10 reps × 20 settings): ~10-15 minutes local
+- Full (500 reps × 615 settings): ~50-60 CPU hours
+  - With adaptive M: possibly less
+  - On O2 with 30-40 cores: ~1.5-2 hours wall time
+- **Alternative reduced grid:**
+  - 200 reps × 615 settings: ~20-25 CPU hours (~45 min wall time on O2)
+  - Scenario 3 only (240 settings) × 500 reps: ~20 CPU hours (~40 min wall time)
 
-**Analysis & Write-up:** 2-3 hours
+**Analysis & Write-up:** 3-4 hours
+- More complex analysis (convergence rates, theory validation)
+- Multiple plots per scenario
 
-**Total:** ~7-10 hours
+**Total:** ~9-13 hours (implementation + analysis)
+**Computation:** ~1.5-2 hours wall time on O2
 
 ---
 
@@ -363,15 +506,29 @@ Current: n ∈ {500, 1000, 2000, 5000}
 
 - [x] User approves overall design
 - [x] User approves DGP (confounding mechanism)
-- [x] User approves noise model choices
-- [x] User approves parameter grid: **n=5000 only**
-- [x] User resolves open questions: **No prevalence matching**
+- [x] User requests noise scaling with n^(-α) (REVISED)
+- [x] User requests range of sample sizes (REVISED)
+- [ ] User approves revised parameter grid
+- [ ] User approves computational scope (307k reps or reduced alternative)
 
-**Status:** APPROVED - Ready for implementation
+**Status:** REVISED - Awaiting approval on revised design
 
-**Key decisions:**
-- Single sample size: n = 5000
+**Key design changes from previous version:**
+- ~~Single n=5000~~ → **Range: n ∈ {500, 1000, 2000, 5000, 10000}**
+- ~~Fixed noise levels~~ → **Noise scales as σ(n) = c · n^(-α)**
+- **Convergence rates:** α ∈ {0, 0.25, 0.5, 0.75} to test asymptotic theory
+- **Noise constants:** c ∈ {0.5, 1.0, 2.0} to test magnitude sensitivity
+- ~~84 settings~~ → **615 settings** (or reduced alternatives)
+- ~~42k reps~~ → **307k reps** (or 123k with 200 reps, or focus on Scenario 3 only)
+
+**Key decisions (unchanged):**
 - No prevalence matching (let noise create natural misalignment)
 - Clip extreme propensities: e_est(X) ∈ [0.01, 0.99]
 - X-specific noise (independent across levels)
-- Total: 84 settings × 500 reps = 42,000 replications (~7 CPU hours)
+- Logit-scale noise for propensities, direct noise for outcomes
+
+**Options to reduce scope if needed:**
+1. Use 200 reps instead of 500 → 123k total reps (~20-25 CPU hours)
+2. Use 3 sample sizes (500, 2000, 10000) → ~185k reps (~30 CPU hours)
+3. Focus on Scenario 3 only (both noisy) → 120k reps (~20 CPU hours)
+4. Coarser grids: 3 α values, 2 c values → ~200k reps (~33 CPU hours)
