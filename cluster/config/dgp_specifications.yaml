@@ -1,0 +1,85 @@
+# DGP Specifications for Cluster Simulations
+#
+# Each DGP specifies:
+# - name: Human-readable name
+# - params: Model parameters
+# - p_X: Reference distribution
+# - lambda: TV ball radius
+# - rho_true: TRUE correlation (for validation)
+# - PTE_P0: PTE at reference distribution
+
+dgps:
+  dgp1:
+    name: "DGP 1: Moderate Positive Correlation, High Mediation"
+    description: "Original 5-level X DGP with strong mediation"
+    params:
+      gamma_A: 1.0
+      gamma_AX: 0.5
+      beta_A: 0.25
+      beta_AX: -0.3
+      beta_S: 0.9
+      beta_SX: -0.1
+      sigma_S: 0.5
+      sigma_Y: 0.5
+    p_X: [0.05, 0.25, 0.40, 0.25, 0.05]
+    X_levels: [-2, -1, 0, 1, 2]
+    lambda: 0.3
+    rho_true: 0.6907059
+    PTE_P0: 0.8155961
+    notes: "High PTE (81.6%), moderate positive correlation"
+
+  dgp2:
+    name: "DGP 2: Strong Negative Correlation, Moderate Mediation"
+    description: "Slides DGP with opposite effect modification"
+    params:
+      gamma_A: 1.0
+      gamma_AX: 0.5
+      beta_A: 0.6
+      beta_AX: -0.3
+      beta_S: 0.6
+      beta_SX: -0.15
+      sigma_S: 0.5
+      sigma_Y: 0.5
+    p_X: [0.05, 0.25, 0.40, 0.25, 0.05]
+    X_levels: [-2, -1, 0, 1, 2]
+    lambda: 0.3
+    rho_true: -0.8844963
+    PTE_P0: 0.5305484
+    notes: "Moderate PTE (53.1%), strong negative correlation due to S×X interaction"
+
+  dgp4:
+    name: "DGP 4: Low PTE, Near-Perfect Correlation"
+    description: "Weak mediation with correlated CATEs - correlation misleading case"
+    params:
+      gamma_A: 1.0
+      gamma_AX: 0.5
+      beta_A: 0.7
+      beta_AX: 0.4
+      beta_S: 0.3
+      beta_SX: 0.0
+      sigma_S: 0.5
+      sigma_Y: 0.5
+    p_X: [0.05, 0.25, 0.40, 0.25, 0.05]
+    X_levels: [-2, -1, 0, 1, 2]
+    lambda: 0.3
+    rho_true: 0.999997
+    PTE_P0: 0.3001120
+    notes: "Low PTE (30.0%), near-perfect correlation (ρ ≈ 1.0)"
+
+simulation_settings:
+  sample_size: 10000
+  M_start: 300
+  M_increment: 300
+  M_max: 5000
+  tolerance: 0.01
+  n_stable: 3
+  burn_in: 500
+  thin: 5
+  alpha: 0.05
+  method: "importance_weighting"
+
+cluster_settings:
+  N_reps_per_dgp: 1000
+  random_seed_start: 10000
+  output_dir: "cluster/results"
+  checkpoint_interval: 50  # Save checkpoints every 50 reps
