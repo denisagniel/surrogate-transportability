@@ -210,7 +210,7 @@ surrogate_inference_if <- function(current_data,
     # Delta method CI (requires gradient)
     # Step 5a: Compute gradient ∇H at (Δ̂_S, Δ̂_Y)
     if (gradient_method == "analytical" && functional_type == "correlation") {
-      grad_h <- gradient_correlation_analytical(
+      grad_h <- gradient_correlation_analytical_dirichlet(
         delta_s_hat, delta_y_hat, lambda, alpha, n_innovations, current_data, use_bootstrap
       )
     } else {
@@ -454,16 +454,17 @@ gradient_numerical <- function(delta_s, delta_y, lambda, alpha, n_innovations,
   c(grad_s, grad_y)
 }
 
-#' Analytical gradient for correlation functional
+#' Analytical gradient for correlation functional (Dirichlet innovations)
 #'
-#' For correlation, we can compute the gradient analytically
+#' For correlation with Dirichlet innovations, we can compute the gradient analytically.
+#' This is for the surrogate_inference_if() function, not the TV ball approach.
 #'
 #' @keywords internal
-gradient_correlation_analytical <- function(delta_s, delta_y, lambda, alpha, n_innovations,
-                                           data, use_bootstrap = TRUE) {
+gradient_correlation_analytical_dirichlet <- function(delta_s, delta_y, lambda, alpha, n_innovations,
+                                                      data, use_bootstrap = TRUE) {
   # This requires deriving ∂/∂δ_S of cor(Δ_S(Q), Δ_Y(Q)) where Q ~ F_λ
   # Complex - may need to approximate or use numerical method
-  warning("Analytical gradient for correlation not yet implemented, using numerical")
+  warning("Analytical gradient for correlation (Dirichlet) not yet implemented, using numerical")
   gradient_numerical(delta_s, delta_y, lambda, alpha, n_innovations,
                      "correlation", NULL, NULL, 1e-6, data, use_bootstrap)
 }
