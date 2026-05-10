@@ -62,7 +62,22 @@ if (is.null(dgp_config)) {
 }
 
 cat(sprintf("\nDGP: %s\n", dgp_config$name))
-cat(sprintf("TRUE ρ = %.4f, PTE = %.4f\n", dgp_config$rho_true, dgp_config$PTE_P0))
+
+# Handle NaN/NA in PTE (YAML may parse "NaN" as string)
+rho_true <- as.numeric(dgp_config$rho_true)
+pte_val <- dgp_config$PTE_P0
+if (is.character(pte_val) && pte_val == "NaN") {
+  pte_val <- NA_real_
+} else {
+  pte_val <- as.numeric(pte_val)
+}
+
+# Print with proper NA handling
+if (is.na(pte_val)) {
+  cat(sprintf("TRUE ρ = %.4f, PTE = NA (undefined)\n", rho_true))
+} else {
+  cat(sprintf("TRUE ρ = %.4f, PTE = %.4f\n", rho_true, pte_val))
+}
 
 # =============================================================================
 # DGP Function
@@ -163,8 +178,8 @@ for (rep_number in first_rep:last_rep) {
     M_final = result$M_final,
     PTE_hat = PTE_hat,
     elapsed_time = rep_time,
-    rho_true = dgp_config$rho_true,
-    PTE_true = dgp_config$PTE_P0
+    rho_true = rho_true,
+    PTE_true = pte_val
   )
 
   cat(sprintf("  ρ̂=%.3f, M=%d, time=%.1fs\n", result$rho_hat, result$M_final, rep_time))
