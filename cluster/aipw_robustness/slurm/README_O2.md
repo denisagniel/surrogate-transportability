@@ -278,23 +278,28 @@ git pull origin main
 Edit `run_simulations.slurm` `#SBATCH` directives:
 
 ```bash
-#SBATCH --time=2:00:00       # Time limit (increase if jobs timeout)
+#SBATCH --time=12:00:00      # Time limit (12 hours, matches auto mode)
 #SBATCH --mem=8G             # Memory (increase if out-of-memory errors)
-#SBATCH --partition=short    # Queue (change to 'medium' for >12hr jobs)
+#SBATCH --partition=short    # Queue (short = up to 12 hours on O2)
 ```
 
 ### Tuning Parallelization
 
-Default: 50 reps per job = ~20 jobs per setting
+**Default (auto mode):** Sample-size-specific reps per job to keep all jobs < 12 hours
+- n=500,1000: 200 reps/job (~5-10 hours)
+- n=2000: 150 reps/job (~5-10 hours)
+- n=5000: 100 reps/job (~5-10 hours)
+- n=10000: 80 reps/job (~5-11 hours)
+- Result: ~4,920 total jobs (60% fewer than fixed reps/job)
 
-**If jobs too short (<30 min):** Increase reps per job
+**Use fixed reps/job instead:**
 ```bash
-bash launch_scenario.sh 0 100 1000  # 100 reps/job = 10 jobs per setting
+bash launch_scenario.sh 0 1000 100  # 100 reps/job, 1000 total
 ```
 
-**If jobs too long (>2 hr):** Decrease reps per job
+**Pilot run (fewer reps):**
 ```bash
-bash launch_scenario.sh 0 25 1000   # 25 reps/job = 40 jobs per setting
+bash launch_all_simulations.sh 100 auto  # 100 reps per setting
 ```
 
 ### Module Versions
@@ -404,11 +409,16 @@ summary(results$M_final[!results$converged])
 
 ### Job Counts
 
-With 50 reps/job (default):
-- Scenario 0: 15 settings × 20 jobs = 300 jobs
-- Scenario 1: 180 settings × 20 jobs = 3,600 jobs
-- Scenario 2: 180 settings × 20 jobs = 3,600 jobs
-- Scenario 3: 240 settings × 20 jobs = 4,800 jobs
+**With auto mode (default):** Sample-size-specific reps/job
+- Varies by sample size: 5-13 jobs per setting (avg ~8)
+- Scenario 0: 15 settings × ~8 jobs = ~120 jobs
+- Scenario 1: 180 settings × ~8 jobs = ~1,440 jobs
+- Scenario 2: 180 settings × ~8 jobs = ~1,440 jobs
+- Scenario 3: 240 settings × ~8 jobs = ~1,920 jobs
+- **Total: ~4,920 jobs** (60% fewer than fixed reps/job)
+
+**With fixed 50 reps/job:**
+- 20 jobs per setting
 - **Total: 12,300 jobs**
 
 All jobs are independent and can run in parallel (subject to cluster limits).

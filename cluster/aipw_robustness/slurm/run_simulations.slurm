@@ -4,7 +4,7 @@
 #SBATCH --error=logs/aipw_%A_%a.err
 #SBATCH --array=1-100%50
 #SBATCH --partition=short
-#SBATCH --time=2:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mem=8G
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1

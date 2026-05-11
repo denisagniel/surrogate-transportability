@@ -33,9 +33,9 @@ N_TEST=1000
 ALPHA_1_TEST=0.3
 ALPHA_E_TEST=0.5
 ALPHA_MU_TEST=0.5
-REPS_PER_JOB=5
-TOTAL_REPS=10
-N_ARRAY_JOBS=2  # 10 reps / 5 per job = 2 jobs
+REPS_PER_JOB=10  # Use fixed for quick test
+TOTAL_REPS=20    # 20 reps total
+N_ARRAY_JOBS=2   # 20 reps / 10 per job = 2 jobs
 
 # Create logs directory
 mkdir -p logs

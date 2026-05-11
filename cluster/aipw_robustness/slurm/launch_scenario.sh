@@ -1,23 +1,29 @@
 #!/bin/bash
 # Launch AIPW Robustness Simulations for a Specific Scenario
 #
-# Usage: bash launch_scenario.sh <scenario_number> [reps_per_job] [total_reps]
+# Usage: bash launch_scenario.sh <scenario_number> [total_reps] [mode]
 #
 # Arguments:
 #   scenario_number: 0 (oracle), 1 (propensity), 2 (outcome), 3 (both)
-#   reps_per_job: Number of replications per job (default: 50)
 #   total_reps: Total replications per setting (default: 1000)
+#   mode: "auto" (sample-size-specific reps/job) or number (fixed reps/job)
 #
 # Examples:
-#   bash launch_scenario.sh 0                  # Oracle, 50 reps/job, 1000 total
-#   bash launch_scenario.sh 3 100 1000         # Scenario 3, 100 reps/job, 1000 total
-#   bash launch_scenario.sh 1 10 100           # Quick test: 10 reps/job, 100 total
+#   bash launch_scenario.sh 0                  # Oracle, auto reps/job, 1000 total
+#   bash launch_scenario.sh 3 1000 auto        # Scenario 3, auto (recommended)
+#   bash launch_scenario.sh 0 100 10           # Quick test: 10 reps/job, 100 total
+#
+# Auto mode keeps jobs < 12 hours by adjusting reps per job based on sample size:
+#   n=500,1000:   200 reps/job
+#   n=2000:       150 reps/job
+#   n=5000:       100 reps/job
+#   n=10000:      80 reps/job
 
 set -e  # Exit on error
 
 SCENARIO=${1:-0}
-REPS_PER_JOB=${2:-50}
-TOTAL_REPS=${3:-1000}
+TOTAL_REPS=${2:-1000}
+MODE=${3:-auto}
 
 # Validate scenario
 if [ $SCENARIO -lt 0 ] || [ $SCENARIO -gt 3 ]; then
@@ -25,24 +31,47 @@ if [ $SCENARIO -lt 0 ] || [ $SCENARIO -gt 3 ]; then
   exit 1
 fi
 
-# Compute number of array jobs needed
-N_ARRAY_JOBS=$(( (TOTAL_REPS + REPS_PER_JOB - 1) / REPS_PER_JOB ))
-
-# Check SLURM array limit
-if [ $N_ARRAY_JOBS -gt 1000 ]; then
-  echo "Error: Too many array jobs ($N_ARRAY_JOBS > 1000 SLURM limit)"
-  echo "Suggestion: Increase REPS_PER_JOB to $(( (TOTAL_REPS + 999) / 1000 )) or more"
-  exit 1
-fi
+# Function to get reps per job based on sample size (auto mode)
+get_reps_per_job() {
+  local n=$1
+  if [ "$MODE" = "auto" ]; then
+    case $n in
+      500|1000)
+        echo 200
+        ;;
+      2000)
+        echo 150
+        ;;
+      5000)
+        echo 100
+        ;;
+      10000)
+        echo 80
+        ;;
+      *)
+        echo 100  # Default fallback
+        ;;
+    esac
+  else
+    echo $MODE  # Use fixed value
+  fi
+}
 
 echo "========================================================================"
 echo "Launching AIPW Robustness Study - Scenario $SCENARIO"
 echo "========================================================================"
 echo "Configuration:"
 echo "  Scenario: $SCENARIO"
-echo "  Reps per job: $REPS_PER_JOB"
 echo "  Total reps per setting: $TOTAL_REPS"
-echo "  Array jobs per setting: $N_ARRAY_JOBS"
+if [ "$MODE" = "auto" ]; then
+  echo "  Mode: Auto (sample-size-specific reps/job)"
+  echo "    n=500,1000: 200 reps/job → ~5-10 hrs"
+  echo "    n=2000:     150 reps/job → ~5-10 hrs"
+  echo "    n=5000:     100 reps/job → ~5-10 hrs"
+  echo "    n=10000:    80 reps/job  → ~5-11 hrs"
+else
+  echo "  Mode: Fixed ($MODE reps/job)"
+fi
 echo ""
 
 # Grid parameters (from config)
@@ -66,8 +95,12 @@ if [ $SCENARIO -eq 0 ]; then
   echo ""
 
   for N in "${N_VALUES[@]}"; do
+    # Get reps per job for this sample size
+    REPS_PER_JOB=$(get_reps_per_job $N)
+    N_ARRAY_JOBS=$(( (TOTAL_REPS + REPS_PER_JOB - 1) / REPS_PER_JOB ))
+
     for ALPHA_1 in "${ALPHA_1_VALUES[@]}"; do
-      echo "Submitting: n=$N, α₁=$ALPHA_1"
+      echo "Submitting: n=$N, α₁=$ALPHA_1 ($REPS_PER_JOB reps/job, $N_ARRAY_JOBS jobs)"
       sbatch --array=1-${N_ARRAY_JOBS} \
              --export=SCENARIO=$SCENARIO,N=$N,ALPHA_1=$ALPHA_1,REPS_PER_JOB=$REPS_PER_JOB,TOTAL_REPS=$TOTAL_REPS \
              run_simulations.slurm
@@ -84,10 +117,14 @@ elif [ $SCENARIO -eq 1 ]; then
   echo ""
 
   for N in "${N_VALUES[@]}"; do
+    # Get reps per job for this sample size
+    REPS_PER_JOB=$(get_reps_per_job $N)
+    N_ARRAY_JOBS=$(( (TOTAL_REPS + REPS_PER_JOB - 1) / REPS_PER_JOB ))
+
     for ALPHA_1 in "${ALPHA_1_VALUES[@]}"; do
       for ALPHA_E in "${ALPHA_E_VALUES[@]}"; do
         for C_E in "${C_E_VALUES[@]}"; do
-          echo "Submitting: n=$N, α₁=$ALPHA_1, α_e=$ALPHA_E, c_e=$C_E"
+          echo "Submitting: n=$N, α₁=$ALPHA_1, α_e=$ALPHA_E, c_e=$C_E ($REPS_PER_JOB reps/job, $N_ARRAY_JOBS jobs)"
           sbatch --array=1-${N_ARRAY_JOBS} \
                  --export=SCENARIO=$SCENARIO,N=$N,ALPHA_1=$ALPHA_1,ALPHA_E=$ALPHA_E,C_E=$C_E,REPS_PER_JOB=$REPS_PER_JOB,TOTAL_REPS=$TOTAL_REPS \
                  run_simulations.slurm
@@ -106,10 +143,14 @@ elif [ $SCENARIO -eq 2 ]; then
   echo ""
 
   for N in "${N_VALUES[@]}"; do
+    # Get reps per job for this sample size
+    REPS_PER_JOB=$(get_reps_per_job $N)
+    N_ARRAY_JOBS=$(( (TOTAL_REPS + REPS_PER_JOB - 1) / REPS_PER_JOB ))
+
     for ALPHA_1 in "${ALPHA_1_VALUES[@]}"; do
       for ALPHA_MU in "${ALPHA_MU_VALUES[@]}"; do
         for C_MU in "${C_MU_VALUES[@]}"; do
-          echo "Submitting: n=$N, α₁=$ALPHA_1, α_μ=$ALPHA_MU, c_μ=$C_MU"
+          echo "Submitting: n=$N, α₁=$ALPHA_1, α_μ=$ALPHA_MU, c_μ=$C_MU ($REPS_PER_JOB reps/job, $N_ARRAY_JOBS jobs)"
           sbatch --array=1-${N_ARRAY_JOBS} \
                  --export=SCENARIO=$SCENARIO,N=$N,ALPHA_1=$ALPHA_1,ALPHA_MU=$ALPHA_MU,C_MU=$C_MU,REPS_PER_JOB=$REPS_PER_JOB,TOTAL_REPS=$TOTAL_REPS \
                  run_simulations.slurm
@@ -130,10 +171,14 @@ elif [ $SCENARIO -eq 3 ]; then
   C_FIXED=1.0  # Scenario 3 uses c=1.0 for both
 
   for N in "${N_VALUES[@]}"; do
+    # Get reps per job for this sample size
+    REPS_PER_JOB=$(get_reps_per_job $N)
+    N_ARRAY_JOBS=$(( (TOTAL_REPS + REPS_PER_JOB - 1) / REPS_PER_JOB ))
+
     for ALPHA_1 in "${ALPHA_1_VALUES[@]}"; do
       for ALPHA_E in "${ALPHA_E_VALUES[@]}"; do
         for ALPHA_MU in "${ALPHA_MU_VALUES[@]}"; do
-          echo "Submitting: n=$N, α₁=$ALPHA_1, α_e=$ALPHA_E, α_μ=$ALPHA_MU"
+          echo "Submitting: n=$N, α₁=$ALPHA_1, α_e=$ALPHA_E, α_μ=$ALPHA_MU ($REPS_PER_JOB reps/job, $N_ARRAY_JOBS jobs)"
           sbatch --array=1-${N_ARRAY_JOBS} \
                  --export=SCENARIO=$SCENARIO,N=$N,ALPHA_1=$ALPHA_1,ALPHA_E=$ALPHA_E,ALPHA_MU=$ALPHA_MU,C_E=$C_FIXED,C_MU=$C_FIXED,REPS_PER_JOB=$REPS_PER_JOB,TOTAL_REPS=$TOTAL_REPS \
                  run_simulations.slurm
