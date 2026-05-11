@@ -15,7 +15,7 @@ cat("\n=== Combining Cluster Results ===\n\n")
 config <- yaml::read_yaml("cluster/config/dgp_specifications.yaml")
 
 # DGPs to process
-dgp_ids <- c("dgp1", "dgp2", "dgp4")
+dgp_ids <- c("dgp1", "dgp2", "dgp4", "dgp5")
 
 # =============================================================================
 # Combine Results
@@ -79,7 +79,14 @@ for (dgp_id in dgp_ids) {
 
   # Compute summary statistics
   rho_true <- dgp_config$rho_true
-  PTE_true <- dgp_config$PTE_P0
+
+  # Handle NaN/NA in PTE (YAML may parse "NaN" as string)
+  pte_val <- dgp_config$PTE_P0
+  if (is.character(pte_val) && pte_val == "NaN") {
+    PTE_true <- NA_real_
+  } else {
+    PTE_true <- as.numeric(pte_val)
+  }
 
   # Correlation
   bias_rho <- mean(df$rho_hat) - rho_true
@@ -90,8 +97,12 @@ for (dgp_id in dgp_ids) {
   df$contains_truth_rho <- (df$ci_lower <= rho_true & rho_true <= df$ci_upper)
   coverage_rho <- mean(df$contains_truth_rho, na.rm = TRUE)
 
-  # PTE
-  bias_PTE <- mean(df$PTE_hat, na.rm = TRUE) - PTE_true
+  # PTE (only compute bias if PTE_true is not NA)
+  if (!is.na(PTE_true)) {
+    bias_PTE <- mean(df$PTE_hat, na.rm = TRUE) - PTE_true
+  } else {
+    bias_PTE <- NA_real_
+  }
   empirical_sd_PTE <- sd(df$PTE_hat, na.rm = TRUE)
 
   # Convergence
@@ -109,10 +120,17 @@ for (dgp_id in dgp_ids) {
               100 * coverage_rho, sum(df$contains_truth_rho, na.rm = TRUE), n_reps))
 
   cat(sprintf("\n  PTE Results:\n"))
-  cat(sprintf("    TRUE PTE = %.4f\n", PTE_true))
-  cat(sprintf("    Mean PTE_hat = %.4f (SD = %.4f)\n",
-              mean(df$PTE_hat, na.rm = TRUE), empirical_sd_PTE))
-  cat(sprintf("    Bias = %.4f (%.1f%%)\n", bias_PTE, 100 * bias_PTE / PTE_true))
+  if (is.na(PTE_true)) {
+    cat(sprintf("    TRUE PTE = NA (undefined)\n"))
+    cat(sprintf("    Mean PTE_hat = %.4f (SD = %.4f)\n",
+                mean(df$PTE_hat, na.rm = TRUE), empirical_sd_PTE))
+    cat(sprintf("    Bias = NA (PTE undefined)\n"))
+  } else {
+    cat(sprintf("    TRUE PTE = %.4f\n", PTE_true))
+    cat(sprintf("    Mean PTE_hat = %.4f (SD = %.4f)\n",
+                mean(df$PTE_hat, na.rm = TRUE), empirical_sd_PTE))
+    cat(sprintf("    Bias = %.4f (%.1f%%)\n", bias_PTE, 100 * bias_PTE / PTE_true))
+  }
 
   cat(sprintf("\n  Computation:\n"))
   cat(sprintf("    Convergence rate = %.1f%%\n", 100 * convergence_rate))
@@ -173,8 +191,14 @@ for (dgp_id in names(all_results)) {
   cat(sprintf("  Correlation: ρ_true = %.4f, bias = %.4f (%.1f%%), coverage = %.1f%%\n",
               s$rho_true, s$bias_rho,
               100 * s$bias_rho / abs(s$rho_true), 100 * s$coverage_rho))
-  cat(sprintf("  PTE: PTE_true = %.4f, bias = %.4f (%.1f%%)\n",
-              s$PTE_true, s$bias_PTE, 100 * s$bias_PTE / s$PTE_true))
+
+  if (is.na(s$PTE_true)) {
+    cat(sprintf("  PTE: PTE_true = NA (undefined), bias = NA\n"))
+  } else {
+    cat(sprintf("  PTE: PTE_true = %.4f, bias = %.4f (%.1f%%)\n",
+                s$PTE_true, s$bias_PTE, 100 * s$bias_PTE / s$PTE_true))
+  }
+
   cat(sprintf("  Computation: Mean M = %.0f, Mean time = %.1f sec\n\n",
               s$mean_M, s$mean_time))
 }
