@@ -1,0 +1,106 @@
+# AIPW Robustness Study: Parameter Grid Configuration
+# Purpose: Test AIPW robustness to nuisance misspecification
+# Date: 2026-05-11
+
+# DGP Settings (DGP 1 from main study)
+dgp:
+  name: "dgp1"
+  X_levels: [-2, -1, 0, 1, 2]
+  p_X: [0.05, 0.25, 0.40, 0.25, 0.05]
+  params:
+    gamma_A: 0.5      # S intercept
+    gamma_AX: 0.3     # S slope
+    beta_A: 0.3       # Y intercept
+    beta_AX: 0.2      # Y slope
+    beta_S: 0.8       # S → Y effect
+    beta_SX: 0.1      # S×X interaction
+    sigma_S: 0.5      # S noise
+    sigma_Y: 0.5      # Y noise
+  rho_true: 0.691     # True correlation
+
+# Inference Settings
+inference:
+  lambda: 0.3         # TV ball radius
+  M_start: 300        # Adaptive M start
+  M_increment: 300    # Adaptive M increment
+  M_max: 3000         # Adaptive M maximum
+  tolerance: 0.01     # Convergence tolerance
+  n_stable: 3         # Stable iterations required
+  alpha: 0.05         # Confidence level
+
+# Simulation Grid
+grid:
+  # Sample sizes
+  n_values: [500, 1000, 2000, 5000, 10000]
+
+  # Confounding strength: e(X) = expit(α₀ + α₁·X)
+  # α₀ = 0 for ~50% treatment prevalence
+  # α₁ controls confounding strength
+  alpha_1_values: [0.0, 0.3, 0.6]  # RCT, mild, strong
+
+  # Convergence rates for nuisance functions
+  # σ(n) = c · n^(-α)
+  alpha_e_values: [0.0, 0.25, 0.5, 0.75]  # Propensity score rates
+  alpha_mu_values: [0.0, 0.25, 0.5, 0.75]  # Outcome regression rates
+
+  # Noise magnitude constants
+  c_e_values: [0.5, 1.0, 2.0]  # Propensity noise constants
+  c_mu_values: [0.5, 1.0, 2.0]  # Outcome noise constants
+
+  # Replications per setting
+  n_reps: 1000  # Change to 500 for pilot or faster run
+
+# Scenarios (controls which noise is added)
+scenarios:
+  scenario_0:
+    name: "oracle"
+    description: "True nuisances (no noise)"
+    add_propensity_noise: false
+    add_outcome_noise: false
+    settings_count: 15  # 5n × 3α₁
+
+  scenario_1:
+    name: "propensity_noise"
+    description: "Noisy e(X), true μ(X)"
+    add_propensity_noise: true
+    add_outcome_noise: false
+    vary_alpha_e: true
+    vary_c_e: true
+    settings_count: 180  # 5n × 3α₁ × 4α_e × 3c_e
+
+  scenario_2:
+    name: "outcome_noise"
+    description: "True e(X), noisy μ(X)"
+    add_propensity_noise: false
+    add_outcome_noise: true
+    vary_alpha_mu: true
+    vary_c_mu: true
+    settings_count: 180  # 5n × 3α₁ × 4α_μ × 3c_μ
+
+  scenario_3:
+    name: "both_noisy"
+    description: "Noisy e(X) and μ(X)"
+    add_propensity_noise: true
+    add_outcome_noise: true
+    vary_alpha_e: true
+    vary_alpha_mu: true
+    fixed_c: 1.0  # Use c=1.0 for both (reduces grid)
+    settings_count: 240  # 5n × 3α₁ × 4α_e × 4α_μ
+
+# Total Settings: 15 + 180 + 180 + 240 = 615
+# Total Replications: 615 × 1000 = 615,000
+# Note: Can reduce to 500 reps → 307,500 total
+
+# Computational Notes
+computation:
+  estimated_time_per_rep: "2-5 minutes"  # Depends on n and M convergence
+  estimated_total_time: "~20-50 hours wall time with parallelization"
+  recommended_array_size: 10  # reps per job
+  recommended_memory: "8G"
+  recommended_time_limit: "2:00:00"  # 2 hours per job
+
+# Output Structure
+output:
+  batch_pattern: "batch_{batch_id:03d}_rep_{rep_start:04d}_{rep_end:04d}.rds"
+  combined_file: "aipw_robustness_combined.rds"
+  summary_file: "aipw_robustness_summary.csv"
