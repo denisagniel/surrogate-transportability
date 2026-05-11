@@ -15,8 +15,16 @@ tv_ball_correlation_IF_adaptive(
   burn_in = 500,
   thin = 5,
   alpha = 0.05,
-  method = c("bootstrap", "importance_weighting"),
-  verbose = TRUE
+  method = c("bootstrap", "importance_weighting", "aipw"),
+  verbose = TRUE,
+  e_hat = NULL,
+  mu_1_S = NULL,
+  mu_0_S = NULL,
+  mu_1_Y = NULL,
+  mu_0_Y = NULL,
+  method_e = c("linear", "gam", "rf"),
+  method_mu = c("linear", "gam", "rf"),
+  n_folds = 5
 )
 }
 \arguments{
@@ -40,9 +48,25 @@ tv_ball_correlation_IF_adaptive(
 
 \item{alpha}{Significance level}
 
-\item{method}{"bootstrap" or "importance_weighting"}
+\item{method}{"bootstrap", "importance_weighting", or "aipw"}
 
 \item{verbose}{Print progress?}
+
+\item{e_hat}{Estimated propensity scores (for AIPW external mode, length n). If NULL, cross-fitting is used.}
+
+\item{mu_1_S}{Estimated E[S|A=1,X] (for AIPW external mode, length n)}
+
+\item{mu_0_S}{Estimated E[S|A=0,X] (for AIPW external mode, length n)}
+
+\item{mu_1_Y}{Estimated E[Y|A=1,X] (for AIPW external mode, length n)}
+
+\item{mu_0_Y}{Estimated E[Y|A=0,X] (for AIPW external mode, length n)}
+
+\item{method_e}{Method for propensity score estimation in cross-fitting mode (if e_hat is NULL)}
+
+\item{method_mu}{Method for outcome regression in cross-fitting mode (if e_hat is NULL)}
+
+\item{n_folds}{Number of cross-fitting folds (default: 5)}
 }
 \value{
 List with rho_hat, se, ci_lower, ci_upper, IF_vals, and convergence info

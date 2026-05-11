@@ -12,8 +12,16 @@
 #' @param burn_in MCMC burn-in
 #' @param thin MCMC thinning
 #' @param alpha Significance level
-#' @param method "bootstrap" or "importance_weighting"
+#' @param method "bootstrap", "importance_weighting", or "aipw"
 #' @param verbose Print progress?
+#' @param e_hat Estimated propensity scores (for AIPW external mode, length n). If NULL, cross-fitting is used.
+#' @param mu_1_S Estimated E[S|A=1,X] (for AIPW external mode, length n)
+#' @param mu_0_S Estimated E[S|A=0,X] (for AIPW external mode, length n)
+#' @param mu_1_Y Estimated E[Y|A=1,X] (for AIPW external mode, length n)
+#' @param mu_0_Y Estimated E[Y|A=0,X] (for AIPW external mode, length n)
+#' @param method_e Method for propensity score estimation in cross-fitting mode (if e_hat is NULL)
+#' @param method_mu Method for outcome regression in cross-fitting mode (if e_hat is NULL)
+#' @param n_folds Number of cross-fitting folds (default: 5)
 #'
 #' @return List with rho_hat, se, ci_lower, ci_upper, IF_vals, and convergence info
 #'
@@ -42,10 +50,55 @@ tv_ball_correlation_IF_adaptive <- function(data,
                                            burn_in = 500,
                                            thin = 5,
                                            alpha = 0.05,
-                                           method = c("bootstrap", "importance_weighting"),
-                                           verbose = TRUE) {
+                                           method = c("bootstrap", "importance_weighting", "aipw"),
+                                           verbose = TRUE,
+                                           e_hat = NULL,
+                                           mu_1_S = NULL,
+                                           mu_0_S = NULL,
+                                           mu_1_Y = NULL,
+                                           mu_0_Y = NULL,
+                                           method_e = c("linear", "gam", "rf"),
+                                           method_mu = c("linear", "gam", "rf"),
+                                           n_folds = 5) {
 
   method <- match.arg(method)
+
+  # AIPW validation: two modes supported
+  if (method == "aipw") {
+    n <- nrow(data)
+
+    # MODE 1: External nuisances provided
+    if (!is.null(e_hat)) {
+      # All 5 nuisances must be provided
+      if (is.null(mu_1_S) || is.null(mu_0_S) || is.null(mu_1_Y) || is.null(mu_0_Y)) {
+        stop("AIPW external mode: If e_hat provided, all nuisances required (mu_1_S, mu_0_S, mu_1_Y, mu_0_Y)")
+      }
+
+      # Check lengths
+      if (length(e_hat) != n || length(mu_1_S) != n || length(mu_0_S) != n ||
+          length(mu_1_Y) != n || length(mu_0_Y) != n) {
+        stop("All nuisance functions must have length n")
+      }
+
+      # Check propensity scores in (0,1)
+      if (any(e_hat <= 0 | e_hat >= 1)) {
+        stop("Propensity scores must be in (0, 1)")
+      }
+    } else {
+      # MODE 2: Cross-fitting mode - method_e and method_mu required
+      method_e <- match.arg(method_e)
+      method_mu <- match.arg(method_mu)
+
+      if (n_folds < 2) {
+        stop("n_folds must be >= 2 for cross-fitting")
+      }
+
+      # Warn if other nuisances provided but will be ignored
+      if (!is.null(mu_1_S) || !is.null(mu_0_S) || !is.null(mu_1_Y) || !is.null(mu_0_Y)) {
+        warning("AIPW cross-fitting mode: provided mu_* will be ignored, fitting internally")
+      }
+    }
+  }
 
   # Input validation
   required_cols <- c("X", "A", "S", "Y")
@@ -62,7 +115,11 @@ tv_ball_correlation_IF_adaptive <- function(data,
 
   if (verbose) {
     message(sprintf("\n=== TV Ball Correlation (Adaptive M) ==="))
-    message(sprintf("Method: %s", ifelse(method == "bootstrap", "Bootstrap", "Importance Weighting")))
+    method_name <- switch(method,
+                         "bootstrap" = "Bootstrap",
+                         "importance_weighting" = "Importance Weighting",
+                         "aipw" = "AIPW (Doubly Robust)")
+    message(sprintf("Method: %s", method_name))
     message(sprintf("n = %d, λ = %.3f", n, lambda))
     message(sprintf("M_start = %d, M_increment = %d, M_max = %d", M_start, M_increment, M_max))
     message(sprintf("Tolerance = %.4f, n_stable = %d\n", tolerance, n_stable))
@@ -102,6 +159,31 @@ tv_ball_correlation_IF_adaptive <- function(data,
   )
 
   if (verbose) message("Starting adaptive M loop...\n")
+
+  # AIPW pre-loop setup
+  if (method == "aipw") {
+    # MODE 1: External nuisances provided
+    if (!is.null(e_hat)) {
+      if (verbose) message("AIPW: Using provided nuisance estimates\n")
+      use_external_nuisances <- TRUE
+    } else {
+      # MODE 2: Cross-fitting mode
+      if (verbose) message(sprintf("AIPW: Cross-fitting nuisances (method_e=%s, method_mu=%s, k=%d folds)\n",
+                                  method_e, method_mu, n_folds))
+
+      # Create folds (same for all Q_m)
+      folds <- sample(rep(1:n_folds, length.out = n))
+
+      # Pre-allocate storage for M_max nuisance estimates (one set per Q_m)
+      e_hat_all <- matrix(0, nrow = n, ncol = M_max)
+      mu_1_S_all <- matrix(0, nrow = n, ncol = M_max)
+      mu_0_S_all <- matrix(0, nrow = n, ncol = M_max)
+      mu_1_Y_all <- matrix(0, nrow = n, ncol = M_max)
+      mu_0_Y_all <- matrix(0, nrow = n, ncol = M_max)
+
+      use_external_nuisances <- FALSE
+    }
+  }
 
   while (M_current < M_max && !converged) {
     # Use Q samples from M_current+1 to M_target
@@ -164,6 +246,130 @@ tv_ball_correlation_IF_adaptive <- function(data,
 
         Delta_S_batch[m] <- mean_S1_batch[m] - mean_S0_batch[m]
         Delta_Y_batch[m] <- mean_Y1_batch[m] - mean_Y0_batch[m]
+
+      } else if (method == "aipw") {
+        # Get or fit nuisances for this Q_m
+        if (use_external_nuisances) {
+          # MODE 1: Use provided nuisances (same for all Q_m)
+          e_hat_m <- e_hat
+          mu_1_S_m <- mu_1_S
+          mu_0_S_m <- mu_0_S
+          mu_1_Y_m <- mu_1_Y
+          mu_0_Y_m <- mu_0_Y
+        } else {
+          # MODE 2: Cross-fit nuisances specific to this Q_m
+          # Compute observation weights from Q_m
+          obs_weights <- numeric(n)
+          for (i in seq_len(n)) {
+            k_i <- which(X_unique == data$X[i])
+            obs_weights[i] <- Q_m[k_i]
+          }
+          obs_weights <- obs_weights / sum(obs_weights)
+
+          # Initialize nuisance vectors for this Q_m
+          e_hat_m <- numeric(n)
+          mu_1_S_m <- numeric(n)
+          mu_0_S_m <- numeric(n)
+          mu_1_Y_m <- numeric(n)
+          mu_0_Y_m <- numeric(n)
+
+          # Cross-fitting loop
+          for (fold in 1:n_folds) {
+            test_idx <- (folds == fold)
+            train_idx <- !test_idx
+
+            # Fit propensity score on train, predict on test
+            if (method_e == "linear") {
+              fit_e <- stats::glm(A ~ X, family = binomial(), data = data[train_idx, ],
+                                 weights = obs_weights[train_idx])
+              e_hat_m[test_idx] <- pmax(pmin(
+                stats::predict(fit_e, newdata = data[test_idx, ], type = "response"),
+                0.99), 0.01)
+            } else if (method_e == "gam") {
+              fit_e <- mgcv::gam(A ~ s(X), family = binomial(), data = data[train_idx, ],
+                                weights = obs_weights[train_idx])
+              e_hat_m[test_idx] <- pmax(pmin(
+                stats::predict(fit_e, newdata = data[test_idx, ], type = "response"),
+                0.99), 0.01)
+            } else if (method_e == "rf") {
+              fit_e <- ranger::ranger(A ~ X, data = data[train_idx, ],
+                                     case.weights = obs_weights[train_idx],
+                                     probability = TRUE)
+              e_hat_m[test_idx] <- pmax(pmin(
+                stats::predict(fit_e, data = data[test_idx, ])$predictions[, 2],
+                0.99), 0.01)
+            }
+
+            # Fit outcome regressions on train, predict on test
+            train_data_1 <- data[train_idx & data$A == 1, ]
+            train_data_0 <- data[train_idx & data$A == 0, ]
+            train_weights_1 <- obs_weights[train_idx & data$A == 1]
+            train_weights_0 <- obs_weights[train_idx & data$A == 0]
+
+            if (method_mu == "linear") {
+              fit_S1 <- stats::lm(S ~ X, data = train_data_1, weights = train_weights_1)
+              fit_S0 <- stats::lm(S ~ X, data = train_data_0, weights = train_weights_0)
+              fit_Y1 <- stats::lm(Y ~ X, data = train_data_1, weights = train_weights_1)
+              fit_Y0 <- stats::lm(Y ~ X, data = train_data_0, weights = train_weights_0)
+
+              mu_1_S_m[test_idx] <- stats::predict(fit_S1, newdata = data[test_idx, ])
+              mu_0_S_m[test_idx] <- stats::predict(fit_S0, newdata = data[test_idx, ])
+              mu_1_Y_m[test_idx] <- stats::predict(fit_Y1, newdata = data[test_idx, ])
+              mu_0_Y_m[test_idx] <- stats::predict(fit_Y0, newdata = data[test_idx, ])
+            } else if (method_mu == "gam") {
+              fit_S1 <- mgcv::gam(S ~ s(X), data = train_data_1, weights = train_weights_1)
+              fit_S0 <- mgcv::gam(S ~ s(X), data = train_data_0, weights = train_weights_0)
+              fit_Y1 <- mgcv::gam(Y ~ s(X), data = train_data_1, weights = train_weights_1)
+              fit_Y0 <- mgcv::gam(Y ~ s(X), data = train_data_0, weights = train_weights_0)
+
+              mu_1_S_m[test_idx] <- stats::predict(fit_S1, newdata = data[test_idx, ])
+              mu_0_S_m[test_idx] <- stats::predict(fit_S0, newdata = data[test_idx, ])
+              mu_1_Y_m[test_idx] <- stats::predict(fit_Y1, newdata = data[test_idx, ])
+              mu_0_Y_m[test_idx] <- stats::predict(fit_Y0, newdata = data[test_idx, ])
+            } else if (method_mu == "rf") {
+              fit_S1 <- ranger::ranger(S ~ X, data = train_data_1, case.weights = train_weights_1)
+              fit_S0 <- ranger::ranger(S ~ X, data = train_data_0, case.weights = train_weights_0)
+              fit_Y1 <- ranger::ranger(Y ~ X, data = train_data_1, case.weights = train_weights_1)
+              fit_Y0 <- ranger::ranger(Y ~ X, data = train_data_0, case.weights = train_weights_0)
+
+              mu_1_S_m[test_idx] <- stats::predict(fit_S1, data = data[test_idx, ])$predictions
+              mu_0_S_m[test_idx] <- stats::predict(fit_S0, data = data[test_idx, ])$predictions
+              mu_1_Y_m[test_idx] <- stats::predict(fit_Y1, data = data[test_idx, ])$predictions
+              mu_0_Y_m[test_idx] <- stats::predict(fit_Y0, data = data[test_idx, ])$predictions
+            }
+          }
+
+          # Store for later use in IF computation
+          m_abs <- M_current + m  # Absolute index in pre-allocated matrix
+          e_hat_all[, m_abs] <- e_hat_m
+          mu_1_S_all[, m_abs] <- mu_1_S_m
+          mu_0_S_all[, m_abs] <- mu_0_S_m
+          mu_1_Y_all[, m_abs] <- mu_1_Y_m
+          mu_0_Y_all[, m_abs] <- mu_0_Y_m
+        }
+
+        # Compute importance weights
+        w_i <- numeric(n)
+        for (i in seq_len(n)) {
+          k_i <- which(X_unique == data$X[i])
+          w_i[i] <- Q_m[k_i] / P0_categorical[k_i]
+        }
+
+        # AIPW estimator: IPW + outcome regression correction
+        aipw_S <- w_i * (
+          data$A * (data$S - mu_1_S_m) / e_hat_m -
+          (1 - data$A) * (data$S - mu_0_S_m) / (1 - e_hat_m) +
+          mu_1_S_m - mu_0_S_m
+        )
+
+        aipw_Y <- w_i * (
+          data$A * (data$Y - mu_1_Y_m) / e_hat_m -
+          (1 - data$A) * (data$Y - mu_0_Y_m) / (1 - e_hat_m) +
+          mu_1_Y_m - mu_0_Y_m
+        )
+
+        Delta_S_batch[m] <- mean(aipw_S)
+        Delta_Y_batch[m] <- mean(aipw_Y)
       }
     }
 
@@ -338,6 +544,50 @@ tv_ball_correlation_IF_adaptive <- function(data,
         psi_Y[i, m] <- w_i[i] * (
           2 * data$A[i] * (data$Y[i] - mean_Y1_m) -
           2 * (1 - data$A[i]) * (data$Y[i] - mean_Y0_m)
+        )
+      }
+
+    } else if (method == "aipw") {
+      # Get nuisances for this Q_m
+      if (use_external_nuisances) {
+        # MODE 1: Use provided nuisances (same for all Q_m)
+        e_hat_m <- e_hat
+        mu_1_S_m <- mu_1_S
+        mu_0_S_m <- mu_0_S
+        mu_1_Y_m <- mu_1_Y
+        mu_0_Y_m <- mu_0_Y
+      } else {
+        # MODE 2: Retrieve Q_m-specific fitted nuisances
+        e_hat_m <- e_hat_all[, m]
+        mu_1_S_m <- mu_1_S_all[, m]
+        mu_0_S_m <- mu_0_S_all[, m]
+        mu_1_Y_m <- mu_1_Y_all[, m]
+        mu_0_Y_m <- mu_0_Y_all[, m]
+      }
+
+      # Compute importance weights for this Q_m
+      w_i <- numeric(n)
+      for (i in seq_len(n)) {
+        k_i <- which(X_unique == data$X[i])
+        w_i[i] <- Q_m[k_i] / P0_categorical[k_i]
+      }
+
+      # Retrieve treatment effects for centering
+      Delta_S_m <- Delta_S[m]
+      Delta_Y_m <- Delta_Y[m]
+
+      # Three-term AIPW influence function
+      for (i in seq_len(n)) {
+        psi_S[i, m] <- w_i[i] * (
+          data$A[i] * (data$S[i] - mu_1_S_m[i]) / e_hat_m[i] -
+          (1 - data$A[i]) * (data$S[i] - mu_0_S_m[i]) / (1 - e_hat_m[i]) +
+          mu_1_S_m[i] - mu_0_S_m[i] - Delta_S_m
+        )
+
+        psi_Y[i, m] <- w_i[i] * (
+          data$A[i] * (data$Y[i] - mu_1_Y_m[i]) / e_hat_m[i] -
+          (1 - data$A[i]) * (data$Y[i] - mu_0_Y_m[i]) / (1 - e_hat_m[i]) +
+          mu_1_Y_m[i] - mu_0_Y_m[i] - Delta_Y_m
         )
       }
     }

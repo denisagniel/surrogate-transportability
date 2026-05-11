@@ -34,7 +34,11 @@ Suggests:
     future,
     furrr,
     mgcv,
+    ranger,
     randomForest (>= 4.7-1.1),
     quadprog (>= 1.5-8),
     transport (>= 0.15-4),
-    lpSolve (>= 5.6.15)
+    lpSolve (>= 5.6.15),
+    Rsurrogate,
+    mediation,
+    pseval
