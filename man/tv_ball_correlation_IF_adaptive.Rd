@@ -81,8 +81,8 @@ The algorithm:
 3. Increase M by M_increment
 4. Compute ρ̂(M + M_increment)
 5. Check convergence: ALL of the following must hold:
-   - Each consecutive change |ρ̂_t - ρ̂_{t-1}| < tolerance
-   - Overall change |ρ̂_t - ρ̂_{t-n_stable}| < tolerance
+   - Each consecutive change |rho_t - rho_(t-1)| < tolerance
+   - Overall change |rho_t - rho_(t-n_stable)| < tolerance
    - This must hold for n_stable consecutive iterations
 6. If converged, stop. Otherwise, repeat from step 3 (up to M_max)
 

@@ -1,0 +1,17 @@
+\begin{table}[ht]
+\centering
+\caption{Mean computational time per replication across 1000 replications.
+Timing includes MCMC sampling for the Wasserstein minimax estimator
+(adaptive M with tolerance 0.01), treatment effect estimation, and
+nonparametric bootstrap (B=500). All computations performed on a single core.}
+\label{tab:timing}
+\begin{tabular}{lrrr}
+\toprule
+DGP & Mean M & Mean Time (min) & Reps \\midrule
+1 & 2207 & 5.9 & 1000 \\
+2 & 1464 & 4.2 & 1000 \\
+4 & 1200 & 3.5 & 1000 \\
+5 & 1200 & 3.5 & 1000 \\
+\bottomrule
+\end{tabular}
+\end{table}

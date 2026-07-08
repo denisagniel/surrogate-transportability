@@ -32,8 +32,8 @@
 #' 3. Increase M by M_increment
 #' 4. Compute ρ̂(M + M_increment)
 #' 5. Check convergence: ALL of the following must hold:
-#'    - Each consecutive change |ρ̂_t - ρ̂_{t-1}| < tolerance
-#'    - Overall change |ρ̂_t - ρ̂_{t-n_stable}| < tolerance
+#'    - Each consecutive change |rho_t - rho_(t-1)| < tolerance
+#'    - Overall change |rho_t - rho_(t-n_stable)| < tolerance
 #'    - This must hold for n_stable consecutive iterations
 #' 6. If converged, stop. Otherwise, repeat from step 3 (up to M_max)
 #'
@@ -511,17 +511,26 @@ tv_ball_correlation_IF_adaptive <- function(data,
       mean_Y1_m <- sum(w1 * data$Y) / sum(w1)
       mean_Y0_m <- sum(w0 * data$Y) / sum(w0)
 
-      for (i in seq_len(n)) {
-        psi_S[i, m] <- obs_weights[i] * (
-          2 * data$A[i] * (data$S[i] - mean_S1_m) -
-          2 * (1 - data$A[i]) * (data$S[i] - mean_S0_m)
-        )
-
-        psi_Y[i, m] <- obs_weights[i] * (
-          2 * data$A[i] * (data$Y[i] - mean_Y1_m) -
-          2 * (1 - data$A[i]) * (data$Y[i] - mean_Y0_m)
-        )
+      # Influence function of the Hajek weighted difference-in-means (★★ in
+      # derivation_influence_functions.md). Normalize weights to mean 1 so that
+      # Delta_hat - Delta ≈ (1/n) Σ_i psi[i]; per-arm denominators are the
+      # average (mean-1) weights in each arm. (The old code hard-coded a factor
+      # of 2, i.e. 1/ebar_a assuming e≡0.5 — correct only for a balanced RCT.)
+      w_norm <- obs_weights / mean(obs_weights)
+      ebar1 <- mean(w_norm * data$A)
+      ebar0 <- mean(w_norm * (1 - data$A))
+      if (ebar1 < 1e-8 || ebar0 < 1e-8) {
+        stop(sprintf("Q_m %d: an arm has near-zero total weight (ebar1=%.2e, ebar0=%.2e)",
+                     m, ebar1, ebar0))
       }
+      psi_S[, m] <- w_norm * (
+        data$A * (data$S - mean_S1_m) / ebar1 -
+        (1 - data$A) * (data$S - mean_S0_m) / ebar0
+      )
+      psi_Y[, m] <- w_norm * (
+        data$A * (data$Y - mean_Y1_m) / ebar1 -
+        (1 - data$A) * (data$Y - mean_Y0_m) / ebar0
+      )
 
     } else if (method == "importance_weighting") {
       w_i <- numeric(n)
@@ -535,17 +544,22 @@ tv_ball_correlation_IF_adaptive <- function(data,
       mean_Y1_m <- mean_Y1_vec[m]
       mean_Y0_m <- mean_Y0_vec[m]
 
-      for (i in seq_len(n)) {
-        psi_S[i, m] <- w_i[i] * (
-          2 * data$A[i] * (data$S[i] - mean_S1_m) -
-          2 * (1 - data$A[i]) * (data$S[i] - mean_S0_m)
-        )
-
-        psi_Y[i, m] <- w_i[i] * (
-          2 * data$A[i] * (data$Y[i] - mean_Y1_m) -
-          2 * (1 - data$A[i]) * (data$Y[i] - mean_Y0_m)
-        )
+      # Hajek difference-in-means IF (★★). See bootstrap branch above.
+      w_norm <- w_i / mean(w_i)
+      ebar1 <- mean(w_norm * data$A)
+      ebar0 <- mean(w_norm * (1 - data$A))
+      if (ebar1 < 1e-8 || ebar0 < 1e-8) {
+        stop(sprintf("Q_m %d: an arm has near-zero total weight (ebar1=%.2e, ebar0=%.2e)",
+                     m, ebar1, ebar0))
       }
+      psi_S[, m] <- w_norm * (
+        data$A * (data$S - mean_S1_m) / ebar1 -
+        (1 - data$A) * (data$S - mean_S0_m) / ebar0
+      )
+      psi_Y[, m] <- w_norm * (
+        data$A * (data$Y - mean_Y1_m) / ebar1 -
+        (1 - data$A) * (data$Y - mean_Y0_m) / ebar0
+      )
 
     } else if (method == "aipw") {
       # Get nuisances for this Q_m
@@ -572,34 +586,43 @@ tv_ball_correlation_IF_adaptive <- function(data,
         w_i[i] <- Q_m[k_i] / P0_categorical[k_i]
       }
 
+      # Clip propensity away from 0/1 before dividing (external-nuisance mode is
+      # only validated in (0,1); cross-fit mode already clips upstream).
+      e_hat_m <- pmin(pmax(e_hat_m, 0.01), 0.99)
+
       # Retrieve treatment effects for centering
       Delta_S_m <- Delta_S[m]
       Delta_Y_m <- Delta_Y[m]
 
-      # Three-term AIPW influence function
-      for (i in seq_len(n)) {
-        psi_S[i, m] <- w_i[i] * (
-          data$A[i] * (data$S[i] - mu_1_S_m[i]) / e_hat_m[i] -
-          (1 - data$A[i]) * (data$S[i] - mu_0_S_m[i]) / (1 - e_hat_m[i]) +
-          mu_1_S_m[i] - mu_0_S_m[i] - Delta_S_m
-        )
+      # Per-study AIPW influence function (★ in derivation_influence_functions.md):
+      # the whole reweighted AIPW score minus the CONSTANT Delta_m. The old code
+      # subtracted w_i * Delta_m, which is the wrong centering for the fixed-Q
+      # estimand and gives an incorrect variance.
+      psi_S[, m] <- w_i * (
+        data$A * (data$S - mu_1_S_m) / e_hat_m -
+        (1 - data$A) * (data$S - mu_0_S_m) / (1 - e_hat_m) +
+        mu_1_S_m - mu_0_S_m
+      ) - Delta_S_m
 
-        psi_Y[i, m] <- w_i[i] * (
-          data$A[i] * (data$Y[i] - mu_1_Y_m[i]) / e_hat_m[i] -
-          (1 - data$A[i]) * (data$Y[i] - mu_0_Y_m[i]) / (1 - e_hat_m[i]) +
-          mu_1_Y_m[i] - mu_0_Y_m[i] - Delta_Y_m
-        )
-      }
+      psi_Y[, m] <- w_i * (
+        data$A * (data$Y - mu_1_Y_m) / e_hat_m -
+        (1 - data$A) * (data$Y - mu_0_Y_m) / (1 - e_hat_m) +
+        mu_1_Y_m - mu_0_Y_m
+      ) - Delta_Y_m
     }
   }
 
-  # Compose IF
-  psi_Theta <- numeric(n)
-  for (i in seq_len(n)) {
-    psi_Theta[i] <- sum(grad_S * psi_S[i, ] + grad_Y * psi_Y[i, ])
-  }
+  # Compose the two-stage IF (delta method across studies, §3 of
+  # derivation_influence_functions.md): Psi(O_i) = Σ_m [ grad_S[m]·psi_S[i,m]
+  # + grad_Y[m]·psi_Y[i,m] ]. grad_* already carry the 1/(M s_S s_Y) factor, so
+  # this is a proper mean-zero per-observation IF. Vectorized as psi %*% grad.
+  psi_Theta <- as.numeric(psi_S %*% grad_S + psi_Y %*% grad_Y)
 
-  # Variance
+  # Conditional variance given the M sampled studies (√n estimation term).
+  # NOTE: this SE is CONDITIONAL on the sampled future studies μ̂_M; it targets
+  # the M-study correlation Θ_M, not the population Θ. The MCMC approximation
+  # error Θ_M − Θ = O_P(M^{-1/2}) is a separate source (§4 of the derivation);
+  # with M large relative to n it is negligible. Reported as conditional SE.
   sigma_sq <- mean(psi_Theta^2)
   se <- sqrt(sigma_sq / n)
 
@@ -629,6 +652,7 @@ tv_ball_correlation_IF_adaptive <- function(data,
     converged = converged,
     tolerance = tolerance,
     n_stable = n_stable,
-    method = method
+    method = method,
+    se_type = "conditional"  # SE is conditional on μ̂_M (see §4 of derivation)
   )
 }

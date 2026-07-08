@@ -3,6 +3,7 @@ $theme-darkblue: #01364C;
 $theme-blue: #99D9DD;
 $theme-white: #F7F8F9;
 $theme-yellow: #F4BA02;
+$theme-purple: #9B59B6;
 
 $body-bg: $theme-darkblue;
 $body-color: $theme-white;
@@ -27,4 +28,61 @@ $presentation-heading-font: 'Unbounded', cursive;
 .darkblue {
   color: $theme-darkblue;
   font-weight: bold;
+}
+
+.purple {
+  color: $theme-purple;
+  font-weight: bold;
+}
+
+/* Title slide: override center class and adjust formatting */
+#title-slide.center,
+#title-slide.center .quarto-title-block {
+  text-align: left !important;
+}
+
+/* Title: smaller and left-aligned */
+#title-slide h1.title {
+  text-align: left !important;
+  font-size: 1.7em !important;  /* Moderately sized */
+  margin-bottom: 0.5em !important;
+}
+
+/* Subtitle: left-aligned */
+#title-slide .subtitle,
+#title-slide p.subtitle {
+  text-align: left !important;
+  font-size: 0.75em !important;
+  margin-top: 0.5em !important;
+  margin-bottom: 0.5em !important;
+}
+
+/* Author section: left-aligned */
+#title-slide .quarto-title-authors,
+#title-slide .quarto-title-author,
+#title-slide .quarto-title-author-name,
+#title-slide .author,
+#title-slide p.author {
+  text-align: left !important;
+  justify-content: flex-start !important;
+  display: block !important;
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+}
+
+/* Date: left-aligned */
+#title-slide .date,
+#title-slide p.date {
+  text-align: left !important;
+  font-size: 0.7em !important;
+}
+
+/* Add joint work and funding after date */
+#title-slide .date::after {
+  content: "\A\A Joint work with Layla Parast\A Supported by NIDDK R01DK118354";
+  white-space: pre;
+  display: block;
+  margin-top: 1em;
+  font-size: 0.9em;
+  font-style: italic;
 }

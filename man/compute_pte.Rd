@@ -33,7 +33,8 @@ the treatment effect, suggesting good surrogate properties.
 the surrogate transports across studies.
 }
 \examples{
-data <- generate_study_data(n = 500)
+spec <- canonical_dgp_params("dgp1")
+data <- generate_dgp_data(500, spec$params, spec$p_X, spec$X_levels)
 pte <- compute_pte(data)
 
 }

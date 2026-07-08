@@ -223,62 +223,73 @@ find_feasible_range_tv <- function(q_current, direction, P0, lambda) {
   t_max <- Inf
 
   for (i in seq_len(K)) {
-    if (direction[i] > 1e-10) {
+    if (direction[i] > 1e-12) {
       # d_i > 0: lower bound
-      t_lower <- -q_current[i] / direction[i]
-      t_min <- max(t_min, t_lower)
-    } else if (direction[i] < -1e-10) {
+      t_min <- max(t_min, -q_current[i] / direction[i])
+    } else if (direction[i] < -1e-12) {
       # d_i < 0: upper bound
-      t_upper <- -q_current[i] / direction[i]
-      t_max <- min(t_max, t_upper)
+      t_max <- min(t_max, -q_current[i] / direction[i])
     }
   }
 
-  # Constraint 2: Stay in TV ball
-  # TV(q + t*d, P₀) = (1/2) Σ|q_i + t*d_i - P₀_i| ≤ λ
-  #
-  # Strategy: Evaluate TV at many points and find intersection
-  # (Not elegant but robust for exploration and production)
+  # Constraint 2: Stay in TV ball, solved EXACTLY (no grid).
+  # TV(t) = (1/2) Σ_i |r_i + t*d_i|, with r_i = q_i - P₀_i, is convex and
+  # piecewise-linear in t: on any interval where no coordinate r_i + t*d_i
+  # changes sign, TV(t) = a + b*t with a = (1/2)Σ s_i r_i, b = (1/2)Σ s_i d_i,
+  # s_i = sign(r_i + t*d_i). Breakpoints occur at t_i = -r_i/d_i (d_i ≠ 0).
+  # Because TV is convex and → +∞ as |t|→∞ (direction is nonzero), the
+  # sublevel set {t : TV(t) ≤ λ} is a single interval whose endpoints are the
+  # (at most two) roots of TV(t) = λ. Solve each linear piece analytically.
+  r <- q_current - P0
+  nz <- which(abs(direction) > 1e-12)
+  breakpoints <- sort(unique(-r[nz] / direction[nz]))
 
-  # Sample points along the feasible range
-  if (is.infinite(t_min) || is.infinite(t_max)) {
-    # If unbounded from positivity, use reasonable range
-    t_test <- seq(-10, 10, length.out = 1000)
+  # Segment boundaries: (-Inf, breakpoints, +Inf). On each open segment the
+  # sign pattern is constant; evaluate at an interior probe point to get (a,b).
+  bounds <- c(-Inf, breakpoints, Inf)
+  roots <- numeric(0)
+  for (s in seq_len(length(bounds) - 1L)) {
+    lo <- bounds[s]
+    hi <- bounds[s + 1L]
+    probe <- if (is.infinite(lo) && is.infinite(hi)) {
+      0
+    } else if (is.infinite(lo)) {
+      hi - 1
+    } else if (is.infinite(hi)) {
+      lo + 1
+    } else {
+      (lo + hi) / 2
+    }
+    signs <- sign(r + probe * direction)
+    b <- 0.5 * sum(signs * direction)  # slope of TV on this segment
+    a <- 0.5 * sum(signs * r)          # intercept of TV on this segment
+    if (abs(b) > 1e-14) {
+      t_star <- (lambda - a) / b       # solve a + b*t = λ
+      if (t_star >= lo - 1e-12 && t_star <= hi + 1e-12) {
+        roots <- c(roots, t_star)
+      }
+    }
+  }
+
+  if (length(roots) == 0) {
+    # TV never reaches λ within reach (e.g. λ ≥ max TV along the line): the
+    # TV constraint does not bind, positivity alone governs.
+    t_min_tv <- -Inf
+    t_max_tv <- Inf
   } else {
-    t_test <- seq(t_min, t_max, length.out = 1000)
+    t_min_tv <- min(roots)
+    t_max_tv <- max(roots)
   }
 
-  # Compute TV at each point
-  tv_vals <- vapply(t_test, function(t) {
-    q_new <- q_current + t * direction
-    # Check positivity
-    if (any(q_new < -1e-10)) {
-      return(Inf)
-    }
-    # Compute TV distance
-    0.5 * sum(abs(q_new - P0))
-  }, FUN.VALUE = numeric(1))
-
-  # Find where TV ≤ λ
-  feasible <- tv_vals <= lambda + 1e-10  # Small tolerance
-
-  if (!any(feasible)) {
-    # No feasible points (shouldn't happen if we start at feasible point)
-    warning("No feasible points found along direction. Staying at current point.")
-    return(list(t_min = 0, t_max = 0))
-  }
-
-  feasible_indices <- which(feasible)
-  t_min_tv <- t_test[min(feasible_indices)]
-  t_max_tv <- t_test[max(feasible_indices)]
-
-  # Take intersection of constraints
+  # Intersect the TV interval with the positivity interval.
   t_min_final <- max(t_min, t_min_tv)
   t_max_final <- min(t_max, t_max_tv)
 
-  # Sanity check
+  # q_current is feasible (TV(0) ≤ λ, positivity holds), so t = 0 lies in the
+  # feasible interval; t_min_final ≤ 0 ≤ t_max_final up to numerical error.
   if (t_min_final > t_max_final) {
-    warning("Infeasible: t_min > t_max. Staying at current point.")
+    # Degenerate (numerical): collapse to the current point rather than
+    # silently moving. Surfaced as a zero-length segment, not swallowed.
     return(list(t_min = 0, t_max = 0))
   }
 

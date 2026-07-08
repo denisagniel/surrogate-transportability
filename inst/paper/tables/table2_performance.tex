@@ -1,0 +1,18 @@
+\begin{table}[ht]
+\centering
+\caption{Simulation performance across 1000 replications per DGP.
+Bias = $\bar{\hat{\rho}} - \rho_{\mathrm{true}}$.
+Emp. SE is the empirical standard error of $\hat{\rho}$ across replications.
+Est. SE is the mean estimated standard error from the influence function.
+Coverage is the proportion of 95\% confidence intervals containing $\rho_{\mathrm{true}}$.}
+\label{tab:performance}
+\begin{tabular}{lrrrrrr}
+\toprule
+DGP & $\rho_{\mathrm{true}}$ & Bias & Emp. SE & Est. SE & Coverage (\%) & Reps \\midrule
+1 & 0.691 & -0.0375 & 0.1389 & 0.1351 & 94.2 & 1000 \\
+2 & -0.884 & 0.0114 & 0.0432 & 0.0425 & 93.2 & 1000 \\
+4 & 1.000 & -0.0007 & 0.0007 & 0.0008 & 99.8 & 1000 \\
+5 & 1.000 & -0.0004 & 0.0004 & 0.0004 & 99.9 & 1000 \\
+\bottomrule
+\end{tabular}
+\end{table}

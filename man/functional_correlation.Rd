@@ -10,30 +10,35 @@ functional_correlation(
 )
 }
 \arguments{
-\item{treatment_effects}{A tibble with columns delta_s and delta_y containing
-treatment effects from multiple future studies.}
+\item{treatment_effects}{A data frame with columns `delta_s` and `delta_y`
+containing treatment effects from multiple future studies. Each row is one
+study with its average treatment effects \eqn{\Delta_S(Q)} and
+\eqn{\Delta_Y(Q)}.}
 
-\item{method}{Character. Correlation method: "pearson" (default), "spearman", or "kendall".}
+\item{method}{Character. Correlation method: "pearson" (default), "spearman",
+or "kendall".}
 }
 \value{
-Numeric. The correlation between treatment effects.
+Numeric. The correlation between treatment effects across studies.
 }
 \description{
 Calculates the correlation between treatment effects on surrogate and outcome
-across future studies, which is a key functional for evaluating surrogate quality.
+across future studies, the primary functional for evaluating surrogate
+transportability.
 }
 \details{
-This implements the functional φ(F) = cor(ΔS(Q), ΔY(Q)) where Q ~ F.
-A high correlation indicates that the surrogate marker is informative about
-the treatment effect on the outcome across different studies.
+This implements the functional \eqn{\phi(\mu) = \mathrm{cor}_\mu(\Delta_S(Q),
+\Delta_Y(Q))} where \eqn{Q \sim \mu}. It is an **across-study** functional:
+each row is one future study with scalar study-level effects, and the
+correlation is computed across (between) the studies. A high correlation
+indicates the surrogate transports well across the sampled future studies.
+
+For inference (confidence intervals via the influence function), use
+[tv_ball_correlation_IF_adaptive()], which estimates this functional together
+with a standard error over a TV ball of future studies.
 }
 \examples{
-# Generate treatment effects from future studies
-current_data <- generate_study_data(n = 500)
-future_studies <- generate_multiple_future_studies(current_data, n_future_studies = 100)
-treatment_effects <- extract_treatment_effects(future_studies)
-
-# Compute correlation functional
-correlation <- functional_correlation(treatment_effects)
+te <- data.frame(delta_s = rnorm(50, 0.3, 0.2), delta_y = rnorm(50, 0.4, 0.2))
+functional_correlation(te)
 
 }

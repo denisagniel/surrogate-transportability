@@ -18,15 +18,15 @@
 
 ## Project Overview
 
-A complete R project implementing surrogate inference via random probability distributions for evaluating treatment effects in future studies. The innovation approach models future studies as mixtures Q = (1-λ)P₀ + λP̃ to assess surrogate transportability.
+A complete R project for evaluating surrogate transportability from a single study. The canonical method models future studies as random measures drawn uniformly from a **total-variation ball** around the observed study, and estimates the **correlation of treatment effects** on surrogate and outcome across those studies via hit-and-run MCMC + importance weighting / cross-fitted AIPW, with influence-function inference. (The earlier mixture framing Q = (1-λ)P₀ + λP̃ is abandoned.)
 
-**Current Stage:** Methods paper revised for journal submission (Feb 2026)
+**Current Stage:** Canonical realignment in progress (July 2026); aligning package, manuscript, and simulations to the May 2026 presentation (`inst/presentation/slides.qmd`, the source of truth).
 
 **Key Components:**
-- **R Package:** surrogateTransportability v0.1.0 (MIT License) - 7 main files, 2,076 lines
-- **Simulations:** R6-based simulation environment with 6 scenario scripts and YAML configuration
-- **Methods Paper:** methods/main.tex (~221 lines, recently revised)
-- **Critical Functionals:** Correlation, probability, conditional mean for surrogate evaluation
+- **R Package:** surrogateTransportability v0.4.0 (MIT License) - 8 R files, 13 exports (post-realignment)
+- **Simulations:** O2 cluster study at `simulations/canonical-validation/` (4 DGPs, fixed estimator)
+- **Methods Paper:** `inst/paper/main.tex` (realigned) + `proof_asymptotic_normality.tex`
+- **Primary functional:** correlation of treatment effects across future studies
 
 ---
 
@@ -56,15 +56,15 @@ surrogate-transportability/
 ├── examples/                 # Package examples
 ├── validation/               # Validation scripts
 ├── inst/
-│   └── paper/                # LaTeX manuscript (canonical: R package + paper)
-│       ├── main.tex          # Primary manuscript (~221 lines)
-│       ├── common-defs.tex   # Shared definitions
-│       └── refs.bib          # Bibliography
-├── sims/                     # Simulation environment
-│   ├── classes/              # R6 simulation classes
-│   ├── scripts/              # Scenario scripts (01-06)
-│   ├── config/               # YAML configuration (scenarios.yaml)
-│   └── results/              # Simulation outputs (.rds, .csv, plots)
+│   ├── paper/                # LaTeX manuscript + proof + IF derivation
+│   │   ├── main.tex          # Primary manuscript (realigned)
+│   │   ├── proof_asymptotic_normality.tex
+│   │   ├── derivation_influence_functions.md
+│   │   ├── common-defs.tex   # Shared definitions
+│   │   └── refs.bib          # Bibliography
+│   └── presentation/         # CANONICAL slides (slides.qmd, source of truth)
+├── simulations/              # O2 cluster studies (setup-cluster-simulations layout)
+│   └── canonical-validation/ # 4-DGP coverage study (fixed estimator)
 ├── refs/                     # Reference papers
 ├── latex-dotfiles/           # Shared LaTeX style
 ├── templates/                # Session logs, quality reports, requirements
@@ -148,22 +148,23 @@ surrogate-transportability/
 
 ## Current Project State
 
-- **Stage:** Methods paper revised for journal submission (February 2026)
-- **Package:** surrogateTransportability v0.1.0 with 6 core functions and unit tests
-- **Simulations:** 6 scenario scripts completed; results in sims/results/
-- **Paper:** methods/main.tex recently revised; uses shared latex-dotfiles style
-- **Next Steps:** Address referee comments; extend simulation scenarios; prepare preprint
+- **Stage:** Canonical realignment (July 2026) — aligning everything to the May 2026 slides.
+- **Package:** surrogateTransportability v0.4.0 — 8 R files, 13 exports, tests passing.
+- **Simulations:** O2 study `simulations/canonical-validation/` (4 DGPs, fixed estimator); awaiting cluster re-validation.
+- **Paper:** `inst/paper/main.tex` realigned (compiles; Table 2 + figures pending cluster output).
+- **Next Steps:** run cluster re-validation; fill Table 2/figures; preprint.
 
 ---
 
 ## Critical Files
 
-- [R/posterior_inference.R](R/posterior_inference.R) - Main inference function with nested Bayesian bootstrap
-- [R/generate_future_study.R](R/generate_future_study.R) - Innovation approach: Q = (1-λ)P₀ + λP̃
-- [R/surrogate_functionals.R](R/surrogate_functionals.R) - Correlation, probability, conditional mean
-- [sims/classes/SurrogateSimulation.R](sims/classes/SurrogateSimulation.R) - R6 simulation framework
-- [inst/paper/main.tex](inst/paper/main.tex) - Methods manuscript (~221 lines)
-- [sims/config/scenarios.yaml](sims/config/scenarios.yaml) - Simulation parameter definitions
+- [R/tv_ball_correlation_IF_adaptive.R](R/tv_ball_correlation_IF_adaptive.R) - THE estimator (hit-and-run + IF inference + AIPW)
+- [R/tv_ball_sampling.R](R/tv_ball_sampling.R) - uniform hit-and-run sampler on the TV ball
+- [R/dgp_canonical.R](R/dgp_canonical.R) - `generate_dgp_data` + `canonical_dgp_params` (the 4 canonical DGPs)
+- [R/traditional_methods.R](R/traditional_methods.R) - PTE / mediation / within-study correlation (comparisons)
+- [inst/paper/main.tex](inst/paper/main.tex) - Methods manuscript (realigned)
+- [inst/paper/derivation_influence_functions.md](inst/paper/derivation_influence_functions.md) - IF derivation (code + proof reference)
+- [inst/presentation/slides.qmd](inst/presentation/slides.qmd) - CANONICAL source of truth
 
 ---
 
