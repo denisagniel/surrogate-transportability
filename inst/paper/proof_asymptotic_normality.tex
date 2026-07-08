@@ -120,13 +120,23 @@ where $\hat{\mu}_M = \frac{1}{M}\sum_{m=1}^M \delta_{\mathcal{Q}_m}$ and $\|\cdo
 The distribution $\mu$ has compact support in the weak topology: $\text{supp}(\mu)$ is compact.
 \end{assumption}
 
-\begin{assumption}[Sample size]
+\begin{assumption}[Sample size and MCMC regime]
 \label{assm:sample-size}
-$n \to \infty$ and either (i) $M$ is fixed at some $M \geq M_0$ large enough for MCMC convergence, or (ii) $M \to \infty$ as $n \to \infty$.
+$n \to \infty$. The primary (conditional) result treats the MCMC samples $\{\mathcal{Q}_m\}_{m=1}^M$ as fixed and holds for any $M \geq M_0$ large enough for the sampler to have reached its stationary regime. The \emph{unconditional} result, centered at the population target $\Theta(\mu)$, additionally requires $M = M(n) \to \infty$ with $n/M \to 0$ (equivalently $n = o(M)$), so that the MCMC term is asymptotically negligible relative to the $\sqrt{n}$ estimation term.
 \end{assumption}
 
-\begin{remark}[MCMC sample size]
-When $M$ is fixed, the MCMC approximation introduces a bias of order $O_P(M^{-1/2})$ that does not vanish as $n \to \infty$. However, this bias is independent of $n$ and negligible in practice for moderate $M$ (e.g., $M = 500$ gives bias $\approx 0.045$ standard deviations). When $M \to \infty$, this bias vanishes and we obtain exact asymptotic normality for $\Theta(\mu)$.
+\begin{assumption}[Non-degeneracy of across-study variances]
+\label{assm:nondegeneracy}
+There exists $c_0 > 0$ such that $\mathrm{Var}_\mu(\Delta_S(\mathcal{Q})) \geq c_0$ and $\mathrm{Var}_\mu(\Delta_Y(\mathcal{Q})) \geq c_0$. This guarantees the correlation functional and its gradient are well-defined; the asymptotic variance scales like $c_0^{-3}$ as the boundary is approached.
+\end{assumption}
+
+\begin{remark}[MCMC sample size and the two regimes]
+Decompose $\sqrt{n}(\hat{\Theta}_n - \Theta(\mu)) = \sqrt{n}(\hat{\Theta}_n - \Theta(\hat{\mu}_M)) + \sqrt{n}(\Theta(\hat{\mu}_M) - \Theta(\mu))$. The first term is $O_P(1)$ (the conditional CLT); the second is $\sqrt{n}\cdot O_P(M^{-1/2}) = O_P((n/M)^{1/2})$ by Lemma~\ref{lem:mcmc-error}. Hence:
+\begin{itemize}
+\item \textbf{Conditional regime (any moderate $M$):} inference targets the $M$-study correlation $\Theta(\hat{\mu}_M)$; the estimator's reported standard error is the conditional SE and is valid for $\Theta(\hat{\mu}_M)$. The residual $\Theta(\hat{\mu}_M) - \Theta(\mu) = O_P(M^{-1/2})$ is an MCMC approximation bias that does not vanish.
+\item \textbf{Unconditional regime ($n = o(M)$):} the MCMC term $O_P((n/M)^{1/2}) = o_P(1)$ vanishes and $\sqrt{n}(\hat{\Theta}_n - \Theta(\mu)) \xrightarrow{d} N(0,\sigma^2(\mu))$.
+\end{itemize}
+Note this requires $M$ to grow \emph{faster} than $n$ (not $M = o(n)$). In the numerical studies $M \approx 2100 \gg n^{1/2}$ per effective cell, and the estimation term dominates; we report the conditional SE.
 \end{remark}
 
 \subsection{Main Result}
@@ -149,8 +159,8 @@ where $\psi_S^{\text{AIPW}}(O; \eta, \mathcal{Q})$ and $\psi_Y^{\text{AIPW}}(O; 
 
 Furthermore:
 \begin{enumerate}[(a)]
-\item If $M$ is fixed, $\Theta(\hat{\mu}_M) - \Theta(\mu) = O_P(M^{-1/2})$ (MCMC approximation bias).
-\item If $M \to \infty$, $\Theta(\hat{\mu}_M) \to \Theta(\mu)$ in probability, and unconditionally:
+\item If $M$ is fixed (or grows slower than $n$), $\Theta(\hat{\mu}_M) - \Theta(\mu) = O_P(M^{-1/2})$ (MCMC approximation bias), and inference is for $\Theta(\hat{\mu}_M)$.
+\item If $M = M(n) \to \infty$ with $n/M \to 0$, the MCMC term $\sqrt{n}(\Theta(\hat{\mu}_M) - \Theta(\mu)) = O_P((n/M)^{1/2}) = o_P(1)$, and unconditionally:
 \begin{equation}
 \sqrt{n}(\hat{\Theta}_n - \Theta(\mu)) \xrightarrow{d} N(0, \sigma^2(\mu)).
 \end{equation}
@@ -163,7 +173,7 @@ Conditioning on MCMC samples separates two sources of randomness:
 \item \textbf{Sampling variation} (from finite $n$): Captured by the asymptotic distribution, rate $n^{-1/2}$.
 \item \textbf{MCMC approximation} (from finite $M$): Bias in target, magnitude $M^{-1/2}$.
 \end{itemize}
-When $M$ is large (e.g., $M = 500$), the MCMC bias is $\approx 4.5\%$ of a standard unit and typically negligible relative to sampling variation. When $M \to \infty$, the bias vanishes entirely.
+When $M$ is large relative to $n$, the MCMC bias $O_P(M^{-1/2})$ is negligible relative to the $O_P(n^{-1/2})$ sampling variation; formally it vanishes in the regime $n = o(M)$.
 \end{remark}
 
 \subsection{Proof of Theorem~\ref{thm:asymptotic-normality}}
@@ -172,7 +182,7 @@ When $M$ is large (e.g., $M = 500$), the MCMC bias is $\approx 4.5\%$ of a stand
 
 The proof proceeds in four main steps:
 \begin{enumerate}
-\item \textbf{MCMC approximation:} Show that the empirical measure over MCMC samples approximates $\mu$ at rate $M^{-1/2}$, which is $o(n^{-1/2})$ under Assumption~\ref{assm:sample-size}.
+\item \textbf{MCMC approximation:} Show (via a Markov chain CLT) that the empirical measure over MCMC samples approximates $\mu$ at rate $M^{-1/2}$. Relative to the $\sqrt{n}$ estimation term this contributes $O_P((n/M)^{1/2})$, negligible only in the unconditional regime $n = o(M)$ (Assumption~\ref{assm:sample-size}); otherwise inference is conditional on $\hat{\mu}_M$.
 \item \textbf{Treatment effect expansion (AIPW):} Establish Neyman orthogonality under reweighting (Lemma~\ref{lem:orthogonality}), verify conditions for cross-fitting with bounded weights (Lemma~\ref{lem:cross-fitting}), and obtain uniform influence function expansion with $o_P(n^{-1/2})$ remainder. Key innovation: bounded second derivatives + bounded weights give deterministic uniformity over MCMC samples.
 \item \textbf{Functional delta method:} Apply Hadamard differentiability to obtain the expansion for $\phi(\hat{\Delta}_S^n(\mathcal{Q}), \hat{\Delta}_Y^n(\mathcal{Q}))$.
 \item \textbf{Integration and CLT:} Average over $\mu$ (or its MCMC approximation) and apply the central limit theorem using uniform moment bounds.
@@ -191,11 +201,11 @@ Under Assumption~\ref{assm:geometry}, for any bounded measurable function $g: \t
 \end{lemma}
 
 \begin{proof}[Proof of Lemma~\ref{lem:mcmc-error}]
-By Assumption~\ref{assm:geometry}(b), the hit-and-run sampler produces $\mathcal{Q}_1, \ldots, \mathcal{Q}_M$ that are approximately independent draws from $\mu$ after burn-in. For bounded $g$, the CLT gives:
+The hit-and-run samples $\mathcal{Q}_1, \ldots, \mathcal{Q}_M$ form a \emph{dependent} Markov chain, not independent draws; we therefore invoke the Markov chain CLT rather than the i.i.d.\ CLT. By Assumption~\ref{assm:mcmc}, the chain is geometrically ergodic with stationary distribution $\mu$, and $g$ is bounded (hence in $L^2(\mu)$ with all polynomial moments). Under geometric ergodicity and a bounded (thus $L^{2+\delta}(\mu)$) functional, the Markov chain CLT holds \cite{jones2004markov, roberts2004general}:
 \begin{equation}
-\sqrt{M}(\mathbb{E}_{\hat{\mu}_M}[g] - \mathbb{E}_{\mu}[g]) = \sqrt{M}\left(\frac{1}{M}\sum_{m=1}^M g(\mathcal{Q}_m) - \mathbb{E}_{\mu}[g]\right) = O_P(1),
+\sqrt{M}\left(\frac{1}{M}\sum_{m=1}^M g(\mathcal{Q}_m) - \mathbb{E}_{\mu}[g]\right) \xrightarrow{d} N\!\left(0, \sigma_g^2\right),
 \end{equation}
-hence $|\mathbb{E}_{\hat{\mu}_M}[g] - \mathbb{E}_{\mu}[g]| = O_P(M^{-1/2})$.
+where $\sigma_g^2 = \mathrm{Var}_\mu(g(\mathcal{Q}_1)) + 2\sum_{k=1}^\infty \mathrm{Cov}_\mu(g(\mathcal{Q}_1), g(\mathcal{Q}_{1+k}))$ is the \emph{integrated-autocorrelation} asymptotic variance (finite by geometric ergodicity). Hence $\mathbb{E}_{\hat{\mu}_M}[g] - \mathbb{E}_{\mu}[g] = O_P(M^{-1/2})$. The rate is unchanged from the independent case; only the variance constant differs (it inflates by the integrated autocorrelation time). Applying this to $g = \phi(\Delta_S(\cdot), \Delta_Y(\cdot))$ (bounded under Assumptions~\ref{assm:treatment-effects} and \ref{assm:functional}) gives $\Theta(\hat{\mu}_M) - \Theta(\mu) = O_P(M^{-1/2})$.
 \end{proof}
 
 \begin{corollary}
@@ -208,7 +218,7 @@ Under Assumption~\ref{assm:sample-size}:
 \end{corollary}
 
 \begin{remark}
-In the fixed-$M$ case, the theorem establishes asymptotic normality for $\Theta(\hat{\mu}_M)$ (the MCMC-approximated target) rather than $\Theta(\mu)$ itself. The difference $|\Theta(\hat{\mu}_M) - \Theta(\mu)| = O_P(M^{-1/2})$ is a source of bias that does not vanish. In practice, with $M = 500$, this bias is approximately $2.2\%$ of the MCMC standard deviation, which is negligible relative to sampling variation when $n$ is moderate.
+In the fixed-$M$ case, the theorem establishes asymptotic normality for $\Theta(\hat{\mu}_M)$ (the MCMC-approximated target) rather than $\Theta(\mu)$ itself. The difference $|\Theta(\hat{\mu}_M) - \Theta(\mu)| = O_P(M^{-1/2})$ is a source of bias that does not vanish unless $M \to \infty$. It is negligible relative to $\sqrt{n}$ sampling variation precisely in the regime $n = o(M)$.
 \end{remark}
 
 \subsubsection{Step 2: Treatment effect expansion}
@@ -217,9 +227,9 @@ In the fixed-$M$ case, the theorem establishes asymptotic normality for $\Theta(
 For observational studies with estimated nuisances, we use augmented inverse probability weighting (AIPW). The influence functions are:
 \begin{align}
 \psi_S^{\text{AIPW}}(O; \eta, \mathcal{Q}) &= w(X; \mathcal{Q}) \Bigg[\frac{A(S - \mu_1^S(X))}{e(X)} - \frac{(1-A)(S - \mu_0^S(X))}{1-e(X)} \nonumber \\
-&\quad + \mu_1^S(X) - \mu_0^S(X) - \Delta_S(\mathcal{Q})\Bigg], \label{eq:aipw-s} \\
+&\quad + \mu_1^S(X) - \mu_0^S(X)\Bigg] - \Delta_S(\mathcal{Q}), \label{eq:aipw-s} \\
 \psi_Y^{\text{AIPW}}(O; \eta, \mathcal{Q}) &= w(X; \mathcal{Q}) \Bigg[\frac{A(Y - \mu_1^Y(X))}{e(X)} - \frac{(1-A)(Y - \mu_0^Y(X))}{1-e(X)} \nonumber \\
-&\quad + \mu_1^Y(X) - \mu_0^Y(X) - \Delta_Y(\mathcal{Q})\Bigg], \label{eq:aipw-y}
+&\quad + \mu_1^Y(X) - \mu_0^Y(X)\Bigg] - \Delta_Y(\mathcal{Q}), \label{eq:aipw-y}
 \end{align}
 where:
 \begin{itemize}
@@ -235,9 +245,11 @@ The AIPW influence function has three terms:
 \begin{enumerate}
 \item \textbf{IPW term:} $\frac{A(S - \mu_1^S(X))}{e(X)} - \frac{(1-A)(S - \mu_0^S(X))}{1-e(X)}$ (inverse probability weighting of residuals)
 \item \textbf{Regression term:} $\mu_1^S(X) - \mu_0^S(X)$ (predicted treatment effect)
-\item \textbf{Centering:} $-\Delta_S(\mathcal{Q})$ (ensures $\mathbb{E}_{\mathbb{P}_0}[\psi_S^{\text{AIPW}}] = 0$)
+\item \textbf{Centering:} the \emph{constant} $-\Delta_S(\mathcal{Q})$, subtracted \emph{outside} the importance weight, ensuring $\mathbb{E}_{\mathbb{P}_0}[\psi_S^{\text{AIPW}}] = 0$.
 \end{enumerate}
 This structure provides \textbf{double robustness}: the estimator is consistent if either the propensity score $e(X)$ or the outcome regressions $\mu_a(X)$ are correctly specified (not both required).
+
+Two features are specific to this estimand and distinguish it from the textbook difference-in-means AIPW score. First, the entire bracketed AIPW score, \emph{including} the regression term $\mu_1^S(X) - \mu_0^S(X)$, is multiplied by the importance weight $w(X;\mathcal{Q})$. This is correct because the target $\Delta_S(\mathcal{Q}) = \mathbb{E}_{\mathcal{Q}}[\mu_1^S(X) - \mu_0^S(X)]$ is an expectation under the \emph{fixed, external} composition $\mathcal{Q}$, not under $\mathbb{P}_0$; there is consequently no $\mathbb{P}_0$-covariate-law augmentation term. Second, the centering is the constant $-\Delta_S(\mathcal{Q})$, not $-w(X;\mathcal{Q})\Delta_S(\mathcal{Q})$: only constant centering yields a mean-zero per-observation influence function with the correct variance (see the companion derivation, \texttt{derivation\_influence\_functions.md}).
 \end{remark}
 
 \begin{remark}[Special case: RCTs]
@@ -381,6 +393,7 @@ By Lemma~\ref{lem:cross-fitting}, $\|(\hat{\Delta}_S^n, \hat{\Delta}_Y^n) - (\De
 \subsubsection{Step 4: Integration and CLT}
 
 \begin{proof}[Proof of Theorem~\ref{thm:asymptotic-normality}]
+We combine the preceding lemmas in four steps.
 
 \paragraph{Step 4.1: Condition on MCMC samples.}
 Throughout this proof, we condition on the MCMC samples $\{\mathcal{Q}_1, \ldots, \mathcal{Q}_M\}$, treating $\hat{\mu}_M$ as fixed. The estimator becomes:
@@ -463,6 +476,7 @@ Furthermore, if $M \to \infty$, then unconditionally $\hat{\sigma}^2_n \xrightar
 \end{proposition}
 
 \begin{proof}[Proof of Proposition~\ref{prop:variance-consistency}]
+Consistency follows in three steps, plus the unconditional extension.
 
 \paragraph{Step 1: $L^2$ convergence of AIPW influence functions.}
 By Assumption~\ref{assm:nuisance} (nuisance convergence rates) and the Lipschitz structure of the AIPW score:
@@ -507,10 +521,10 @@ For the correlation functional $\phi(\Delta_S, \Delta_Y) = \text{cor}_\mu(\Delta
 \phi(\Delta_S, \Delta_Y) = \frac{\mathbb{E}_\mu[\Delta_S \Delta_Y] - \mathbb{E}_\mu[\Delta_S]\mathbb{E}_\mu[\Delta_Y]}{\sqrt{\text{Var}_\mu(\Delta_S) \text{Var}_\mu(\Delta_Y)}}.
 \end{equation}
 
-The gradient can be computed via the delta method applied to the five base moments: $\mathbb{E}_\mu[\Delta_S]$, $\mathbb{E}_\mu[\Delta_Y]$, $\mathbb{E}_\mu[\Delta_S^2]$, $\mathbb{E}_\mu[\Delta_Y^2]$, $\mathbb{E}_\mu[\Delta_S \Delta_Y]$.
+Correlation is thus a smooth function $\varphi$ of the \emph{five base moments} $m(\mu) = (\mathbb{E}_\mu[\Delta_S], \mathbb{E}_\mu[\Delta_Y], \mathbb{E}_\mu[\Delta_S^2], \mathbb{E}_\mu[\Delta_Y^2], \mathbb{E}_\mu[\Delta_S \Delta_Y])$, i.e. $\Theta(\mu) = \varphi(m(\mu))$. This is the object to which the functional delta method applies: $\phi$ is not a fixed map $\mathbb{R}^2 \to \mathbb{R}$ of a single pair $(\Delta_S, \Delta_Y)$, but a functional of the across-study \emph{distribution} $\mu$ of the pair, expressed through these five $\mu$-moments. Each base moment is a smooth (polynomial) map of $(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q}))$ averaged over $\mathcal{Q} \sim \mu$, so the per-study gradient $\nabla\phi(\Delta_S(\mathcal{Q}_m), \Delta_Y(\mathcal{Q}_m))$ used in \eqref{eq:aipw-s}--\eqref{eq:aipw-y} and Lemma~\ref{lem:functional-expansion} is the chain-rule composition of $\nabla\varphi(m(\mu))$ with the moment derivatives.
 
 \begin{remark}
-Hadamard differentiability of the correlation functional holds whenever $\text{Var}_\mu(\Delta_S), \text{Var}_\mu(\Delta_Y) > 0$.
+The map $\varphi$ is continuously differentiable, hence Hadamard differentiable, on the region $\{\mathrm{Var}_\mu(\Delta_S) \geq c_0,\ \mathrm{Var}_\mu(\Delta_Y) \geq c_0\}$ guaranteed by Assumption~\ref{assm:nondegeneracy}; its gradient is bounded there (scaling like $c_0^{-3/2}$). This makes the non-degeneracy requirement explicit rather than implicit in a ``bounded gradient'' assumption, and localizes where the delta-method linearization degrades (as $c_0 \to 0$).
 \end{remark}
 
 \subsection{Post-Proof Audit}
