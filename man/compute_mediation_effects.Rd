@@ -31,7 +31,8 @@ Implementation uses the product-of-coefficients approach:
 Proportion mediated > 0.6 often used as threshold for "good" surrogate.
 }
 \examples{
-data <- generate_study_data(n = 500)
+spec <- canonical_dgp_params("dgp1")
+data <- generate_dgp_data(500, spec$params, spec$p_X, spec$X_levels)
 mediation <- compute_mediation_effects(data)
 
 }

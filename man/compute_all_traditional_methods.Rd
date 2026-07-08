@@ -7,7 +7,7 @@
 compute_all_traditional_methods(data, adjust_covariates = TRUE)
 }
 \arguments{
-\item{data}{Tibble with columns A, S, Y (and optionally X)}
+\item{data}{Data frame with columns A, S, Y (and optionally X)}
 
 \item{adjust_covariates}{Logical. Whether to adjust for covariates. Default: TRUE.}
 }
@@ -18,7 +18,8 @@ List with results from all methods.
 Convenience function to compute all traditional surrogate evaluation methods.
 }
 \examples{
-data <- generate_study_data(n = 500)
+spec <- canonical_dgp_params("dgp1")
+data <- generate_dgp_data(500, spec$params, spec$p_X, spec$X_levels)
 traditional <- compute_all_traditional_methods(data)
 
 }

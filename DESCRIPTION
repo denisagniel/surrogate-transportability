@@ -1,16 +1,18 @@
 Package: surrogateTransportability
 Type: Package
-Title: Surrogate Inference via Random Probability Distributions
-Version: 0.3.0
-Authors@R: person("Author", "Name", email = "author@example.com", role = c("aut", "cre"))
-Description: Implements surrogate marker evaluation using random probability distributions
-    to assess transportability across future studies. Provides both total variation (TV) ball
-    and Wasserstein ball minimax approaches with RF-ensemble type-level inference. The TV-ball
-    approach provides conservative bounds for arbitrary distributional changes, while the
-    Wasserstein ball approach offers tighter bounds for covariate shift scenarios. Both achieve
-    validated <2% approximation error. The method models future studies as draws from constraint
-    sets around the current study, enabling robust inference about surrogate quality across
-    diverse future populations.
+Title: Evaluating Surrogate Transportability via Local Geometric Analysis
+Version: 0.4.0
+Authors@R: person("Denis", "Agniel", email = "dagniel@rand.org", role = c("aut", "cre"))
+Description: Evaluates surrogate marker transportability from a single study by
+    modeling hypothetical future studies as random probability measures within a
+    local geometry around the observed study. The primary estimand is the
+    correlation of treatment effects on the surrogate and outcome across future
+    studies sampled uniformly (via hit-and-run MCMC) from a total-variation ball.
+    Treatment effects are estimated by importance weighting (randomized trials)
+    or cross-fitted augmented inverse probability weighting (observational
+    studies), with influence-function-based inference. Traditional comparison
+    methods (proportion of treatment effect, mediation, within-study correlation)
+    are also provided.
 License: MIT
 Encoding: UTF-8
 LazyData: true
@@ -18,27 +20,11 @@ RoxygenNote: 7.3.3
 Depends:
     R (>= 3.5.0)
 Imports:
-    dplyr,
-    tidyr,
-    purrr,
-    tibble,
-    ggplot2,
-    MCMCpack,
-    R6,
-    stats
+    stats,
+    mgcv,
+    ranger
 Suggests:
     testthat (>= 3.0.0),
     devtools,
     knitr,
-    rmarkdown,
-    future,
-    furrr,
-    mgcv,
-    ranger,
-    randomForest (>= 4.7-1.1),
-    quadprog (>= 1.5-8),
-    transport (>= 0.15-4),
-    lpSolve (>= 5.6.15),
-    Rsurrogate,
-    mediation,
-    pseval
+    rmarkdown

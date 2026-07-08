@@ -11,4 +11,8 @@ Decisions made 2026-07-08 for the canonical-realignment effort (see [[canonical-
 - **Correctness audit scope: canonical pipeline only** — do not deep-audit code slated for deletion.
 - **Sequencing:** correctness audit (read-only) happens BEFORE any deletion, so we don't remove a live dependency of the canonical path.
 
+Additional decisions (2026-07-08, after Phase 1.5):
+- **Legacy DGP family: DELETE.** Confirmed §9 Q1 — promote `generate_dgp_data` into `R/`, delete `data_generators.R` (+ `_corrected`, `generate_future_study` family) despite 28 legacy references (none on the canonical path).
+- **Cluster jobs: regenerate with the `setup-cluster-simulations` skill** from `~/RAND/tools/agent-assisted-research-meta` (template-driven O2 infra, canonical `simulations/<study>/` layout, run-id lifecycle, scratch/home discipline). This supersedes the ad-hoc `cluster/` + `sims/` directories. New Phase 2.5. HMS id `dma12`, scratch `/n/scratch/users/d/dma12/`.
+
 Master plan: `quality_reports/plans/2026-07-08_canonical-realignment-master-plan.md`.

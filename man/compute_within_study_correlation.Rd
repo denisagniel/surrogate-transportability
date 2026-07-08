@@ -35,7 +35,8 @@ current study. A high correlation (> 0.5) suggests S is associated with Y.
 Traditional methods often use cor(S, Y) > 0.5 as a threshold for "good" surrogate.
 }
 \examples{
-data <- generate_study_data(n = 500)
+spec <- canonical_dgp_params("dgp1")
+data <- generate_dgp_data(500, spec$params, spec$p_X, spec$X_levels)
 cor_within <- compute_within_study_correlation(data)
 
 }
