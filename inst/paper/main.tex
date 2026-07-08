@@ -47,9 +47,14 @@ Suppose we observe $n$ iid realizations of $\bO = (\bX, A, S, Y) \sim \PP_0$ in 
     &\Delta_S(\PP_0) = \E_{\PP_0}\{S(1) - S(0)\}
 \end{align*}
 
-Under suitable identification assumptions, $\Delta_S(\PP_0)$ and $\Delta_Y(\PP_0)$ are identified and can be estimated by standard methods (e.g., difference in means or influence-function-based estimators). However, for the purposes of determining surrogate quality, we wish to know how the surrogate would perform in \emph{future} studies. Consider a future study with distribution $\Q$; we would observe (an estimate of) $\Delta^S(\Q) = \E_{\Q}\{S(1) - S(0)\}$ but not $Y$, and we wish to know what $\Delta_S(\Q)$ implies about the unobservable $\Delta_Y(\Q) = \E_{\Q}\{Y(1) - Y(0)\}$. 
+Under suitable identification assumptions, $\Delta_S(\PP_0)$ and $\Delta_Y(\PP_0)$ are identified and can be estimated by standard methods (e.g., difference in means or influence-function-based estimators). However, for the purposes of determining surrogate quality, we wish to know how the surrogate would perform in \emph{future} studies. Consider a future study with distribution $\Q$; we would observe (an estimate of) $\Delta_S(\Q) = \E_{\Q}\{S(1) - S(0)\}$ but not $Y$, and we wish to know what $\Delta_S(\Q)$ implies about the unobservable $\Delta_Y(\Q) = \E_{\Q}\{Y(1) - Y(0)\}$.
 
-To formalize this, we must begin to characterize a class of future studies to which we might wish to generalize. We treat the study-specific distribution as a draw from a random probability measure $\cF$, so that both the current distribution $\PP_0$ and any future study distribution $\Q$ are (conceptually) draws from $\cF$. Our goal is to make inference about functionals $\phi(\cF)$ of the distribution of studies using the observed data from the current study. An example of a functional that may be of interest is the correlation between the two treatment effects $\Phi(\cF) = \frac{\Cov_{\cF}\{\Delta_S(\Q), \Delta_Y(\Q)\}}{\sqrt{\Var_\cF\{\Delta_S(\Q)\}\Var_\cF\{\Delta_Y(\Q)\}}}$. Our goal is to estimate $\Phi(\cF)$ for an appropriately chosen $\cF$, thereby characterizing how the surrogate--outcome relationship may behave in future studies.
+To formalize this, we characterize a class of future studies to which we might wish to generalize. We treat the future study distribution $\Q$ as a draw from a probability measure $\mu$ over study distributions (the ``random probability measure''), and make inference about functionals of the distribution of $\Q \sim \mu$ using data from the current study. Our primary functional is the correlation of the two treatment effects across studies,
+\[
+    \Theta(\mu) = \Corr_{\Q \sim \mu}\{\Delta_S(\Q), \Delta_Y(\Q)\}
+    = \frac{\Cov_{\mu}\{\Delta_S(\Q), \Delta_Y(\Q)\}}{\sqrt{\Var_\mu\{\Delta_S(\Q)\}\,\Var_\mu\{\Delta_Y(\Q)\}}}.
+\]
+We estimate $\Theta(\mu)$ for an appropriately chosen $\mu$, thereby characterizing how the surrogate--outcome relationship may behave in future studies. Section~\ref{sec:setting} specifies $\mu$ as the uniform measure on a local geometry around $\PP_0$; we write $\phi$ for a generic functional when results apply beyond correlation.
 
 \subsection{Local geometries for future studies}
 
@@ -86,7 +91,7 @@ While the finite support assumption allows for tractable computation, it is impo
 
 The finite support assumption operationalizes this by discretizing $\bX$ into $J$ bins and treating each bin as a cell. The choice of $J$ represents an approximation: as $J \to \infty$ (with $J = o(n)$), the discretized model approaches the continuous treatment effect function. In practice, $J$ should be chosen large enough to capture meaningful heterogeneity but small enough to avoid over-discretization (which increases estimation noise).
 
-This perspective clarifies that there are no ``true'' types---only varying treatment effects. Discretization schemes that align with treatment effect heterogeneity (e.g., partitioning on estimated $\tau(\bX)$) approximate the underlying continuous heterogeneity more faithfully than arbitrary covariate-based partitions.
+This perspective clarifies that the fundamental object is the continuous treatment-effect heterogeneity, not a set of discrete latent classes. Discretization schemes that align with this heterogeneity (e.g., partitioning on estimated $\tau(\bX)$) approximate it more faithfully than arbitrary covariate-based partitions.
 
 % and we can define a canonical non-informative prior.
 %
@@ -166,14 +171,13 @@ unconfoundedness, or instrumental variables), and admit $\sqrt{n}$-consistent
 estimators with influence functions satisfying $\E[\psi^2] < \infty$.
 
 \noindent\textbf{Assumption 3 (Functional smoothness).}\label{ass:smoothness}
-For the correlation functional, the function
-$H(\delta_S, \delta_Y) = \E_\mu[\rho(\Delta_S(\Q), \Delta_Y(\Q))]$
-(where the expectation is over $\Q \sim \mu$ on $U(\PP_0, \lambda; d)$, and $\rho$ denotes correlation)
-is continuously differentiable in $(\delta_S, \delta_Y)$ with bounded gradient
-$\|\nabla H\| < \infty$ in a neighborhood of $(\Delta_S(\PP_0), \Delta_Y(\PP_0))$.
-
-For the probability and conditional mean functionals, $H$ is Lipschitz continuous
-with constant $L_H < \infty$.
+For the correlation functional, write $\Theta = \varphi(m)$ as a function of the
+vector of moments
+$m = (\E_\mu \Delta_S, \E_\mu \Delta_Y, \E_\mu \Delta_S^2, \E_\mu \Delta_Y^2, \E_\mu \Delta_S\Delta_Y)$
+of the treatment-effect pair $(\Delta_S(\Q), \Delta_Y(\Q))$ over $\Q \sim \mu$ on
+$U(\PP_0, \lambda; d)$. The map $\varphi$ is continuously differentiable with
+bounded gradient $\|\nabla\varphi(m)\| < \infty$ on the region where the
+across-study variances are bounded away from zero (Assumption~\ref{ass:nondegeneracy}).
 
 \noindent\textbf{Assumption 4 (Non-degeneracy).}\label{ass:nondegeneracy}
 For the correlation functional, there exists $\epsilon > 0$ such that
@@ -186,8 +190,9 @@ where the variance is taken over $\Q \sim \mu$ on $U(\PP_0, \lambda; d)$
 
 \begin{remark}[On finite support]
 Assumption~\ref{ass:finite} (finite support, stated in Section~\ref{sec:setting}) is restrictive
-and primarily computational. It enables tractable simulation and a natural uniform
-prior $\mu = \text{Dirichlet}(1,\ldots,1)$. In practice, continuous outcomes can be
+and primarily computational. It renders the local geometry a convex body in the
+probability simplex, so the uniform measure $\mu$ on $U(\PP_0, \lambda; d)$ can be
+sampled by hit-and-run MCMC. In practice, continuous outcomes can be
 discretized into a fine grid (trading bias for computational feasibility), or
 replaced by kernel-based methods (left for future work). The asymptotic theory
 extends to growing support $k=k_n$ under additional rate conditions, but we do not
@@ -254,34 +259,38 @@ Under Assumptions~\ref{ass:bounded}--\ref{ass:smoothness}, the dominant term is
 (1) when $M = o(n)$ and MCMC has converged. Thus, $M = O(n^{1/2})$ suffices to make Monte Carlo error negligible compared to sampling error.
 
 \paragraph{Asymptotic normality.}
-Define the population estimand
+The population estimand $\Theta(\PP_0, \lambda)$ is the functional evaluated over the
+uniform measure $\mu$ on the local geometry; for the correlation functional,
 \[
-    \Theta(\PP_0) = \E_{\text{Uniform}}\left[\phi(\Q) \mid \Q \in U(\PP_0, \lambda; d)\right]
+    \Theta(\PP_0, \lambda) = \Corr_{\Q \sim \mu}\{\Delta_S(\Q), \Delta_Y(\Q)\}
+    = \frac{\Cov_\mu\{\Delta_S(\Q), \Delta_Y(\Q)\}}{\sqrt{\Var_\mu\{\Delta_S(\Q)\}\,\Var_\mu\{\Delta_Y(\Q)\}}},
 \]
-as the expected value of the surrogate quality functional $\phi$ (e.g., correlation of treatment effects) under a uniform distribution over the local geometry. This quantifies average surrogate performance across all plausible future studies within distance $\lambda$ of $\PP_0$.
+a single functional of the distribution over $\Q \sim \mu$ (not an average of a
+per-study quantity), consistently estimated by the sample correlation of the $M$
+treatment-effect pairs $\{(\hat\Delta_S(\Q_m), \hat\Delta_Y(\Q_m))\}_{m=1}^M$.
 
 \begin{proposition}\label{prop:asymptotic}
 Suppose Assumptions~\ref{ass:bounded}--\ref{ass:nondegeneracy} hold. For fixed $\lambda$ and $d$,
-with $M = o(n)$ and after MCMC burn-in,
+conditional on the $M$ sampled studies and after MCMC burn-in,
 \[
-    \sqrt{n}(\hat{\phi}_n(\lambda) - \Theta(\PP_0))
+    \sqrt{n}\{\hat{\Theta}_n(\lambda) - \Theta(\PP_0, \lambda)\}
     \xrightarrow{d} N(0, \sigma^2(\lambda))
 \]
-where $\sigma^2(\lambda) = \E[\psi_\Theta(O; \PP_0)^2]$ for an influence function $\psi_\Theta$ that accounts for both treatment effect estimation error and geometric characterization.
+where $\sigma^2(\lambda) = \E[\psi_\Theta(O; \PP_0)^2]$ for an influence function $\psi_\Theta$ that accounts for treatment effect estimation error. The Monte Carlo error from finite $M$ is $O_p(M^{-1/2})$ and is negligible relative to the $\sqrt{n}$ term when $M$ grows faster than $n$; otherwise inference is conditional on the sampled studies. A complete statement, including the two regimes, appears in the supplementary material.
 \end{proposition}
 
 \begin{proof}[Proof sketch]
 The proof proceeds in two stages, corresponding to the two-stage structure of the estimator.
 
-\textit{Stage 1: Treatment effects.} For each $\Q \in U(\PP_0, \lambda; d)$, the treatment effects $\Delta_S(\Q)$ and $\Delta_Y(\Q)$ are estimated via deterministic reweighting. In RCTs, these are weighted means with influence functions
+\textit{Stage 1: Treatment effects.} For each $\Q \in U(\PP_0, \lambda; d)$, the treatment effects $\Delta_S(\Q)$ and $\Delta_Y(\Q)$ are estimated via deterministic reweighting. In RCTs with treatment probability $\pi = \PP_0(A=1)$, the weighted difference in means has influence function
 \[
-    \psi_{\Delta_S}(O; \Q) = w(\Q, O) \left[A \cdot S - (1-A) \cdot S - \Delta_S(\Q)\right]
+    \psi_{\Delta_S}(O; \Q) = w(\Q, O) \left[\frac{A\,(S - m_{S,1})}{\pi} - \frac{(1-A)\,(S - m_{S,0})}{1-\pi}\right],
 \]
-where $w(\Q, O) = q(O)/p_0(O)$ is the importance weight. In observational studies with cross-fitted AIPW, the influence function takes the doubly-robust form that removes nuisance parameter estimation bias (Chernozhukov et al., 2018).
+where $w(\Q, O) = q(O)/p_0(O)$ is the importance weight and $m_{S,a}$ is the (weighted) mean of $S$ in arm $a$. In observational studies with cross-fitted AIPW, the influence function takes the doubly-robust form that removes nuisance parameter estimation bias \cite{chernozhukov2018}.
 
-\textit{Stage 2: Functional aggregation.} The functional $\phi$ (e.g., correlation) aggregates the treatment effect pairs $\{(\Delta_S(\Q_m), \Delta_Y(\Q_m))\}_{m=1}^M$ over the geometry. By Hadamard differentiability of $\phi$ (continuous functionals on bivariate distributions under Assumption~\ref{ass:smoothness}), the functional delta method applies. Averaging over $M = o(n)$ MCMC draws and invoking ergodicity of hit-and-run yields the overall influence function $\psi_\Theta$, leading to asymptotic normality.
+\textit{Stage 2: Functional aggregation.} For the correlation functional, $\Theta$ is a smooth function of five moments of the distribution of $(\Delta_S(\Q), \Delta_Y(\Q))$ over $\Q \sim \mu$ ($\E_\mu \Delta_S$, $\E_\mu \Delta_Y$, $\E_\mu \Delta_S^2$, $\E_\mu \Delta_Y^2$, $\E_\mu \Delta_S\Delta_Y$). By Hadamard differentiability (Assumption~\ref{ass:smoothness}, with the non-degeneracy of Assumption~\ref{ass:nondegeneracy}), the functional delta method composes the Stage-1 influence functions with the moment gradient to yield the overall influence function $\psi_\Theta$, giving asymptotic normality.
 
-A complete derivation is provided in the supplementary materials, where we establish asymptotic normality for both randomized and observational studies. For observational studies with cross-fitted AIPW, the key insight is Neyman orthogonality under reweighting: the weighted AIPW functional satisfies $\frac{\partial}{\partial\eta}\theta_w(\eta_0; \mathcal{Q}) = 0$, eliminating first-order nuisance bias. Combined with $o_P(n^{-1/4})$ nuisance convergence rates and bounded second derivatives, the remainder is $o_P(n^{-1/2})$ uniformly over MCMC samples. See supplementary materials for explicit influence function formulas, verification of Chernozhukov et al.\ (2018) conditions, and MCMC convergence rates.
+A complete derivation is provided in the supplementary material, for both randomized and observational studies. For observational studies with cross-fitted AIPW, the key property is Neyman orthogonality under reweighting, which combined with $o_P(n^{-1/4})$ nuisance convergence rates yields an $o_P(n^{-1/2})$ remainder uniformly over the sampled studies. The Monte Carlo term is handled by a Markov chain central limit theorem for the geometrically ergodic hit-and-run sampler.
 \end{proof}
 
 \paragraph{Bootstrap inference.}
@@ -340,7 +349,7 @@ After a burn-in period (typically $B = 100$ iterations), the chain converges to 
 \paragraph{Computational considerations.}
 The key computational bottleneck is solving for $[\alpha_{\min}, \alpha_{\max}]$ at each iteration, which requires checking TV-distance constraints. For finite support with $k$ cells, this is $O(k)$ per iteration. With $M = 1000$ MCMC draws and $B = 100$ burn-in, total cost is approximately $(M + B) \times k$ distance evaluations plus treatment effect computations on reweighted data.
 
-For moderate sample sizes ($n = 500$, $k = 50$ cells), hit-and-run with $M = 1000$ takes 1-2 seconds on standard hardware. The method scales linearly in $k$, making it practical for problems with tens to hundreds of cells (corresponding to discretized covariate spaces or types).
+For moderate sample sizes ($n = 500$, $k = 50$ cells), hit-and-run with $M = 1000$ takes 1-2 seconds on standard hardware. The method scales linearly in $k$, making it practical for problems with tens to hundreds of cells (corresponding to discretized covariate spaces).
 
 Unlike Dirichlet-based sampling of the simplex---whose concentration around $\PP_0$ depends on a scale parameter and which does not yield the uniform measure on a distance ball---hit-and-run targets the uniform measure on $U(\PP_0, \lambda; d_{\mathrm{TV}})$ directly, giving each direction of deviation equal weight.
 
@@ -392,9 +401,10 @@ DGP & $\gamma_A$ & $\gamma_{AX}$ & $\beta_A$ & $\beta_{AX}$ & $\beta_S$ & $\beta
 \end{table}
 
 DGP~1 has high mediation and moderate positive correlation (a baseline where PTE
-and correlation broadly agree). DGP~2 has opposite-signed treatment--covariate
-interactions ($\gamma_{AX} > 0$, $\beta_{AX} < 0$), yielding strong \emph{negative}
-correlation despite moderate PTE. DGP~3 has weak mediation ($\beta_S = 0.3$, PTE
+and correlation broadly agree). DGP~2 differs from DGP~1 mainly through a stronger
+negative surrogate--covariate interaction ($\beta_{SX} = -0.15$) and weaker direct
+mediation ($\beta_S = 0.6$), which together drive a strong \emph{negative}
+across-study correlation despite moderate PTE. DGP~3 has weak mediation ($\beta_S = 0.3$, PTE
 $=0.30$) but effect modification that scales both effects together, giving
 near-perfect correlation---low PTE does not imply a poor surrogate. DGP~4 has
 antisymmetric treatment effects and a symmetric $\PP_0$, so $\Delta_Y(\PP_0)
@@ -431,17 +441,19 @@ Section~\ref{sec:estimation}.
 
 \subsection{When PTE misleads}\label{sec:pte-misleads}
 
-The four DGPs already show two regimes in which PTE and the across-study
-correlation diverge: DGP~3, where low PTE (0.30) coexists with near-perfect
-transportability, and DGP~4, where PTE is undefined ($\Delta_Y(\PP_0) \approx 0$)
-yet the correlation is well-defined and near one. A third, sharper illustration
-arises with opposite-signed effect modification calibrated so that PTE at $\PP_0$
-suggests a good surrogate while the treatment effects are uncorrelated across
-studies: a setting with $\mathrm{PTE}(\PP_0) \approx 0.54$ but across-study
-$\mathrm{cor}(\Delta_S, \Delta_Y) \approx 0.00$. Mediation analysis would approve
-such a surrogate, but its effects do not co-vary across populations, so it fails
-to transport. The local geometric evaluation correctly identifies this fragility,
-whereas PTE does not.
+The four DGPs show three regimes in which PTE and the across-study correlation
+diverge. In DGP~2, PTE is moderate ($0.53$) and would not obviously disqualify the
+surrogate, yet the across-study correlation is strongly \emph{negative} ($-0.88$):
+treatment effects move in opposite directions across populations, so the surrogate
+does not transport. In DGP~3, low PTE ($0.30$) coexists with near-perfect
+transportability---low mediation does not imply a poor surrogate. In DGP~4, PTE is
+undefined ($\Delta_Y(\PP_0) \approx 0$) yet the correlation is well-defined and
+near one. In each case mediation-based reasoning is either misleading or
+inapplicable, while the local geometric evaluation returns a well-defined
+transportability assessment. More generally, opposite-signed effect modification
+on surrogate and outcome can make PTE at $\PP_0$ look favorable while treatment
+effects are nearly uncorrelated across studies; such a configuration is a natural
+target for the finite-sample studies in Section~\ref{sec:sim-future}.
 
 \subsection{Further numerical studies (in progress)}\label{sec:sim-future}
 
