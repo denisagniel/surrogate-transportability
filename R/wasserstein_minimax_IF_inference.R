@@ -93,6 +93,10 @@
 #'   "kernel" (local linear regression). Default: "lm"
 #' @param bandwidth Numeric. Bandwidth for kernel method. If NULL, uses Silverman's
 #'   rule. Default: NULL. Only used when method="kernel"
+#' @param use_propensity_scores Logical. Estimate propensity scores for doubly robust
+#'   corrections? If FALSE, assumes randomized treatment (e=0.5). Default: FALSE
+#' @param propensity_method Character. Method for propensity score estimation:
+#'   "logistic", "gam", or "rf". Only used if use_propensity_scores=TRUE. Default: "logistic"
 #'
 #' @export
 wasserstein_minimax_IF_inference <- function(data,
@@ -102,7 +106,9 @@ wasserstein_minimax_IF_inference <- function(data,
                                               K = 5,
                                               alpha = 0.05,
                                               method = "lm",
-                                              bandwidth = NULL) {
+                                              bandwidth = NULL,
+                                              use_propensity_scores = FALSE,
+                                              propensity_method = "logistic") {
 
   # Validate inputs
   required_cols <- c("A", "S", "Y")
@@ -126,6 +132,22 @@ wasserstein_minimax_IF_inference <- function(data,
   all_IF <- numeric(n)
   tau_s_hat_all <- numeric(n)
   tau_y_hat_all <- numeric(n)
+  e_hat_all <- numeric(n)
+
+  # Estimate propensity scores (once, for all folds)
+  if (use_propensity_scores) {
+    ps_result <- estimate_propensity_score(
+      data = data,
+      covariates = covariates,
+      method = propensity_method,
+      cross_fit = TRUE,
+      K = K
+    )
+    e_hat_all <- ps_result$e_hat
+  } else {
+    # Randomized treatment assumption
+    e_hat_all <- rep(0.5, n)
+  }
 
   # Cross-fitting loop
   for (k in 1:K) {
@@ -138,6 +160,9 @@ wasserstein_minimax_IF_inference <- function(data,
     # Estimate nuisances on training data
     nuisances <- estimate_nuisances_crossfit(train_data, test_data, covariates,
                                               method, bandwidth)
+
+    # Add propensity scores to nuisances
+    nuisances$e_hat <- e_hat_all[test_idx]
 
     # Store treatment effect estimates
     tau_s_hat_all[test_idx] <- nuisances$tau_S_hat
@@ -348,15 +373,18 @@ compute_IF_fold_wasserstein <- function(test_data, nuisances, covariates,
     }
     term2 <- mean(inner_contrib) + tau
 
-    # TERM 3 (NUISANCE): from estimating h(X_k)
-    IF_tau_S_k <- compute_IF_tau_wasserstein(obs, "S",
-                                               nuisances$mu_S1_hat[k],
-                                               nuisances$mu_S0_hat[k])
-    IF_tau_Y_k <- compute_IF_tau_wasserstein(obs, "Y",
-                                               nuisances$mu_Y1_hat[k],
-                                               nuisances$mu_Y0_hat[k])
-
-    IF_h_k <- tau_S_hat[k] * IF_tau_Y_k + tau_Y_hat[k] * IF_tau_S_k
+    # TERM 3 (NUISANCE): from estimating h(X_k) = τ_S(X_k) · τ_Y(X_k)
+    # Use proper doubly robust IF for product (not simplified version)
+    IF_h_k <- compute_IF_product_wasserstein(
+      obs,
+      tau_S_hat[k],
+      tau_Y_hat[k],
+      nuisances$mu_S1_hat[k],
+      nuisances$mu_S0_hat[k],
+      nuisances$mu_Y1_hat[k],
+      nuisances$mu_Y0_hat[k],
+      nuisances$e_hat[k]
+    )
 
     # CORRECTED FORMULA: no (1/n) factor
     term3 <- sum(W[k, ]) * IF_h_k
@@ -387,4 +415,68 @@ compute_IF_tau_wasserstein <- function(obs, outcome, mu1_hat, mu0_hat) {
 
   IF_val <- A * (Y - mu1_hat) / e - (1 - A) * (Y - mu0_hat) / (1 - e)
   return(IF_val)
+}
+
+
+#' Compute Doubly Robust IF for Product h(X) = τ_S(X) · τ_Y(X) (Internal)
+#'
+#' Computes the efficient influence function for E[τ_S(X) · τ_Y(X)] using
+#' doubly robust corrections. Based on the EIF derivation in functional_cate_covariance.R.
+#'
+#' This is the proper EIF for the product functional, NOT the simplified version
+#' τ_S · IF_Y + τ_Y · IF_S (which is only correct under special conditions).
+#'
+#' @param obs Single observation (row from data frame)
+#' @param tau_S Estimated τ_S(X) for this observation
+#' @param tau_Y Estimated τ_Y(X) for this observation
+#' @param mu_S1 Estimated E[S|A=1,X] for this observation
+#' @param mu_S0 Estimated E[S|A=0,X] for this observation
+#' @param mu_Y1 Estimated E[Y|A=1,X] for this observation
+#' @param mu_Y0 Estimated E[Y|A=0,X] for this observation
+#' @param e Propensity score e(X) = P(A=1|X) for this observation
+#'
+#' @return Numeric: Doubly robust IF value for product
+#' @keywords internal
+compute_IF_product_wasserstein <- function(obs, tau_S, tau_Y,
+                                            mu_S1, mu_S0, mu_Y1, mu_Y0, e) {
+  A <- obs$A
+  S <- obs$S
+  Y <- obs$Y
+
+  # Doubly robust correction for E[τ_S · τ_Y]
+  # Based on functional_cate_covariance.R lines 193-197
+  #
+  # When A=1: correction involves residuals (S - μ_S1) and (Y - μ_Y1)
+  # When A=0: correction involves residuals (S - μ_S0) and (Y - μ_Y0)
+  #
+  # The product correction is:
+  # (A/e) * [(S - μ_S1)·τ_Y + (Y - μ_Y1)·τ_S + (S - μ_S1)·(Y - μ_Y1)]
+  # - ((1-A)/(1-e)) * [(S - μ_S0)·τ_Y + (Y - μ_Y0)·τ_S + (S - μ_S0)·(Y - μ_Y0)]
+
+  if (A == 1) {
+    # Treated arm correction
+    resid_S <- S - mu_S1
+    resid_Y <- Y - mu_Y1
+
+    correction <- (1 / e) * (
+      resid_S * tau_Y +
+      resid_Y * tau_S +
+      resid_S * resid_Y
+    )
+
+  } else {
+    # Control arm correction
+    resid_S <- S - mu_S0
+    resid_Y <- Y - mu_Y0
+
+    correction <- -(1 / (1 - e)) * (
+      resid_S * tau_Y +
+      resid_Y * tau_S +
+      resid_S * resid_Y
+    )
+  }
+
+  # IF value: This is the centered correction for the product
+  # (It will be combined with the plug-in estimate τ_S · τ_Y elsewhere)
+  return(correction)
 }

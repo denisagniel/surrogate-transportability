@@ -1,7 +1,8 @@
 ---
 title: "Evaluating Surrogate Transportability via Local Geometric Analysis"
-author: "Daniel Agniel, RAND Corporation"
-date: "2026-04-29"
+subtitle: ""
+author: "<span class='yellow'>Denis Agniel</span>, <span style='color: white;'>RAND</span>"
+date: "May 12, 2026"
 format:
   revealjs:
     embed-resources: true
@@ -9,6 +10,8 @@ format:
     slide-number: true
     chalkboard: false
     preview-links: auto
+    title-slide-attributes:
+      data-notes: "Joint work with Layla Parast. Supported by NIDDK R01DK118354."
 ---
 
 ## What is a Surrogate Endpoint? {.smaller}
@@ -24,24 +27,10 @@ format:
 | PPI/ML | ML prediction | Gold-standard label |
 | Observational | Admin claims | Chart review |
 
-::: {.notes}
-A surrogate is any measurement that's cheaper, faster, or more abundant than the gold-standard outcome. In clinical trials, that's CD4 count measured in months versus mortality in years. In machine learning and prediction-powered inference, it's an ML prediction from cheap features versus expensive gold-standard labels. In observational studies, it's administrative claims versus chart review, or wearable sensors versus clinical visits. The common thread: we want to use the abundant surrogate S to infer treatment effects on the rare outcome Y.
-:::
-
----
-
-## Why Surrogates Matter {.smaller}
-
-**Applications:**
-
-- **Clinical trials:** Accelerate development, reduce costs, enable early stopping
-- **PPI/ML:** Large surrogate dataset + small gold-standard labels
-- **Observational:** Admin data abundant, chart review costly
-
 **Universal challenge:** Must work in [**future studies/populations**]{.yellow}, not just where validated
 
 ::: {.notes}
-Surrogates matter far beyond clinical trials. In prediction-powered inference, we have small gold-standard datasets and large surrogate datasets—ML models predict expensive outcomes from cheap features. In observational studies, administrative data is abundant while chart review is costly. The common thread: we need to know if the surrogate relationship will hold in future studies with different populations, different covariate distributions, different effect heterogeneity. This is fundamentally a question of transportability.
+A surrogate is any measurement that's cheaper, faster, or more abundant than the gold-standard outcome. In clinical trials, that's CD4 count measured in months versus mortality in years. In machine learning and prediction-powered inference, it's an ML prediction from cheap features versus expensive gold-standard labels. In observational studies, it's administrative claims versus chart review, or wearable sensors versus clinical visits. The common thread: we want to use the abundant surrogate S to infer treatment effects on the rare outcome Y.
 :::
 
 ---
@@ -57,13 +46,9 @@ $$\text{Indirect}(\mathbb{P}_0) = \mathbb{E}_{\mathbb{P}_0}[Y(1, S(1)) - Y(1, S(
 **PTE:** Proportion of treatment effect
 $$\text{PTE}(\mathbb{P}_0) = \frac{\text{Indirect}(\mathbb{P}_0)}{\text{Total}(\mathbb{P}_0)}$$
 
-If PTE ≈ 1, knowing $\Delta_S$ (surrogate effect) tells you most of the information in $\Delta_Y$ (outcome effect) **in this study**
-
 ::: {.blue}
-**LIMITATION: Current study estimand**
+**LIMITATION: Current study estimand: functionals of $\mathbb{P}_0$ only**
 :::
-
-Functionals of $\mathbb{P}_0$ only — assumes they transport to future studies
 
 ::: {.notes}
 The standard approach is mediation analysis. We observe A, S, Y from distribution P₀—the current study. The total effect is the expected difference in potential outcomes Y(1) minus Y(0) under P₀. The indirect effect uses nested potential outcomes: Y under treatment but with surrogate set to its value under treatment versus control, again under P₀. PTE—proportion of treatment effect—is the ratio of indirect to total, both functionals of P₀. If PTE is high, most of the effect goes through S in this study. But the critical limitation: these are functionals of P₀ only. They measure how S and Y relate in the current study and assume this relationship transports to future studies. They don't quantify transportability—they assume it.
@@ -75,16 +60,13 @@ The standard approach is mediation analysis. We observe A, S, Y from distributio
 
 **Approach:** Define strata in $\mathbb{P}_0$ by potential surrogate values $S(0)$, $S(1)$
 
-- For binary $S$: 4 strata (never-takers, compliers, always-takers, defiers)
+- For binary $S$: 4 strata (e.g., S(0) = 0, S(1) = 1)
 - Examine $\Delta_Y$ within each stratum
-- Good surrogate: Large $\Delta_Y$ where $S$ responds
+- Good surrogate: Large $\Delta_Y$ in strata where $S$ changes (i.e., $S(1) \neq S(0)$)
 
 ::: {.blue}
-**LIMITATIONS:**
+**LIMITATIONS: Current study estimand and continuous $S$ difficult**
 :::
-
-1. **Current study estimand** — functionals of $\mathbb{P}_0$ (assumes transportability)
-2. **Binary/categorical $S$ only** — continuous $S$ intractable without more assumptions
 
 ::: {.notes}
 Principal stratification defines strata in the observed study P₀ based on potential surrogate values—for binary S, four strata. The idea: if treatment only affects the outcome in strata where it affects the surrogate, that's a good surrogate. But this approach has two critical limitations. First, like mediation, it identifies functionals of P₀—the current study—and assumes they transport. Second, it essentially requires binary or categorical surrogates. With continuous S, you have infinite strata, which is intractable. In practice, you must discretize—CD4 count becomes high versus low—losing information and imposing arbitrary cutpoints. This limits applicability severely.
@@ -94,7 +76,7 @@ Principal stratification defines strata in the observed study P₀ based on pote
 
 ## Current Methods 3/3: Meta-Analysis {.smaller}
 
-**Approach (Buyse et al. 2000):**
+**Approach:**
 
 - Collect multiple completed studies: $\mathbb{P}_1, \mathbb{P}_2, \ldots, \mathbb{P}_5$
 - Compute $\Delta_S(\mathbb{P}_j)$, $\Delta_Y(\mathbb{P}_j)$ in each
@@ -103,8 +85,6 @@ Principal stratification defines strata in the observed study P₀ based on pote
 ::: {.yellow}
 **ADVANTAGE: Future study estimand** ✓
 :::
-
-Directly measures variation across realized studies
 
 ::: {.blue}
 **LIMITATIONS: Requires 5-10+ studies**
@@ -119,9 +99,9 @@ Meta-analysis offers a fundamentally different approach. Buyse and colleagues co
 ## Summary: Method Trade-offs {.smaller}
 
 | Method | Future Study? | Continuous S? | Single Study? |
-|--------|---------------|---------------|---------------|
+|:----------------------|:-------------:|:-------------:|:-------------:|
 | Mediation/PTE | ✗ | ✓ | ✓ |
-| Principal Strat | ✗ | ✗ | ✓ |
+| Principal Stratification | ✗ | ✗ | ✓ |
 | Meta-Analysis | ✓ | ✓ | ✗ |
 
 ::: {.yellow}
@@ -129,7 +109,7 @@ Meta-analysis offers a fundamentally different approach. Buyse and colleagues co
 :::
 
 - Future study estimand (like meta-analysis)
-- Works for any $S$ (like mediation)
+- Works for any $S$ (like mediation/meta-)
 - Single study (like mediation/PS)
 
 ::: {.notes}
@@ -144,10 +124,10 @@ Let's step back and compare these approaches. Mediation and PTE measure relation
 
 **How:**
 
-1. Define distribution of "plausible" future studies
+1. Define [distribution of "plausible" future studies]{.yellow}
 2. Sample $\mathcal{Q}_1, \ldots, \mathcal{Q}_M$ from this distribution
 3. Compute $\Delta_S(\mathcal{Q})$, $\Delta_Y(\mathcal{Q})$ for each
-4. Estimate $\text{cor}(\Delta_S, \Delta_Y)$ **across** sampled studies
+4. Estimate $\text{cor}(\Delta_S, \Delta_Y)$ (or some other functional) **across** sampled studies
 
 ::: {.yellow}
 **All three checkmarks:** ✓✓✓
@@ -203,15 +183,34 @@ The framework is fully general. We estimate functionals of the distribution μ o
 
 ![](figures/slide11_local_geometry.png){width=55%}
 
-*Ball of distributions within distance λ of P₀*
+*Ball of radius [**λ**]{.yellow} containing distributions within distance λ of P₀*
 
 **Local geometry:** $U(\mathbb{P}_0, \lambda; d) = \{\mathcal{Q} : d(\mathcal{Q}, \mathbb{P}_0) \leq \lambda\}$
 
 $\mu = \text{Uniform}(U(\mathbb{P}_0, \lambda; d))$ — all $\mathcal{Q}$'s within distance $\lambda$ equally likely
 
+**Key parameter:** [**λ**]{.yellow} controls how different future studies $Q$ can be from observed study $\mathbb{P}_0$
+
 
 ::: {.notes}
 Now, how do we choose the distribution μ? There are several approaches. You could elicit expert opinions about plausible futures, use historical variation if multiple studies exist, or perform sensitivity analysis across multiple μ's. Our approach today—local geometries—provides a conservative, non-informative baseline. We define a ball: all distributions within distance λ of P₀. Then we use the uniform distribution on that ball, treating all directions of deviation equally. This is conservative because it doesn't privilege any particular direction of change. And it's flexible—you can use any distance metric that captures the deviations you care about.
+:::
+
+---
+
+## The Method: Step by Step {.smaller}
+
+**How it works:**
+
+1. [**Fix distance λ**]{.yellow} — How far from $\mathbb{P}_0$ should we look?
+2. [**Sample $\mathcal{Q}$'s from ball**]{.yellow} — Generate M hypothetical future studies
+3. [**Compute effects in each $\mathcal{Q}$**]{.yellow} — Reweight observed data to get ΔS(Q), ΔY(Q)
+4. [**Estimate correlation**]{.yellow} — Across sampled Q's: cor(ΔS, ΔY)
+5. [**Report with uncertainty**]{.yellow} — 95% CI via influence function
+
+
+::: {.notes}
+Let me make the method concrete. First, we fix a distance λ—this is how far from the observed study we're willing to look. Smaller λ means only very similar studies; larger λ includes more diverse futures. Second, we sample many hypothetical studies Q from the ball—typically 100 to 500 via MCMC. Third, for each sampled Q, we compute treatment effects by reweighting the observed data using importance weights. Fourth, we estimate the correlation across these sampled studies. Fifth, we report the estimate with a confidence interval using the influence function. In practice, we repeat this for multiple λ values to see how correlation changes with distance—flat line means robust, steep decline means fragile.
 :::
 
 ---
@@ -221,6 +220,7 @@ Now, how do we choose the distribution μ? There are several approaches. You cou
 **Practical choice:** Restrict to $\mathcal{Q} \ll \mathbb{P}_0$ (absolute continuity)
 
 **What this means:**
+
 - $\mathcal{Q}$ supported on support of $\mathbb{P}_0$
 - Future studies differ in **population composition**, not covariate values
 - Example: $\mathbb{P}_0$ (30% elderly) → $\mathcal{Q}$ (60% elderly) ✓
@@ -288,31 +288,12 @@ The estimator is straightforward: sample many future studies from the geometry, 
 
 ::: {.yellow}
 **Key insight:** Effect modification in opposite directions → surrogate fails across populations
+
+**This demonstrates the method works:** Correctly identifies surrogate failure where PTE misleads
 :::
 
 ::: {.notes}
 Here's a concrete example where PTE misleads. Imagine treatment effects are modified by patient characteristics—age, disease severity, baseline risk. In the observed study P₀ with average characteristics, we measure PTE of 0.54, suggesting a decent surrogate. Mediation analysis would likely approve it. But the treatment-covariate interactions have opposite signs: the surrogate effect increases with patient severity while the outcome effect decreases. As we sample hypothetical future studies with different population mixes—shown as points colored by average severity—the treatment effects diverge. The correlation across studies is essentially zero. Our geometric approach correctly identifies this fragility. The key insight: when effect modification operates in opposite directions on the surrogate versus outcome, a surrogate that looks good in one population will fail to transport.
-:::
-
----
-
-## Sampling: Hit-and-Run MCMC
-
-**Algorithm:**
-
-1. Start at $\mathcal{Q}_t \in U(\mathbb{P}_0, \lambda)$
-2. Draw random direction $v$ (uniform on unit sphere)
-3. Sample uniformly along line segment within ball → $\mathcal{Q}_{t+1}$
-4. Repeat with burn-in
-
-**Properties:**
-
-- Converges to uniform on convex geometries (TV, Wasserstein balls are convex)
-- $M = 100$-500 samples sufficient
-- Validated convergence (R-hat ≈ 1.0)
-
-::: {.notes}
-To sample uniformly from the geometry, we use hit-and-run MCMC, a standard method for convex bodies. Start at a point, pick a random direction uniformly from the unit sphere, move uniformly along the line segment that stays in the ball. TV and Wasserstein balls are convex, so this converges to uniform. After burn-in, this converges to the uniform distribution. We've validated convergence is essentially perfect with R-hat near 1.
 :::
 
 ---
@@ -322,7 +303,7 @@ To sample uniformly from the geometry, we use hit-and-run MCMC, a standard metho
 **Asymptotic result:**
 $$\sqrt{n}(\hat{\Theta} - \Theta) \xrightarrow{d} N(0, \sigma^2(\lambda))$$
 
-where $n$ = sample size, $M$ = number of sampled studies
+where $n$ = sample size
 
 **Two sources of uncertainty:**
 
@@ -333,6 +314,7 @@ where $n$ = sample size, $M$ = number of sampled studies
 
 - Stage 1: Treatment effects (doubly-robust AIPW)
 - Stage 2: Functional delta method
+- Requires some management of EIF across generated future studies
 
 ::: {.notes}
 Inference uses a two-stage functional delta method. The √n rate comes from estimation error—we estimate treatment effects in each sampled Q from a finite sample of size n from P₀. There's also MCMC approximation error at rate √M from using finite M sampled studies instead of infinite, but this is secondary. First, treatment effects have √n-consistent estimators with known influence functions. For observational studies, we use doubly-robust AIPW with cross-fitting. Second, the correlation functional is Hadamard differentiable, enabling standard functional delta method. The result is √n-consistent with an explicit influence function for variance estimation.
@@ -340,111 +322,143 @@ Inference uses a two-stage functional delta method. The √n rate comes from est
 
 ---
 
-## Two Approaches to Geometry {.smaller}
+## Validation {.smaller}
 
-**Key choice:** What space do we define $\mathcal{Q}$ over?
+**Simulation Design:**
 
-:::: {.columns}
+- **N = 10,000** per replication
+- **M ≈ 2,100** sampled future studies (adaptive convergence)
+- **1,000 replications** per DGP
+- **λ = 0.3** (TV ball radius)
 
-::: {.column width="50%"}
-**X-Level** (Compositional)
+**DGP Structure (all 4 scenarios):**
 
-- $\mathcal{Q}$ over covariate distributions
-- Future studies differ in patient covariate mix
-- Assumes $\Delta_S(X)$, $\Delta_Y(X)$ constant
-- Targets compositional transportability
+- Single categorical covariate: $X \in \{-2, -1, 0, 1, 2\}$
+- Linear effects: $S = (\gamma_A + \gamma_{AX} X) A + \epsilon_S$, $Y = (\beta_A + \beta_{AX} X) A + \beta_S S + \beta_{SX} SX + \epsilon_Y$
+- Vary parameters to create different correlation/PTE patterns
+
+**Purpose:** Validate asymptotic theory with high-quality estimates
+
+::: {.notes}
+We ran a large-scale simulation with four carefully designed data-generating processes. All four DGPs share the same basic structure: a single five-level categorical covariate X, and linear models for both surrogate and outcome. Effects are linear in X with treatment-covariate interactions. We vary the parameters—mediation strength, interaction signs, baseline effects—to create scenarios with different correlation and PTE patterns. Sample size of 10,000 is larger than typical practice—this is deliberate. We want to focus on bias, not variance, to show the theory works. We sample around 2,100 hypothetical future studies via adaptive MCMC. One thousand replications per scenario gives precise coverage estimates. Lambda of 0.3 means we're looking at studies that differ moderately from the observed study in population composition.
 :::
 
-::: {.column width="50%"}
-**Observation-Level** (General)
+---
 
-- $\mathcal{Q}$ over individuals
-- Includes within-$X$ variation
-- Allows heterogeneous effects within $X$
-- Robust but more conservative
+## Validation: DGPs 1-2 {.smaller}
+
+**DGP 1:** High mediation (PTE = 82%), moderate positive correlation (ρ = 0.69)
+
+**DGP 2:** Moderate mediation (PTE = 53%), strong negative correlation (ρ = -0.88)
+
+::: {.yellow}
+**Both methods work as expected** ✓
+
+- Correct coverage (93-95%)
+- Standard errors calibrated
 :::
 
 ::::
 
+::: {.notes}
+DGPs 1 and 2 are our baseline cases where correlation and PTE broadly agree. DGP 1 has high mediation and moderate positive correlation. DGP 2 has opposite effect modification creating strong negative correlation with moderate mediation. In both cases, our method produces unbiased estimates with correct 95 percent coverage. These validate the asymptotic theory works as expected. Now let's look at the interesting cases where PTE misleads or fails.
+:::
+
+---
+
+## DGP 3: When Low PTE Hides Perfect Transportability {.smaller}
+
+:::: {.columns}
+
+::: {.column width="45%"}
+**Setup:**
+
+- Weak mediation: β_S = 0.3
+- Strong direct effect: β_A = 0.7
+- Both τ_S(X) and τ_Y(X) scale linearly with X
+
+**PTE says:** 30% mediation → "Weak surrogate" ✗
+
+**Correlation says:** ρ ≈ 1.0 → "Perfect transportability" ✓
+
 ::: {.yellow}
-**Report both for complementary evidence**
+**Key insight:** Low PTE ≠ poor surrogate
+
+Effects transport together despite weak mediation
 :::
 
-::: {.notes}
-Now we need to choose the local geometry. Recall: we define Q over some space within distance λ of P₀. The key question: what space? Two natural approaches emerge. X-level geometry defines Q over covariate distributions—future studies differ in patient mix. This gives clear interpretation for compositional changes, but assumes treatment effect functions transport. Observation-level geometry defines Q over individuals—future studies differ in individual-level composition, including noise. This is robust to unmeasured heterogeneity but more conservative. These provide complementary evidence: X-level tells you about compositional transportability under strong assumptions, observation-level provides a conservative bound even with unmeasured factors. We'll examine both.
+**Simulation:** Bias < 0.001, Coverage = 99.8%
 :::
 
----
+::: {.column width="55%"}
+![](figures/slide23_dgp4_perfect_correlation.png)
+:::
 
-## X-Level: Details {.smaller}
-
-![](figures/slide16_compositional_shift.png){width=65%}
-
-**Definition:** $U_X(\mathbb{P}_0, \lambda) = \{\mathcal{Q} \text{ over } X: \text{TV}(\mathcal{Q}_X, \mathbb{P}_{0,X}) \leq \lambda\}$
-
-**Changes:** $P(X)$ | **Constant:** $\Delta_S(X)$, $\Delta_Y(X)$
-
-**Assumptions:** $X$ captures effect modifiers; functions transport
+::::
 
 ::: {.notes}
-X-level geometry reweights across covariate distributions—future studies differ in patient mix but the treatment effect functions stay constant. This requires strong assumptions: X must completely determine effect heterogeneity, and the mechanisms must transport. When X captures key effect modifiers and future studies involve the same biology just with different compositions, this is plausible. With well-chosen X—age, disease severity, relevant biomarkers—often reasonable.
+DGP 4 shows a critical case where PTE is misleading. There's weak mediation—only 30 percent of the treatment effect goes through the surrogate. Traditional mediation analysis would call this a poor surrogate. But look at the scatter plot: correlation across studies is essentially 1.0. Both surrogate and outcome effects scale linearly with patient characteristics. When the population composition changes, both effects change proportionally. The surrogate transports perfectly despite low mediation. Our simulation confirms this: bias under 0.001, coverage 99.8 percent. The takeaway: low PTE doesn't mean poor transportability if effects co-vary across populations.
 :::
 
 ---
 
-## Observation-Level: How It Differs {.smaller}
+## DGP 4: When PTE Fails but Correlation Works {.smaller}
 
-![](figures/slide18_xlevel_vs_obslevel.png){width=80%}
+:::: {.columns}
 
-**Definition:** $U_{\text{obs}}(\mathbb{P}_0, \lambda) = \{\mathcal{Q} \text{ over individuals}: \text{TV}(\mathcal{Q}, \mathbb{P}_0) \leq \lambda\}$
+::: {.column width="45%"}
+**Setup:**
 
-Treats each observation as unique—includes unmeasured $U$ and idiosyncratic variation $\epsilon_i$
+- Antisymmetric treatment effects
+- Symmetric reference distribution P₀
+- ΔY(P₀) ≈ 0 by symmetry
+
+**PTE:** Division by ≈0 → **Undefined** ✗
+
+**Correlation:** ρ ≈ 1.0 → **Well-defined, perfect** ✓
+
+::: {.yellow}
+**Key insight:** Correlation handles edge cases PTE cannot
+
+Robustly evaluates transportability even when traditional methods fail
+:::
+
+**Simulation:** Bias < 0.001, Coverage = 99.9%
+:::
+
+::: {.column width="55%"}
+![](figures/slide24_dgp5_pte_undefined.png)
+:::
+
+::::
 
 ::: {.notes}
-Observation-level treats observations as unique and reweights them individually. This allows unmeasured heterogeneity and idiosyncratic variation—fundamentally different from X-level. X-level reweights covariate types, capturing only between-X variation—the signal. Observation-level reweights individual observations, including both signal and within-X noise. This makes observation-level more robust but also conflates signal with noise.
+DGP 5 shows an even more dramatic failure of PTE. We have antisymmetric treatment effects—they're positive for some patients, negative for others. The reference study P₀ has a symmetric population distribution, so by symmetry, the average treatment effect ΔY is essentially zero. PTE has division by approximately zero—it's mathematically undefined. You cannot compute it. But correlation across studies is perfectly well-defined and essentially 1.0. Effects co-vary across populations. Simulation confirms: our method gives unbiased estimates with 99.9 percent coverage. The message: correlation-based evaluation is robust. It works even in edge cases where traditional mediation analysis completely fails.
 :::
 
 ---
 
-## Which Geometry? {.smaller}
+## Future Directions {.smaller}
 
-| Scenario | Primary | Secondary |
-|----------|---------|-----------|
-| Well-chosen $X$ | X-Level | Obs-Level (check) |
-| Uncertain $X$ | Obs-Level | X-Level (supplement) |
-| Unmeasured $U$ | Obs-Level | - |
+**Methodological extensions:**
 
-**Comparing the two:**
-- X-level typically gives higher correlation (assumes functions transport)
-- Obs-level more conservative (includes noise)
-- Gap indicates importance of unmeasured heterogeneity
+1. **Different functionals**
+   - R² (variance explained), prediction error
+   - Non-smooth functionals
 
-::: {.notes}
-Which should you use? Ideally, both. X-level gives higher correlation under strong assumptions—mechanisms transport, X captures heterogeneity. Observation-level is more robust but conservative, including noise that may not matter for large-sample transportability. The gap between them indicates the importance of unmeasured heterogeneity and idiosyncratic variation. If they're similar, robust conclusion. If very different, the noise matters and the choice depends on your application.
-:::
+2. **Allowing extrapolation** — Relax absolute continuity ($\mathcal{Q} \ll \mathbb{P}_0$)
+   - Extrapolate to new covariate values not observed in current study
+   - Requires stronger modeling assumptions
 
----
+3. **Selecting λ**
+   - Tools to understand what $\lambda$ means
 
-## How to Use in Practice {.smaller}
-
-**Workflow:**
-
-1. Choose metric $d$ — TV (total variation), Wasserstein (optimal transport), ...
-2. For $\lambda = 0.05, 0.10, 0.15, 0.20$:
-   - Sample $M \approx 100$-500 studies
-   - Compute $\hat{\Theta}(\lambda) = \text{cor}(\Delta_S, \Delta_Y)$
-   - Get 95% CI (influence function-based)
-3. Plot $\hat{\Theta}(\lambda)$ vs $\lambda$
-
-**Interpretation:**
-
-- Flat line → robust surrogate
-- Steep decline → fragile surrogate
-
-**Software:** R package in development
+4. **Different parts of the ball** 
+   - Focus on specific regions (e.g., known future populations)
+   - Donut-shaped regions?
 
 ::: {.notes}
-In practice, fit the model over a range of λ values—0.05, 0.10, 0.15, 0.20. For each, sample future studies, compute correlations, get confidence intervals. Then plot correlation versus λ. A flat line means the surrogate is robust—it works even for fairly dissimilar studies. A steep decline means it's fragile—only works for studies very close to P₀. Approve the surrogate if correlation stays high over a meaningful range.
+Several promising directions for future work. First, different functionals beyond correlation. R-squared measures variance explained, prediction error quantifies forecast accuracy, conditional functionals can target specific subpopulations. The framework handles any smooth functional. Second, allowing extrapolation beyond observed covariate values. Currently we restrict to absolute continuity—future studies reweight observed values. Relaxing this allows true extrapolation but requires stronger modeling assumptions about how effects behave in unobserved regions. Third, selecting lambda. Right now we examine multiple values and report sensitivity. We could develop data-driven selection procedures or formal decision rules based on the application. Fourth, non-uniform weights within the ball. Currently we use uniform distribution—all directions equally plausible. We could weight by expert knowledge, historical data, or focus on specific known future populations. These extensions would make the framework even more flexible and applicable.
 :::
 
 ---
@@ -453,13 +467,8 @@ In practice, fit the model over a range of λ values—0.05, 0.10, 0.15, 0.20. F
 
 **Key contributions:**
 
-1. Reframing surrogate evaluation as a fundamentally future-looking project
-2. Providing a method of estimating cross-study surrogate transportability from a single study
-3. Two methods for deriving future studies with different properties
-
-::: {.yellow}
-We [**evaluate**]{.yellow} transportability, not [**assume**]{.yellow} it
-:::
+- Reframing surrogate evaluation as a fundamentally future-looking project
+- Providing a method of estimating cross-study surrogate transportability from a single study
 
 ::: {.notes}
 To summarize: we've introduced a general framework for evaluating surrogate transportability using local geometric analysis. X-level analysis assumes compositional changes and recovers high correlation. Observation-level is more general and robust but shows lower correlation due to noise attenuation. The gap between them quantifies the importance of unmeasured heterogeneity. Report both analyses to provide complementary evidence about surrogate quality.

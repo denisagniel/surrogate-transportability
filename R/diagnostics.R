@@ -135,14 +135,14 @@ check_sample_size_adequacy <- function(n, d, method) {
     ))
   }
 
-  multiplier <- thresholds[method]
-  threshold <- as.numeric(multiplier * d)  # Remove names
+  multiplier <- unname(thresholds[method])
+  threshold <- multiplier * d
   adequate <- n >= threshold
 
   if (!adequate) {
     message <- sprintf(
       "Sample size n=%d may be too small for method='%s' with d=%d covariates. Recommended: n >= %d (= %d × %d).",
-      n, method, d, threshold, as.numeric(multiplier), d
+      n, method, d, threshold, multiplier, d
     )
   } else {
     message <- ""

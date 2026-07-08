@@ -1,0 +1,60 @@
+# Lambda Sensitivity Analysis Configuration
+#
+# Purpose: Evaluate sensitivity of correlation estimates to TV ball radius λ
+# Design: 5 λ values × 4 DGPs × 1000 reps = 20,000 total replications
+#
+# Expected runtime:
+# - Cluster (40 cores): ~28 hours (20 array jobs @ 1.4 hrs each)
+# - Local (8 cores): ~140 hours (6 days)
+#
+# Scientific goal: Distinguish robust (DGPs 1,4,5) from fragile (DGP 2)
+# transportability as λ increases
+
+# Lambda values to test
+lambda_values: [0.1, 0.2, 0.3, 0.4, 0.5]
+
+# DGPs to analyze (all 4 from main study)
+dgps: ["dgp1", "dgp2", "dgp4", "dgp5"]
+
+# Simulation settings (match main study for comparability)
+simulation_settings:
+  sample_size: 10000
+  M_start: 300
+  M_increment: 300
+  M_max: 5000
+  tolerance: 0.01
+  n_stable: 3
+  burn_in: 500
+  thin: 5
+  alpha: 0.05
+  method: "importance_weighting"
+
+# Cluster execution settings
+cluster_settings:
+  N_reps_per_condition: 1000  # Match main study quality
+  random_seed_start: 20000    # Avoid overlap with main study (10000-19999)
+  output_dir: "cluster/results/lambda_sensitivity"
+  checkpoint_interval: 50     # Save checkpoints every 50 reps
+
+  # Array job structure: One job per (λ, DGP) combination
+  # Total: 5 lambda × 4 DGPs = 20 array jobs
+  n_array_jobs: 20
+
+  # Expected runtime per job (1000 reps at ~5 sec/rep)
+  expected_runtime_hours: 1.5
+  memory_per_job: "4G"
+  cpus_per_job: 1
+
+# Output structure:
+# cluster/results/lambda_sensitivity/
+#   ├── lambda_0.1_dgp1.rds
+#   ├── lambda_0.1_dgp2.rds
+#   ├── ...
+#   ├── lambda_0.5_dgp5.rds
+#   └── combined_lambda_sensitivity.rds
+
+# Expected outcomes:
+# - DGP 1: Flat ρ̂(λ) profile (robust, moderate positive correlation)
+# - DGP 2: Declining |ρ̂(λ)| as λ increases (fragile, opposite interactions)
+# - DGP 4: Flat ρ̂(λ) ≈ 1.0 (robust, perfect transportability despite low PTE)
+# - DGP 5: Flat ρ̂(λ) ≈ 1.0 (robust, undefined PTE but perfect transportability)

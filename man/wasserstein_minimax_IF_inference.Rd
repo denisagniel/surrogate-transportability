@@ -12,7 +12,9 @@ wasserstein_minimax_IF_inference(
   K = 5,
   alpha = 0.05,
   method = "lm",
-  bandwidth = NULL
+  bandwidth = NULL,
+  use_propensity_scores = FALSE,
+  propensity_method = "logistic"
 )
 }
 \arguments{
@@ -34,6 +36,12 @@ regression), "gam" (generalized additive model), "rf" (random forest), or
 
 \item{bandwidth}{Numeric. Bandwidth for kernel method. If NULL, uses Silverman's
 rule. Default: NULL. Only used when method="kernel"}
+
+\item{use_propensity_scores}{Logical. Estimate propensity scores for doubly robust
+corrections? If FALSE, assumes randomized treatment (e=0.5). Default: FALSE}
+
+\item{propensity_method}{Character. Method for propensity score estimation:
+"logistic", "gam", or "rf". Only used if use_propensity_scores=TRUE. Default: "logistic"}
 }
 \value{
 

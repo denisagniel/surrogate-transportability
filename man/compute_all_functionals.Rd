@@ -6,17 +6,26 @@
 \usage{
 compute_all_functionals(
   treatment_effects,
+  data = NULL,
+  covariates = NULL,
   epsilon_s = 0.2,
   epsilon_y = 0.1,
   delta_s_values = c(0.3, 0.5, 0.7),
   correlation_method = c("pearson", "spearman", "kendall"),
   conditional_method = c("local_linear", "kernel"),
   n_future = 500,
-  alpha = 0.05
+  alpha = 0.05,
+  include_cate_covariance = FALSE
 )
 }
 \arguments{
 \item{treatment_effects}{A tibble with columns delta_s and delta_y.}
+
+\item{data}{Optional data frame with columns A, S, Y, and covariates. Required
+for CATE covariance functional. If NULL, CATE covariance will not be computed.}
+
+\item{covariates}{Character vector. Names of covariate columns for CATE covariance.
+Default: NULL.}
 
 \item{epsilon_s}{Numeric. Threshold for probability functional.}
 
@@ -31,6 +40,9 @@ compute_all_functionals(
 \item{n_future}{Integer. Sample size for PPV functional. Default: 500.}
 
 \item{alpha}{Numeric. Significance level for PPV functional. Default: 0.05.}
+
+\item{include_cate_covariance}{Logical. Compute CATE covariance functional?
+Requires data parameter. Default: FALSE.}
 }
 \value{
 A list with elements:
@@ -38,6 +50,7 @@ A list with elements:
   \item{probability}{Conditional probability}
   \item{conditional_means}{Conditional means for specified delta_s_values}
   \item{ppv}{Positive predictive value}
+  \item{cate_covariance}{CATE covariance (if include_cate_covariance=TRUE and data provided)}
 }
 \description{
 Convenience function to compute all main surrogate functionals

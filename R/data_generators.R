@@ -886,3 +886,289 @@ compute_tau_pattern <- function(X, pattern, outcome, multiplier) {
   return(tau)
 }
 
+
+#' Generate Non-Mediated Heterogeneity Study (DGP 1)
+#'
+#' Creates a scenario where treatment affects S and Y through **separate pathways**
+#' with no causal S→Y relationship. This is designed to make traditional surrogate
+#' methods (PTE, mediation) fail while TV ball method succeeds.
+#'
+#' @section Why Traditional Methods Fail:
+#'
+#' **PTE (Proportion of Treatment Effect):**
+#' - PTE will be moderate (0.4-0.6) because S responds to treatment
+#' - But S doesn't **cause** Y, so PTE is misleading
+#' - Traditional interpretation: "Good surrogate" (WRONG)
+#'
+#' **Mediation Analysis:**
+#' - Assumes S→Y causal pathway exists
+#' - Estimates "indirect effect" through S
+#' - But pathway doesn't exist, so estimates are artifacts
+#'
+#' **Within-Study Correlation:**
+#' - cor(S,Y) can be high (0.5-0.7) due to shared confounders
+#' - Or both responding to treatment
+#' - Correlation doesn't imply S predicts Y across studies
+#'
+#' @section Why TV Ball Method Works:
+#'
+#' - Samples Q ~ uniform(B_λ(P₀)) to generate future studies
+#' - Computes ΔS(Q) and ΔY(Q) for each Q
+#' - Tests cor(ΔS, ΔY) across Q samples
+#' - Should show **low correlation** (0.1-0.2) because effects don't transport together
+#' - Correctly identifies: "Poor surrogate"
+#'
+#' @param n Integer. Sample size. Default: 500.
+#' @param heterogeneity_structure Character. Structure of treatment effect heterogeneity:
+#'   - "types": K discrete latent types (default)
+#'   - "continuous": Smooth CATE functions of X
+#' @param K Integer. Number of types (if heterogeneity_structure = "types"). Default: 16.
+#' @param correlation_within Numeric. Target within-study cor(S,Y) from confounding.
+#'   Range: 0.3-0.7. Default: 0.5.
+#' @param correlation_across Numeric. True across-type correlation cor(τ_S, τ_Y).
+#'   Range: -0.2 to 0.2. Default: 0.05 (nearly independent effects).
+#' @param confounding_strength Numeric. Strength of unmeasured confounder U on (S,Y).
+#'   Range: 0-1. Default: 0.5. Controls within-study correlation.
+#' @param seed Integer. Random seed for reproducibility. Default: NULL.
+#'
+#' @return List with:
+#'   \item{data}{Tibble with columns A, S, Y, X (covariates), type (if types), U (confounder)}
+#'   \item{truth}{List with ground truth values}
+#'   \item{scenario}{List with scenario metadata}
+#'
+#' @section Ground Truth (types):
+#' - `type_effects_S`: Treatment effects on S by type (τ_S^k)
+#' - `type_effects_Y`: Treatment effects on Y by type (τ_Y^k)
+#' - `correlation_across`: cor(τ_S, τ_Y) across types
+#' - `P0`: Type probabilities in source study
+#'
+#' @section Ground Truth (continuous):
+#' - `cate_S`: Function τ_S(X)
+#' - `cate_Y`: Function τ_Y(X)
+#' - `correlation_across`: Integrated correlation over X distribution
+#'
+#' @section Expected Behavior:
+#' - **Traditional PTE**: 0.4-0.6 → "Good surrogate" (WRONG)
+#' - **Traditional cor(S,Y)**: 0.5-0.7 → "Good surrogate" (WRONG)
+#' - **Traditional mediation**: Prop. mediated ~0.4-0.6 → "Good surrogate" (WRONG)
+#' - **TV ball cor(ΔS, ΔY)**: 0.05-0.15 → "Poor surrogate" (CORRECT)
+#'
+#' @examples
+#' \dontrun{
+#' # Generate with discrete types
+#' dgp1 <- generate_nonmediated_heterogeneity(n = 500, K = 16, correlation_across = 0.1)
+#'
+#' # Traditional methods fail
+#' pte <- compute_pte_standard(dgp1$data)  # PTE ~0.5 (misleading)
+#' med <- compute_mediation_standard(dgp1$data)  # Prop ~0.5 (misleading)
+#'
+#' # TV ball method works
+#' # (Run surrogate inference to get cor(ΔS, ΔY) ~0.1, correctly identifies poor surrogate)
+#' }
+#'
+#' @export
+generate_nonmediated_heterogeneity <- function(
+  n = 500,
+  heterogeneity_structure = c("types", "continuous"),
+  K = 16,
+  correlation_within = 0.5,
+  correlation_across = 0.05,
+  confounding_strength = 0.5,
+  seed = NULL
+) {
+
+  if (!is.null(seed)) set.seed(seed)
+
+  heterogeneity_structure <- match.arg(heterogeneity_structure)
+
+  # Validate parameters
+  stopifnot(n > 0)
+  stopifnot(correlation_within >= 0 && correlation_within <= 1)
+  stopifnot(correlation_across >= -1 && correlation_across <= 1)
+  stopifnot(confounding_strength >= 0 && confounding_strength <= 1)
+
+  if (heterogeneity_structure == "types") {
+    stopifnot(K >= 2)
+
+    # Generate type-level treatment effects with specified correlation
+    # Use bivariate normal to create correlated effects
+
+    # Target marginal variances for effects
+    var_S <- 0.5  # Moderate variation in surrogate effects
+    var_Y <- 0.5  # Moderate variation in outcome effects
+
+    # Covariance to achieve target correlation
+    cov_SY <- correlation_across * sqrt(var_S * var_Y)
+
+    # Generate correlated effects via Cholesky decomposition
+    Sigma <- matrix(c(var_S, cov_SY, cov_SY, var_Y), 2, 2)
+    L <- chol(Sigma)  # Cholesky factor (upper triangular)
+
+    # Generate independent normals and transform
+    Z <- matrix(rnorm(2 * K), K, 2)
+    effects <- Z %*% t(L)  # Now have correlation_across
+
+    tau_S <- effects[, 1]
+    tau_Y <- effects[, 2]
+
+    # Verify achieved correlation
+    actual_cor <- cor(tau_S, tau_Y)
+
+    # Type probabilities (uniform or slightly varied)
+    P0 <- rep(1/K, K)
+
+    # Sample individuals
+    type <- sample(1:K, size = n, replace = TRUE, prob = P0)
+    A <- rbinom(n, 1, 0.5)  # Randomized treatment
+
+    # Covariates (just for realism, not used in effects)
+    X <- rnorm(n)
+
+    # Unmeasured confounder U (creates within-study correlation)
+    U <- rnorm(n)
+
+    # Generate S: Responds to treatment based on type, affected by U
+    # NO pathway from Y to S or S to Y
+    S_baseline <- rnorm(n, sd = 0.8)
+    S_treatment_effect <- tau_S[type]
+    S <- S_baseline + A * S_treatment_effect + confounding_strength * U
+
+    # Generate Y: Responds to treatment based on type, affected by U
+    # NO causal effect of S on Y (this is key!)
+    Y_baseline <- rnorm(n, sd = 0.8)
+    Y_treatment_effect <- tau_Y[type]
+    Y <- Y_baseline + A * Y_treatment_effect + confounding_strength * U
+
+    # Create data
+    data <- tibble::tibble(
+      A = A,
+      S = S,
+      Y = Y,
+      X = X,
+      type = type,
+      U = U  # Include for transparency (would be unmeasured in practice)
+    )
+
+    # Ground truth
+    truth <- list(
+      type_effects_S = tau_S,
+      type_effects_Y = tau_Y,
+      correlation_across = actual_cor,
+      P0 = P0,
+      expected_pte = NA_real_,  # Will compute from simulation
+      expected_within_cor = correlation_within,  # Target
+      expected_mediation = NA_real_  # Will compute from simulation
+    )
+
+    # Compute expected values from data
+    truth$expected_pte <- compute_pte(data)
+    truth$expected_within_cor <- cor(data$S, data$Y)
+    med_result <- compute_mediation_effects(data)
+    truth$expected_mediation <- med_result$proportion_mediated
+
+  } else {
+    # Continuous heterogeneity
+    stopifnot(K > 0)  # K still used as dimension of X
+
+    # Sample individuals
+    A <- rbinom(n, 1, 0.5)
+    X <- matrix(rnorm(n * K), n, K)  # K-dimensional covariates
+    U <- rnorm(n)  # Unmeasured confounder
+
+    # CATE functions τ_S(X) and τ_Y(X)
+    # Create these to have specified correlation over X distribution
+
+    # Simple approach: linear combinations with specified correlation
+    # τ_S(X) = α_S + β_S' X
+    # τ_Y(X) = α_Y + β_Y' X
+    # Correlation controlled by angle between β_S and β_Y
+
+    alpha_S <- 0.5  # Baseline effect on S
+    alpha_Y <- 0.5  # Baseline effect on Y
+
+    # Generate β vectors with controlled correlation
+    # Use same approach as discrete case
+    beta_S <- rnorm(K)
+    beta_S <- beta_S / sqrt(sum(beta_S^2))  # Normalize
+
+    # Create β_Y with target correlation to β_S
+    beta_Y_parallel <- correlation_across * beta_S  # Parallel component
+    beta_Y_orthog <- rnorm(K)
+    beta_Y_orthog <- beta_Y_orthog - sum(beta_Y_orthog * beta_S) * beta_S  # Orthogonalize
+    beta_Y_orthog <- beta_Y_orthog / sqrt(sum(beta_Y_orthog^2))  # Normalize
+    beta_Y <- beta_Y_parallel + sqrt(1 - correlation_across^2) * beta_Y_orthog
+
+    # CATE functions
+    tau_S_X <- alpha_S + X %*% beta_S
+    tau_Y_X <- alpha_Y + X %*% beta_Y
+
+    # Verify correlation
+    actual_cor <- cor(tau_S_X, tau_Y_X)
+
+    # Generate S and Y (no causal pathway)
+    S <- rnorm(n, sd = 0.8) + A * tau_S_X + confounding_strength * U
+    Y <- rnorm(n, sd = 0.8) + A * tau_Y_X + confounding_strength * U
+
+    # Create data
+    data <- tibble::tibble(
+      A = A,
+      S = as.numeric(S),
+      Y = as.numeric(Y),
+      U = U
+    )
+
+    # Add X columns
+    for (j in 1:K) {
+      data[[paste0("X", j)]] <- X[, j]
+    }
+
+    # Ground truth
+    truth <- list(
+      cate_S = function(X_new) {
+        alpha_S + X_new %*% beta_S
+      },
+      cate_Y = function(X_new) {
+        alpha_Y + X_new %*% beta_Y
+      },
+      correlation_across = actual_cor,
+      beta_S = beta_S,
+      beta_Y = beta_Y,
+      expected_pte = compute_pte(data),
+      expected_within_cor = cor(data$S, data$Y),
+      expected_mediation = compute_mediation_effects(data)$proportion_mediated
+    )
+  }
+
+  # Scenario metadata
+  scenario <- list(
+    name = "Non-Mediated Heterogeneity (DGP 1)",
+    heterogeneity_structure = heterogeneity_structure,
+    K = K,
+    n = n,
+    correlation_within = correlation_within,
+    correlation_across = correlation_across,
+    confounding_strength = confounding_strength,
+    why_traditional_fails = paste(
+      "S and Y respond to treatment through SEPARATE pathways (no S→Y causality).",
+      "Traditional methods (PTE, mediation) assume S mediates or predicts Y.",
+      sprintf("PTE ~%.2f and cor(S,Y) ~%.2f suggest good surrogate, but this is misleading.",
+              truth$expected_pte, truth$expected_within_cor),
+      "Treatment effects τ_S and τ_Y are nearly uncorrelated across types/individuals",
+      sprintf("(true cor = %.2f).", correlation_across)
+    ),
+    why_tvball_works = paste(
+      "TV ball method tests transportability directly:",
+      "Samples Q to generate future studies, computes ΔS(Q) and ΔY(Q),",
+      "tests cor(ΔS, ΔY) across studies.",
+      sprintf("Should find low correlation (~%.2f), correctly identifying poor surrogate.",
+              correlation_across)
+    )
+  )
+
+  list(
+    data = data,
+    truth = truth,
+    scenario = scenario
+  )
+}
+

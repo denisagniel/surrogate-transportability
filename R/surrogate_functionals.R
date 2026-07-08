@@ -4,15 +4,38 @@
 #' across future studies, which is a key functional for evaluating surrogate quality.
 #'
 #' @param treatment_effects A tibble with columns delta_s and delta_y containing
-#'   treatment effects from multiple future studies.
+#'   treatment effects from multiple future studies. Each row represents one study
+#'   with its average treatment effects Δ_S(Q) and Δ_Y(Q).
 #' @param method Character. Correlation method: "pearson" (default), "spearman", or "kendall".
 #'
 #' @return Numeric. The correlation between treatment effects.
 #'
+#' @section Functional Paradigm:
+#' This is an **across-study** functional. It operates on the distribution
+#' of treatment effects across multiple future studies Q ~ F_λ.
+#'
+#' **Input:** Each row of \code{treatment_effects} represents one future study,
+#' with scalar treatment effects Δ_S(Q) and Δ_Y(Q).
+#'
+#' **Output:** Correlation computed **across** the studies (between rows).
+#'
+#' **Interpretation:** "If a future study has large Δ_S, is Δ_Y also likely
+#' to be large in **that study**?"
+#'
+#' For the **within-study** version (correlation of individual-level CATEs
+#' within a single study), use \code{\link{functional_cate_covariance}} or
+#' future \code{functional_single_study_correlation()} when available.
+#'
+#' See \code{\link{functional-paradigms}} for detailed explanation of the
+#' two paradigms.
+#'
 #' @details
-#' This implements the functional φ(F) = cor(ΔS(Q), ΔY(Q)) where Q ~ F.
+#' This implements the functional φ(F) = Cor_F(Δ_S(Q), Δ_Y(Q)) where Q ~ F.
 #' A high correlation indicates that the surrogate marker is informative about
 #' the treatment effect on the outcome across different studies.
+#'
+#' Note: Δ_S(Q) and Δ_Y(Q) are **study-level** average treatment effects, not
+#' individual-level conditional effects τ(X).
 #'
 #' @examples
 #' # Generate treatment effects from future studies
@@ -24,15 +47,28 @@
 #' correlation <- functional_correlation(treatment_effects)
 #'
 #' @export
-functional_correlation <- function(treatment_effects, 
+functional_correlation <- function(treatment_effects,
                                  method = c("pearson", "spearman", "kendall")) {
-  
+
   method <- match.arg(method)
-  
+
+  # Helpful error if raw data passed by mistake (check this first)
+  if (all(c("A", "S", "Y") %in% names(treatment_effects)) &&
+      !all(c("delta_s", "delta_y") %in% names(treatment_effects))) {
+    stop(
+      "functional_correlation() expects treatment effect PAIRS (delta_s, delta_y), ",
+      "not raw study data (A, S, Y).\n",
+      "This is an ACROSS-STUDY functional.\n",
+      "For WITHIN-STUDY correlation of CATEs, use functional_cate_covariance().\n",
+      "See ?`functional-paradigms` for details."
+    )
+  }
+
+  # Check for correct input type
   if (!all(c("delta_s", "delta_y") %in% names(treatment_effects))) {
     stop("treatment_effects must contain columns 'delta_s' and 'delta_y'")
   }
-  
+
   cor(treatment_effects$delta_s, treatment_effects$delta_y, method = method)
 }
 
@@ -364,6 +400,10 @@ functional_npv <- function(treatment_effects,
 #' simultaneously.
 #'
 #' @param treatment_effects A tibble with columns delta_s and delta_y.
+#' @param data Optional data frame with columns A, S, Y, and covariates. Required
+#'   for CATE covariance functional. If NULL, CATE covariance will not be computed.
+#' @param covariates Character vector. Names of covariate columns for CATE covariance.
+#'   Default: NULL.
 #' @param epsilon_s Numeric. Threshold for probability functional.
 #' @param epsilon_y Numeric. Threshold for probability functional.
 #' @param delta_s_values Numeric vector. Values for conditional mean functional.
@@ -371,12 +411,15 @@ functional_npv <- function(treatment_effects,
 #' @param conditional_method Character. Method for conditional mean.
 #' @param n_future Integer. Sample size for PPV functional. Default: 500.
 #' @param alpha Numeric. Significance level for PPV functional. Default: 0.05.
+#' @param include_cate_covariance Logical. Compute CATE covariance functional?
+#'   Requires data parameter. Default: FALSE.
 #'
 #' @return A list with elements:
 #'   \item{correlation}{Correlation between treatment effects}
 #'   \item{probability}{Conditional probability}
 #'   \item{conditional_means}{Conditional means for specified delta_s_values}
 #'   \item{ppv}{Positive predictive value}
+#'   \item{cate_covariance}{CATE covariance (if include_cate_covariance=TRUE and data provided)}
 #'
 #' @examples
 #' # Generate treatment effects
@@ -394,13 +437,16 @@ functional_npv <- function(treatment_effects,
 #'
 #' @export
 compute_all_functionals <- function(treatment_effects,
+                                  data = NULL,
+                                  covariates = NULL,
                                   epsilon_s = 0.2,
                                   epsilon_y = 0.1,
                                   delta_s_values = c(0.3, 0.5, 0.7),
                                   correlation_method = c("pearson", "spearman", "kendall"),
                                   conditional_method = c("local_linear", "kernel"),
                                   n_future = 500,
-                                  alpha = 0.05) {
+                                  alpha = 0.05,
+                                  include_cate_covariance = FALSE) {
 
   correlation_method <- match.arg(correlation_method)
   conditional_method <- match.arg(conditional_method)
@@ -422,9 +468,23 @@ compute_all_functionals <- function(treatment_effects,
   names(conditional_means) <- paste0("delta_s_", delta_s_values)
 
   # PPV functional
-  ppv <- functional_ppv(treatment_effects, n_future = n_future, alpha = alpha)
+  ppv <- functional_ppv(treatment_effects, epsilon_s = epsilon_s, epsilon_y = epsilon_y)
 
-  list(
+  # CATE covariance functional (optional, requires data)
+  cate_covariance <- NULL
+  if (include_cate_covariance) {
+    if (is.null(data)) {
+      warning("CATE covariance requested but data=NULL. Skipping.")
+    } else {
+      cate_covariance <- functional_cate_covariance(
+        data = data,
+        covariates = covariates,
+        cross_fit = TRUE
+      )
+    }
+  }
+
+  result <- list(
     correlation = correlation,
     probability = probability,
     conditional_means = conditional_means,
@@ -435,6 +495,13 @@ compute_all_functionals <- function(treatment_effects,
     n_future = n_future,
     alpha = alpha
   )
+
+  # Add CATE covariance if computed
+  if (!is.null(cate_covariance)) {
+    result$cate_covariance <- cate_covariance
+  }
+
+  result
 }
 
 #' Compute functional with uncertainty quantification

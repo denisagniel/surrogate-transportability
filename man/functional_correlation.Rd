@@ -11,7 +11,8 @@ functional_correlation(
 }
 \arguments{
 \item{treatment_effects}{A tibble with columns delta_s and delta_y containing
-treatment effects from multiple future studies.}
+treatment effects from multiple future studies. Each row represents one study
+with its average treatment effects Δ_S(Q) and Δ_Y(Q).}
 
 \item{method}{Character. Correlation method: "pearson" (default), "spearman", or "kendall".}
 }
@@ -23,10 +24,34 @@ Calculates the correlation between treatment effects on surrogate and outcome
 across future studies, which is a key functional for evaluating surrogate quality.
 }
 \details{
-This implements the functional φ(F) = cor(ΔS(Q), ΔY(Q)) where Q ~ F.
+This implements the functional φ(F) = Cor_F(Δ_S(Q), Δ_Y(Q)) where Q ~ F.
 A high correlation indicates that the surrogate marker is informative about
 the treatment effect on the outcome across different studies.
+
+Note: Δ_S(Q) and Δ_Y(Q) are **study-level** average treatment effects, not
+individual-level conditional effects τ(X).
 }
+\section{Functional Paradigm}{
+
+This is an **across-study** functional. It operates on the distribution
+of treatment effects across multiple future studies Q ~ F_λ.
+
+**Input:** Each row of \code{treatment_effects} represents one future study,
+with scalar treatment effects Δ_S(Q) and Δ_Y(Q).
+
+**Output:** Correlation computed **across** the studies (between rows).
+
+**Interpretation:** "If a future study has large Δ_S, is Δ_Y also likely
+to be large in **that study**?"
+
+For the **within-study** version (correlation of individual-level CATEs
+within a single study), use \code{\link{functional_cate_covariance}} or
+future \code{functional_single_study_correlation()} when available.
+
+See \code{\link{functional-paradigms}} for detailed explanation of the
+two paradigms.
+}
+
 \examples{
 # Generate treatment effects from future studies
 current_data <- generate_study_data(n = 500)

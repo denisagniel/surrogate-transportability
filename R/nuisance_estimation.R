@@ -102,10 +102,13 @@ estimate_treatment_effects <- function(data,
     stop("Treatment column 'A' not found in data")
   }
 
-  missing_covs <- setdiff(covariates, names(data))
-  if (length(missing_covs) > 0) {
-    stop(sprintf("Covariates not found in data: %s",
-                 paste(missing_covs, collapse = ", ")))
+  # Handle NULL or empty covariates
+  if (!is.null(covariates) && length(covariates) > 0) {
+    missing_covs <- setdiff(covariates, names(data))
+    if (length(missing_covs) > 0) {
+      stop(sprintf("Covariates not found in data: %s",
+                   paste(missing_covs, collapse = ", ")))
+    }
   }
 
   n <- nrow(data)
@@ -229,8 +232,13 @@ fit_and_predict_single_method <- function(train_data, test_data, outcome,
                                            covariates, method, bandwidth) {
 
   if (method == "lm") {
-    # Linear regression: E[Y|A,X] = α + τ*A + X'β
-    formula_str <- sprintf("%s ~ A + %s", outcome, paste(covariates, collapse = " + "))
+    # Linear regression: E[Y|A,X] = α + τ*A + X'β + A:X'γ (with interactions for HTE)
+    if (is.null(covariates) || length(covariates) == 0) {
+      formula_str <- sprintf("%s ~ A", outcome)
+    } else {
+      # Include interactions A:X to allow heterogeneous treatment effects
+      formula_str <- sprintf("%s ~ A * (%s)", outcome, paste(covariates, collapse = " + "))
+    }
     fit <- lm(as.formula(formula_str), data = train_data)
 
     # Predict at A=1
@@ -247,8 +255,12 @@ fit_and_predict_single_method <- function(train_data, test_data, outcome,
 
   } else if (method == "gam") {
     # Generalized additive model with smooth terms
-    smooth_terms <- paste0("s(", covariates, ")", collapse = " + ")
-    formula_str <- sprintf("%s ~ A + %s", outcome, smooth_terms)
+    if (is.null(covariates) || length(covariates) == 0) {
+      formula_str <- sprintf("%s ~ A", outcome)
+    } else {
+      smooth_terms <- paste0("s(", covariates, ")", collapse = " + ")
+      formula_str <- sprintf("%s ~ A + %s", outcome, smooth_terms)
+    }
 
     fit <- mgcv::gam(as.formula(formula_str), data = train_data)
 
@@ -265,6 +277,14 @@ fit_and_predict_single_method <- function(train_data, test_data, outcome,
 
   } else if (method == "rf") {
     # Random forest: separate forests for A=1 and A=0
+    if (is.null(covariates) || length(covariates) == 0) {
+      # No covariates: just use mean for each arm
+      mu1 <- rep(mean(train_data[[outcome]][train_data$A == 1]), nrow(test_data))
+      mu0 <- rep(mean(train_data[[outcome]][train_data$A == 0]), nrow(test_data))
+      tau <- mu1 - mu0
+      return(list(tau = tau, mu1 = mu1, mu0 = mu0))
+    }
+
     formula_str <- sprintf("%s ~ %s", outcome, paste(covariates, collapse = " + "))
 
     # Fit on treated
@@ -341,70 +361,5 @@ fit_and_predict_single_method <- function(train_data, test_data, outcome,
 }
 
 
-#' Validate Method Availability (Internal)
-#'
-#' Checks if required packages are available for the specified method.
-#'
-#' @param method Method name ("lm", "gam", "rf", "kernel")
-#'
-#' @return List with 'available' (logical) and 'message' (character)
-#' @keywords internal
-validate_method_availability <- function(method) {
-  if (method == "gam") {
-    if (!requireNamespace("mgcv", quietly = TRUE)) {
-      return(list(
-        available = FALSE,
-        package = "mgcv",
-        message = "Method 'gam' requires package 'mgcv' which is not installed."
-      ))
-    }
-  } else if (method == "rf") {
-    if (!requireNamespace("randomForest", quietly = TRUE)) {
-      return(list(
-        available = FALSE,
-        package = "randomForest",
-        message = "Method 'rf' requires package 'randomForest' which is not installed."
-      ))
-    }
-  }
-
-  list(available = TRUE, package = NA, message = "")
-}
-
-
-#' Check Sample Size Adequacy (Internal)
-#'
-#' Checks if sample size is adequate for the specified method.
-#'
-#' @param n Sample size
-#' @param d Number of covariates
-#' @param method Method name
-#'
-#' @return List with 'adequate' (logical), 'threshold' (numeric), 'message' (character)
-#' @keywords internal
-check_sample_size_adequacy <- function(n, d, method) {
-  thresholds <- c(
-    "lm" = 20,
-    "gam" = 30,
-    "rf" = 100,
-    "kernel" = 50
-  )
-
-  if (!method %in% names(thresholds)) {
-    return(list(adequate = TRUE, threshold = 0, message = ""))
-  }
-
-  threshold <- thresholds[method] * d
-  adequate <- n >= threshold
-
-  if (!adequate) {
-    message <- sprintf(
-      "Sample size n=%d may be too small for method='%s' with d=%d covariates (recommended: n >= %d).",
-      n, method, d, threshold
-    )
-  } else {
-    message <- ""
-  }
-
-  list(adequate = adequate, threshold = threshold, message = message)
-}
+# Note: validate_method_availability() and check_sample_size_adequacy()
+# are defined and exported in R/diagnostics.R - we use those implementations
