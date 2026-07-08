@@ -2,7 +2,7 @@
 % Please edit documentation in R/tv_distance_utils.R
 \name{generate_tv_ball_point}
 \alias{generate_tv_ball_point}
-\title{Generate Distribution in TV Ball via Constructive Algorithm}
+\title{Decompose a TV-Ball Point into a P0-Mixture (Utility)}
 \usage{
 generate_tv_ball_point(P0, Q_target, lambda_max = 1)
 }
@@ -30,15 +30,13 @@ A list with the following components:
 }
 \description{
 Given a target distribution Q_target in the TV ball B_λ(P0), this function
-constructively solves for the mixing parameter λ_actual and innovation
-distribution P̃ such that Q_target = (1-λ_actual)P0 + λ_actual·P̃.
+solves for a mixing parameter λ_actual and a residual distribution P̃ such
+that Q_target = (1-λ_actual)P0 + λ_actual·P̃. This is a convenience/diagnostic
+utility for representing a point of the ball relative to P0; it is not part of
+the canonical estimation path (which samples the ball via
+\code{\link{sample_tv_ball}}).
 }
 \details{
-This implements the constructive proof of existence in Theorem 5(a): for any
-Q0 in the TV ball, there exists (λ', P̃') such that Q0 can be expressed as
-the innovation mechanism mixture.
-
-
 The algorithm works as follows:
 \enumerate{
   \item Check that d_TV(Q_target, P0) <= lambda_max (target must be in TV ball)
@@ -87,11 +85,8 @@ result_far <- generate_tv_ball_point(P0, Q_far, lambda_max = 0.2)
 result_far$satisfies_constraint  # FALSE (target too far)
 
 }
-\references{
-See Theorem 5 in the package manuscript for the formal proof of existence
-and the constructive algorithm.
-}
 \seealso{
 \code{\link{compute_tv_distance}} for TV distance computation,
-\code{\link{verify_tv_constraint}} for checking TV constraints.
+\code{\link{verify_tv_constraint}} for checking TV constraints,
+\code{\link{sample_tv_ball}} for the canonical uniform sampler.
 }

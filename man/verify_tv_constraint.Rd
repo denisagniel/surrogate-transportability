@@ -2,7 +2,7 @@
 % Please edit documentation in R/tv_distance_utils.R
 \name{verify_tv_constraint}
 \alias{verify_tv_constraint}
-\title{Verify TV Distance Constraint for Innovation Mechanism}
+\title{Verify TV Distance Constraint}
 \usage{
 verify_tv_constraint(Q, P0, lambda, tolerance = 1e-10)
 }
@@ -29,22 +29,18 @@ A list with the following components:
 }
 \description{
 Checks whether the total variation distance between Q and P0 satisfies the
-constraint \eqn{d_{TV}(Q, P_0) \le \lambda}, as required by the innovation
-mechanism Q = (1-λ)P0 + λP̃. Returns detailed diagnostics.
+local-geometry constraint \eqn{d_{TV}(Q, P_0) \le \lambda} (membership in the
+TV ball). Returns detailed diagnostics.
 }
 \details{
-For the innovation mechanism Q = (1-λ)P0 + λP̃, the TV distance satisfies:
-\deqn{d_{TV}(Q, P_0) = d_{TV}((1-\lambda)P_0 + \lambda\tilde{P}, P_0) = \lambda \cdot d_{TV}(\tilde{P}, P_0) \le \lambda}
-
-The inequality becomes an equality when P̃ has disjoint support from P0.
-This function verifies this constraint holds and provides diagnostics for
-debugging when it does not.
+A future study \eqn{Q} lies in the local geometry \eqn{U(P_0, \lambda; d_{TV})}
+iff \eqn{d_{TV}(Q, P_0) \le \lambda}. This function verifies membership and
+provides diagnostics for debugging when it does not.
 }
 \section{Use Cases}{
 
 \itemize{
-  \item Verify generated future studies satisfy TV constraint
-  \item Debug innovation mechanism implementation
+  \item Verify sampled future studies satisfy the TV constraint
   \item Quality control in simulation studies
   \item Validate theoretical properties empirically
 }
@@ -53,22 +49,19 @@ debugging when it does not.
 \examples{
 # Example 1: Constraint satisfied
 P0 <- c(0.3, 0.5, 0.2)
-P_tilde <- c(0.6, 0.1, 0.3)
-lambda <- 0.4
-Q <- (1 - lambda) * P0 + lambda * P_tilde
+Q  <- c(0.4, 0.4, 0.2)
+result <- verify_tv_constraint(Q, P0, lambda = 0.2)
+result$satisfies_constraint
+result$tv_distance
 
-result <- verify_tv_constraint(Q, P0, lambda)
-result$satisfies_constraint  # TRUE
-result$tv_distance           # Should be <= 0.4
-
-# Example 2: Constraint violated (Q generated differently)
-Q_bad <- c(0.1, 0.2, 0.7)  # Not from innovation mechanism
+# Example 2: Constraint violated
+Q_bad <- c(0.1, 0.2, 0.7)
 result_bad <- verify_tv_constraint(Q_bad, P0, lambda = 0.2)
-result_bad$satisfies_constraint  # May be FALSE
-result_bad$violation             # Positive if violated
+result_bad$satisfies_constraint
+result_bad$violation
 
 }
 \seealso{
-\code{\link{compute_tv_distance}} for computing TV distance,
-\code{\link{generate_future_study}} for the innovation mechanism implementation.
+\code{\link{compute_tv_distance}} for computing TV distance;
+\code{\link{sample_tv_ball}} for sampling future studies from the TV ball.
 }

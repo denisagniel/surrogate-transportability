@@ -13,7 +13,7 @@
 #' \deqn{Y = (\beta_A + \beta_{AX} X) A + \beta_S S + \beta_{SX} (S X) + \epsilon_Y,
 #'       \quad \epsilon_Y \sim N(0, \sigma_Y^2),}
 #' with `A ~ Bernoulli(0.5)` (a balanced randomized trial) and
-#' `X \in` `X_levels` drawn with probabilities `p_X`.
+#' `X` takes values in `X_levels`, drawn with probabilities `p_X`.
 #'
 #' This is the single package implementation of the DGP; simulation scripts,
 #' figure generators, and cluster jobs should call it rather than defining their

@@ -92,11 +92,11 @@ compute_tv_distance <- function(Q, P0) {
 }
 
 
-#' Verify TV Distance Constraint for Innovation Mechanism
+#' Verify TV Distance Constraint
 #'
 #' Checks whether the total variation distance between Q and P0 satisfies the
-#' constraint \eqn{d_{TV}(Q, P_0) \le \lambda}, as required by the innovation
-#' mechanism Q = (1-λ)P0 + λP̃. Returns detailed diagnostics.
+#' local-geometry constraint \eqn{d_{TV}(Q, P_0) \le \lambda} (membership in the
+#' TV ball). Returns detailed diagnostics.
 #'
 #' @param Q Numeric vector representing the generated distribution Q. Must sum to 1
 #'   and have all non-negative entries.
@@ -115,17 +115,13 @@ compute_tv_distance <- function(Q, P0) {
 #'   \item{margin}{Numeric margin by which constraint is satisfied (lambda - tv, can be negative)}
 #'
 #' @details
-#' For the innovation mechanism Q = (1-λ)P0 + λP̃, the TV distance satisfies:
-#' \deqn{d_{TV}(Q, P_0) = d_{TV}((1-\lambda)P_0 + \lambda\tilde{P}, P_0) = \lambda \cdot d_{TV}(\tilde{P}, P_0) \le \lambda}
-#'
-#' The inequality becomes an equality when P̃ has disjoint support from P0.
-#' This function verifies this constraint holds and provides diagnostics for
-#' debugging when it does not.
+#' A future study \eqn{Q} lies in the local geometry \eqn{U(P_0, \lambda; d_{TV})}
+#' iff \eqn{d_{TV}(Q, P_0) \le \lambda}. This function verifies membership and
+#' provides diagnostics for debugging when it does not.
 #'
 #' @section Use Cases:
 #' \itemize{
-#'   \item Verify generated future studies satisfy TV constraint
-#'   \item Debug innovation mechanism implementation
+#'   \item Verify sampled future studies satisfy the TV constraint
 #'   \item Quality control in simulation studies
 #'   \item Validate theoretical properties empirically
 #' }
@@ -133,23 +129,20 @@ compute_tv_distance <- function(Q, P0) {
 #' @examples
 #' # Example 1: Constraint satisfied
 #' P0 <- c(0.3, 0.5, 0.2)
-#' P_tilde <- c(0.6, 0.1, 0.3)
-#' lambda <- 0.4
-#' Q <- (1 - lambda) * P0 + lambda * P_tilde
+#' Q  <- c(0.4, 0.4, 0.2)
+#' result <- verify_tv_constraint(Q, P0, lambda = 0.2)
+#' result$satisfies_constraint
+#' result$tv_distance
 #'
-#' result <- verify_tv_constraint(Q, P0, lambda)
-#' result$satisfies_constraint  # TRUE
-#' result$tv_distance           # Should be <= 0.4
-#'
-#' # Example 2: Constraint violated (Q generated differently)
-#' Q_bad <- c(0.1, 0.2, 0.7)  # Not from innovation mechanism
+#' # Example 2: Constraint violated
+#' Q_bad <- c(0.1, 0.2, 0.7)
 #' result_bad <- verify_tv_constraint(Q_bad, P0, lambda = 0.2)
-#' result_bad$satisfies_constraint  # May be FALSE
-#' result_bad$violation             # Positive if violated
+#' result_bad$satisfies_constraint
+#' result_bad$violation
 #'
 #' @seealso
-#' \code{\link{compute_tv_distance}} for computing TV distance,
-#' \code{\link{generate_future_study}} for the innovation mechanism implementation.
+#' \code{\link{compute_tv_distance}} for computing TV distance;
+#' \code{\link{sample_tv_ball}} for sampling future studies from the TV ball.
 #'
 #' @export
 verify_tv_constraint <- function(Q, P0, lambda, tolerance = 1e-10) {
@@ -190,15 +183,14 @@ verify_tv_constraint <- function(Q, P0, lambda, tolerance = 1e-10) {
 }
 
 
-#' Generate Distribution in TV Ball via Constructive Algorithm
+#' Decompose a TV-Ball Point into a P0-Mixture (Utility)
 #'
 #' Given a target distribution Q_target in the TV ball B_λ(P0), this function
-#' constructively solves for the mixing parameter λ_actual and innovation
-#' distribution P̃ such that Q_target = (1-λ_actual)P0 + λ_actual·P̃.
-#'
-#' This implements the constructive proof of existence in Theorem 5(a): for any
-#' Q0 in the TV ball, there exists (λ', P̃') such that Q0 can be expressed as
-#' the innovation mechanism mixture.
+#' solves for a mixing parameter λ_actual and a residual distribution P̃ such
+#' that Q_target = (1-λ_actual)P0 + λ_actual·P̃. This is a convenience/diagnostic
+#' utility for representing a point of the ball relative to P0; it is not part of
+#' the canonical estimation path (which samples the ball via
+#' \code{\link{sample_tv_ball}}).
 #'
 #' @param P0 Numeric vector representing reference distribution P0. Must sum to 1,
 #'   have all non-negative entries, and all entries must be strictly positive
@@ -266,11 +258,8 @@ verify_tv_constraint <- function(Q, P0, lambda, tolerance = 1e-10) {
 #'
 #' @seealso
 #' \code{\link{compute_tv_distance}} for TV distance computation,
-#' \code{\link{verify_tv_constraint}} for checking TV constraints.
-#'
-#' @references
-#' See Theorem 5 in the package manuscript for the formal proof of existence
-#' and the constructive algorithm.
+#' \code{\link{verify_tv_constraint}} for checking TV constraints,
+#' \code{\link{sample_tv_ball}} for the canonical uniform sampler.
 #'
 #' @export
 generate_tv_ball_point <- function(P0, Q_target, lambda_max = 1) {
