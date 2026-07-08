@@ -56,6 +56,11 @@ The functional $\phi: \mathbb{R}^2 \to \mathbb{R}$ is Hadamard differentiable at
 \end{equation}
 \end{assumption}
 
+\begin{remark}[Aggregate functionals]
+\label{rem:aggregate-gradient}
+For aggregate functionals such as correlation, $\Theta(\mu) = \varphi(m(\mu))$ is a smooth function of a vector of $\mu$-moments $m(\mu)$ (five moments for correlation; see Section~\ref{sec:correlation-application}), not a pointwise map of a single pair. Throughout, $\nabla\phi(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q}))$ denotes the \emph{composed} per-study gradient $\nabla\varphi(m(\mu)) \cdot \partial m/\partial(\Delta_S(\mathcal{Q}), \Delta_Y(\mathcal{Q}))$ obtained by the chain rule; the influence-function expressions \eqref{eq:aipw-s}--\eqref{eq:aipw-y} and Lemma~\ref{lem:functional-expansion} should be read with this interpretation. Non-degeneracy (Assumption~\ref{assm:nondegeneracy}) guarantees the bounded-gradient condition above for the correlation functional.
+\end{remark}
+
 \begin{assumption}[Nuisance parameter convergence]
 \label{assm:nuisance}
 For observational studies with estimated propensity scores $\hat{e}(X) = P(A=1|X)$ and outcome regressions $\hat{\mu}_a(X) = \mathbb{E}[Y|A=a,X]$ for $a \in \{0,1\}$, obtained via cross-fitting:
@@ -194,7 +199,7 @@ Let $\hat{\mu}_M = \frac{1}{M}\sum_{m=1}^M \delta_{\mathcal{Q}_m}$ denote the em
 
 \begin{lemma}[MCMC approximation error]
 \label{lem:mcmc-error}
-Under Assumption~\ref{assm:geometry}, for any bounded measurable function $g: \text{supp}(\mu) \to \mathbb{R}$ with $\|g\|_\infty \leq 1$:
+Under Assumptions~\ref{assm:mcmc} (geometric ergodicity) and \ref{assm:geometry} (compact support), for any bounded measurable function $g: \text{supp}(\mu) \to \mathbb{R}$ with $\|g\|_\infty \leq 1$:
 \begin{equation}
 \left|\mathbb{E}_{\hat{\mu}_M}[g(\mathcal{Q})] - \mathbb{E}_{\mu}[g(\mathcal{Q})]\right| = O_P(M^{-1/2}).
 \end{equation}
@@ -514,7 +519,7 @@ When $M \to \infty$, by Assumption~\ref{assm:mcmc}, $\hat{\mu}_M \to \mu$ weakly
 In practice, one estimates $\sigma^2(\hat{\mu}_M)$, which accounts for sampling variation but not MCMC approximation error. If $M$ is large (e.g., $M \geq 500$), the MCMC error is typically negligible relative to sampling uncertainty. Formal accounting for MCMC error would require bootstrap or other resampling methods applied to the MCMC procedure itself, but this is rarely done in practice.
 \end{remark}
 
-\subsection{Application to Correlation Functional}
+\subsection{Application to Correlation Functional}\label{sec:correlation-application}
 
 For the correlation functional $\phi(\Delta_S, \Delta_Y) = \text{cor}_\mu(\Delta_S, \Delta_Y)$, this is a composite functional:
 \begin{equation}
@@ -581,7 +586,7 @@ All invoked results have their conditions verified:
 
 \paragraph{Edge case remarks.}
 \begin{enumerate}
-\item \textbf{Degenerate variance (correlation functional):} If $\text{Var}_\mu(\Delta_S) = 0$ or $\text{Var}_\mu(\Delta_Y) = 0$, the correlation functional is undefined. The proof requires non-degeneracy: $\min(\text{Var}_\mu(\Delta_S), \text{Var}_\mu(\Delta_Y)) > c > 0$ for some $c$ (implicit in Assumption~\ref{assm:functional} via bounded gradient).
+\item \textbf{Degenerate variance (correlation functional):} If $\text{Var}_\mu(\Delta_S) = 0$ or $\text{Var}_\mu(\Delta_Y) = 0$, the correlation functional is undefined. The proof requires non-degeneracy: $\min(\text{Var}_\mu(\Delta_S), \text{Var}_\mu(\Delta_Y)) \geq c_0 > 0$, stated explicitly as Assumption~\ref{assm:nondegeneracy}.
 
 \item \textbf{Extreme reweighting:} If $\max_i w_i(\mathcal{Q}) \approx C$ (near the bound), variance can inflate significantly. In practice, recommend $C \leq 10$ to avoid extreme variance inflation. Effective sample size drops as $n_{\text{eff}} \approx n / (1 + \text{CV}^2)$ where $\text{CV}$ is coefficient of variation of weights.
 
