@@ -729,10 +729,12 @@ the estimand) and A5 (the bilinear-functional estimability boundary).
 \label{assm:A0-transport}
 All cross-study variation in treatment effects is compositional in the measured covariates
 $X$: future studies $\mathcal{Q}$ differ from $\mathbb{P}_0$ only in the marginal law of $X$
-and share $\mathbb{P}_0$'s conditional law of potential outcomes given $X$. Equivalently, the
-reweighting $w=\tfrac{d\mathcal{Q}}{d\mathbb{P}_0}$ is a function of $X$ alone, so
-$\tau_S(x),\tau_Y(x)$ are frozen at their $\mathbb{P}_0$ values under every $\mathcal{Q}$,
-which is exactly what makes \eqref{eq:delta-linear} hold.
+and share $\mathbb{P}_0$'s conditional average treatment effects $\tau_S(\cdot),\tau_Y(\cdot)$
+given $X$. Equivalently, the reweighting $w=\tfrac{d\mathcal{Q}}{d\mathbb{P}_0}$ is a function
+of $X$ alone, so $\tau_S(x),\tau_Y(x)$ are frozen at their $\mathbb{P}_0$ values under every
+$\mathcal{Q}$, which is exactly what makes \eqref{eq:delta-linear} hold. (Only the CATEs, not
+the full conditional law of potential outcomes, need be shared: \eqref{eq:delta-linear} depends
+on $\mathbb{P}_0$ through $(\tau_S,\tau_Y)$ alone.)
 \end{assumption}
 
 \begin{remark}[Definitional vs.\ interpretive reading of A0]
@@ -757,7 +759,9 @@ s_S + s_Y > d/2
 \label{eq:elbow}
 \end{equation}
 holds. When \eqref{eq:elbow} fails, the minimax rate is
-$n^{-\,4s/(4s+d)}$ (with $s=\tfrac{1}{2}(s_S+s_Y)$ the effective smoothness), strictly slower
+$n^{-\,4s/(4s+d)}$ (with $s=\tfrac{1}{2}(s_S+s_Y)$ the effective smoothness; this single-$s$
+rate expression is the balanced-smoothness reduction of the genuinely two-smoothness minimax
+boundary, whereas the elbow \eqref{eq:elbow} itself is exact), strictly slower
 than $n^{-1/2}$, and no $\sqrt{n}$-consistent asymptotically normal estimator exists
 \cite{BickelRitov1988,BirgeMassart1995,Robins2008HOIF,Robins2017Minimax,Kennedy2024Minimax,McClean2024DCDR}.
 \end{assumption}
@@ -766,8 +770,9 @@ than $n^{-1/2}$, and no $\sqrt{n}$-consistent asymptotically normal estimator ex
 \label{rem:A5-conservative}
 Condition \eqref{eq:elbow} is the boundary for the \emph{Dirac} kernel. Our kernel $C$ is
 bounded and (typically) smooth under Assumptions~\ref{assm:treatment-effects}(c) and
-\ref{assm:geometry}; a genuinely smooth $C$ can only \emph{absorb} smoothness and \emph{relax}
-the requirement, so \eqref{eq:elbow} is a conservative sufficient condition here. On finite
+\ref{assm:geometry}; a genuinely smooth $C$ typically \emph{absorbs} smoothness (its integral
+operator regularizes $h_b=\int C\tau_b\,d\mathbb{P}_0$) and thus \emph{relaxes} the requirement,
+so \eqref{eq:elbow} is, at worst, a conservative sufficient condition here. On finite
 $X$ every function is arbitrarily smooth and $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ is a fixed
 smooth (indeed polynomial) function of finitely many cell means, so A5 holds automatically---%
 this is why the finite-support proof never states it. Higher-order influence functions attain
@@ -816,12 +821,11 @@ Suppose $\tau_a,\tau_b$ are pathwise differentiable with influence functions
 $\mathrm{IF}_{\tau_a},\mathrm{IF}_{\tau_b}$ (Lemma~\ref{lem:cate-linearity-A}), and
 $\mathbb{E}_{\mathbb{P}_0}[\tau_a^2],\mathbb{E}_{\mathbb{P}_0}[\tau_b^2]<\infty$. Then
 $\Theta_{ab}=\iint C(x,x')\tau_a(x)\tau_b(x')\,d\mathbb{P}_0(x)d\mathbb{P}_0(x')$ is pathwise
-differentiable with efficient influence function
+differentiable with (mean-zero) efficient influence function
 \begin{equation}
 \chi_{ab}(O)
  = \int h_b(x)\,\mathrm{IF}_{\tau_a}(O;x)\,d\mathbb{P}_0(x)
- + \int h_a(x')\,\mathrm{IF}_{\tau_b}(O;x')\,d\mathbb{P}_0(x')
- - \Theta_{ab},
+ + \int h_a(x')\,\mathrm{IF}_{\tau_b}(O;x')\,d\mathbb{P}_0(x'),
 \label{eq:chi-ab}
 \end{equation}
 where
@@ -831,8 +835,11 @@ h_b(x) = \int C(x,x')\,\tau_b(x')\,d\mathbb{P}_0(x'),
 h_a(x') = \int C(x',x)\,\tau_a(x)\,d\mathbb{P}_0(x).
 \label{eq:h-directions}
 \end{equation}
+Since $\mathbb{E}_{\mathbb{P}_0}[\mathrm{IF}_{\tau_a}(O;x)]=0$ for every $x$,
+$\mathbb{E}_{\mathbb{P}_0}[\chi_{ab}]=0$; the plug-in value $\Theta_{ab}$ is carried by the
+plug-in term of the one-step estimator \eqref{eq:onestep}, not by the influence function.
 In particular, when $a=b$,
-$\chi_{aa}(O) = 2\int h_a(x)\,\mathrm{IF}_{\tau_a}(O;x)\,d\mathbb{P}_0(x)-\Theta_{aa}$ with
+$\chi_{aa}(O) = 2\int h_a(x)\,\mathrm{IF}_{\tau_a}(O;x)\,d\mathbb{P}_0(x)$ with
 $h_a(x)=\int C(x,x')\tau_a(x')d\mathbb{P}_0(x')$; and for finite $X$, \eqref{eq:chi-ab}
 reduces to a quadratic/trace form in $\Sigma$ (Corollary~\ref{cor:finite-support}).
 \end{lemma}
@@ -884,18 +891,19 @@ $O$-integrals by Fubini:
 \label{eq:riesz}
 \end{align}
 \emph{Step 4: identify the EIF.} Equation \eqref{eq:riesz} exhibits the pathwise derivative as
-$\mathbb{E}_{\mathbb{P}_0}[\tilde\chi_{ab}(O)g(O)]$ for every score $g$, where $\tilde\chi_{ab}$
-is the bracketed term; by the Riesz representation of pathwise derivatives $\tilde\chi_{ab}$ is
-the (canonical-gradient) influence function of $\Theta_{ab}$. Since
-$\mathbb{E}_{\mathbb{P}_0}[\mathrm{IF}_{\tau_a}(O;x)]=0$ for all $x$ we have
-$\mathbb{E}_{\mathbb{P}_0}[\tilde\chi_{ab}]=0$; the constant $-\Theta_{ab}$ in \eqref{eq:chi-ab}
-is the centering used for one-step debiasing (whose plug-in part carries $+\Theta_{ab}$).
-Efficiency holds because $\tilde\chi_{ab}$ is a $\mathbb{P}_0$-integral of the efficient CATE
-influence functions, hence lies in the tangent space.
+$\mathbb{E}_{\mathbb{P}_0}[\chi_{ab}(O)g(O)]$ for every score $g$, where $\chi_{ab}$ is the
+bracketed term of \eqref{eq:chi-ab}; by the Riesz representation of pathwise derivatives
+$\chi_{ab}$ is the (canonical-gradient) influence function of $\Theta_{ab}$. Since
+$\mathbb{E}_{\mathbb{P}_0}[\mathrm{IF}_{\tau_a}(O;x)]=0$ for all $x$, $\chi_{ab}$ is mean-zero,
+as an influence function must be; the plug-in value $\Theta_{ab}$ enters not $\chi_{ab}$ but the
+plug-in term of the one-step estimator \eqref{eq:onestep}. Efficiency holds because, in the
+nonparametric model where the tangent space is all of $L^2_0(\mathbb{P}_0)$, $\chi_{ab}$ is a
+$\mathbb{P}_0$-integral of the efficient CATE influence functions and hence lies in the tangent
+space, so it is the canonical gradient.
 
 \emph{Step 5: diagonal check.} If $a=b$ then $h_a=h_b$ and $\mathrm{IF}_{\tau_a}=\mathrm{IF}_{\tau_b}$,
 so \eqref{eq:chi-ab} becomes
-$\chi_{aa}(O)=2\int h_a(x)\mathrm{IF}_{\tau_a}(O;x)d\mathbb{P}_0(x)-\Theta_{aa}$, the factor $2$
+$\chi_{aa}(O)=2\int h_a(x)\mathrm{IF}_{\tau_a}(O;x)d\mathbb{P}_0(x)$, the factor $2$
 being exactly the two identical directional derivatives---consistent with $\Theta_{aa}$ being a
 pure quadratic whose derivative carries the classical factor $2$.
 
@@ -947,7 +955,10 @@ Lemma~\ref{lem:orthogonality}: since $h_b,h_a$ are functions of $x$ that do \emp
 the outcome-model nuisances $\eta=(e,\mu_0,\mu_1)$ (only on $C$ and $\tau$), the
 ``orthogonality survives reweighting'' argument of Lemma~\ref{lem:orthogonality}, Step~4, applies
 verbatim with $h_b$ (resp.\ $h_a$) in the role of $w(X;\mathcal{Q})$, so orthogonality \emph{in
-$\eta$} holds in addition to orthogonality \emph{in $\beta$}.
+$\eta$} holds in addition to orthogonality \emph{in $\beta$}. (The estimated $\hat h_b=\int\hat
+C\hat\tau_b\,d\mathbb{P}_0$ depends on $\eta$ only through $\hat\tau_b$, which is the
+$\beta$-argument handled by $\beta$-orthogonality, not through a separate $\eta$-path, since
+$\hat C$ is geometry and hence $\eta$-free; the inheritance is therefore airtight.)
 % NOTE(auditor): Two orthogonalities: (i) in beta by the one-step construction; (ii) in eta,
 % inherited from Lemma \ref{lem:orthogonality} because h_a,h_b are eta-free x-functions. Both are
 % needed for the Lemma \ref{lem:elbow} remainder to be second order. Most worth re-checking.
@@ -1103,9 +1114,11 @@ is the CATE-score covariance.
 \begin{proof}[Proof of Corollary~\ref{cor:finite-support}]
 On finite $X$, A5 is automatic (Remark~\ref{rem:A5-conservative}) and
 $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ by \eqref{eq:discrete-quadform}. The directional representer
-satisfies $(h_b(k)p_0(k))_k \propto \Sigma\tau_b$, so Lemma~\ref{lem:bilinear-eif-A} gives
-$\chi_{ab}(O)=(\Sigma\tau_b)^\top\mathbf{IF}_{\tau_a}(O)+(\Sigma\tau_a)^\top\mathbf{IF}_{\tau_b}(O)-\tau_a^\top\Sigma\tau_b$,
-with $\mathbf{IF}_{\tau_a}(O)=(\mathrm{IF}_{\tau_a}(O;1),\dots,\mathrm{IF}_{\tau_a}(O;K))^\top$.
+satisfies $(h_b(k)p_0(k))_k \propto \Sigma\tau_b$, so Lemma~\ref{lem:bilinear-eif-A} gives the
+(mean-zero) score
+$\chi_{ab}(O)=(\Sigma\tau_b)^\top\mathbf{IF}_{\tau_a}(O)+(\Sigma\tau_a)^\top\mathbf{IF}_{\tau_b}(O)$,
+with $\mathbf{IF}_{\tau_a}(O)=(\mathrm{IF}_{\tau_a}(O;1),\dots,\mathrm{IF}_{\tau_a}(O;K))^\top$
+(the plug-in $\tau_a^\top\Sigma\tau_b$ is carried by the plug-in term of \eqref{eq:onestep}).
 The population mean of the first-order plug-in bias contracts the CATE-score vectors against
 $\Sigma$, giving $\mathrm{tr}(\Sigma V)$ with
 $V=\mathbb{E}_{\mathbb{P}_0}[\mathbf{IF}_{\tau_a}\mathbf{IF}_{\tau_b}^\top]$---the disattenuation
