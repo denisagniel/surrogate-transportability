@@ -312,6 +312,95 @@ unstable in small samples (especially with cross-fitting in observational studie
 The bootstrap is valid under the conditions of Proposition~\ref{prop:asymptotic}. In RCTs, the bootstrap correctly mimics the sampling distribution of weighted means. In observational studies with cross-fitting, refitting nuisance parameters on each bootstrap sample preserves the doubly-robust structure. Standard bootstrap theory for smooth functionals applies.
 \end{remark}
 
+\subsection{The general estimand and its two boundaries}\label{sec:general}
+
+Proposition~\ref{prop:asymptotic} treats the correlation functional with a finite
+(discretized) covariate space. Both restrictions can be lifted: the same
+influence-function argument delivers $\sqrt{n}$ inference for a \emph{general}
+smooth functional
+\begin{equation}\label{eq:general-estimand}
+\begin{gathered}
+    \Theta(\PP_0,\lambda) = \Psi\big(m_1,\ldots,m_K\big),\\
+    m_j = \E_{\Q\sim\mu}\big[\phi_j(\Delta_S(\Q),\Delta_Y(\Q))\big].
+\end{gathered}
+\end{equation}
+with $\Psi$ smooth (correlation, $R^2$, mean squared prediction error, and
+probability of concordance are instances), on discrete \emph{or} continuous
+covariate spaces. The key structural fact is that the load-bearing moments are
+\emph{linear or bilinear functionals of the conditional average treatment effects}
+(CATEs) $\tau_S(x)=\E[S(1)-S(0)\mid X=x]$, $\tau_Y(x)=\E[Y(1)-Y(0)\mid X=x]$
+against a fixed \emph{reweighting-covariance kernel} $C(x,x')=\Cov_\mu(w(x),w(x'))$:
+\begin{equation}\label{eq:bilinear-body}
+\begin{aligned}
+    \E_\mu[\Delta_a(\Q)] &= \int \bar a(x)\,\tau_a(x)\,d\PP_0(x),\\
+    \Cov_\mu\{\Delta_a(\Q),\Delta_b(\Q)\} &= \iint C(x,x')\,\tau_a(x)\,\tau_b(x')\,d\PP_0^2,
+\end{aligned}
+\end{equation}
+for $a,b\in\{S,Y\}$, where $\bar a(x)=\E_\mu[w(x)]$. On a finite covariate space with
+cell probabilities $p_0(k)$ and cell masses $q_k$, the bilinear term is the quadratic
+form $\tau_a^\top\Sigma\,\tau_b$ used above, with
+$\Sigma_{kk'}=p_0(k)\,p_0(k')\,C(k,k')=\Cov_\mu(q_k,q_{k'})$ (the covariate-law weights
+$p_0$ are absorbed into $\Sigma$). Consequently the estimand's estimability
+reduces to that of \emph{quadratic (bilinear) functionals of a regression function}.
+
+The method's inferential reach is then delimited by two boundaries---one causal,
+one statistical.
+\begin{itemize}
+    \item \textbf{(A0) Conditional-effect transportability given $X$} (causal). The
+    reweighting $w=d\Q/d\PP_0$ is a function of $X$ only, so future studies differ
+    from $\PP_0$ in the composition of $X$ but share its conditional law of effects
+    given $X$; the CATEs are frozen within $X$. Under a definitional reading this
+    is merely the \emph{scope} of the estimand (the class of $X$-compositional
+    futures); to interpret $\Theta$ as transportability to arbitrary future studies
+    it is a substantive assumption, and it cannot be relaxed to a point estimate
+    from a single study (Section~\ref{sec:discussion}).
+    \item \textbf{(A5) Estimability of the bilinear functionals} (statistical). For
+    a continuous $d$-dimensional $X$, $\sqrt{n}$-consistent estimation of the
+    bilinear terms in \eqref{eq:bilinear-body} requires the CATEs to be smooth
+    enough: with H\"older/Sobolev smoothness $s_S,s_Y$, the condition is
+    $s_S+s_Y>d/2$ (reducing to $s>d/4$ under equal smoothness). Below this
+    ``elbow'' the minimax rate is slower than $\sqrt{n}$ and no $\sqrt{n}$-consistent,
+    asymptotically normal estimator exists
+    \citep{BickelRitov1988,BirgeMassart1995,Robins2008HOIF,Robins2017Minimax,Kennedy2024Minimax}.
+    On a finite covariate space the condition holds automatically.
+\end{itemize}
+
+\begin{theorem}[General asymptotic normality]\label{thm:general-body}
+Under A0, A5, and the regularity conditions of the supplementary material
+(Assumptions A1--A4, A6--A8---the general-case relabeling of the finite-support
+assumptions: identification and CATE asymptotic linearity, bounded
+weights, geometry regularity, cross-fit nuisance rates, functional smoothness and
+non-degeneracy, and the sample-size/MCMC regime), estimate each moment $m_j$ by a
+one-step, cross-fit debiased estimator and set $\hat\Theta=\Psi(\hat m)$. Then,
+conditional on the sampled geometry,
+\begin{equation}
+    \sqrt{n}\{\hat\Theta - \Theta(\PP_0,\lambda)\}
+    = \frac{1}{\sqrt n}\sum_{i=1}^n \psi_\Theta(O_i) + O_p\big((n/M)^{1/2}\big) + o_p(1)
+    \xrightarrow{d} N\big(0,\ \E[\psi_\Theta^2]\big),
+\end{equation}
+where $\psi_\Theta=\nabla\Psi(m)^\top\psi_m$ composes the outer gradient with the
+influence functions of the moments; the moments' influence functions are the
+efficient influence functions of the bilinear functionals in
+\eqref{eq:bilinear-body}, built from the CATE influence functions and the kernel
+$C$. The MCMC term is $o_p(1)$ when $n=o(M)$, giving the unconditional statement.
+\end{theorem}
+
+\begin{corollary}[Finite-support correlation]\label{cor:finite-body}
+Proposition~\ref{prop:asymptotic} is the special case of Theorem~\ref{thm:general-body}
+with $\Psi$ the correlation map, $X$ finite (so $C\to\Sigma$ and A5 holds
+automatically), and the per-cell augmented inverse probability weighting score as
+the CATE influence function; the bilinear-functional bias correction becomes the
+finite-support disattenuation term.
+\end{corollary}
+
+The full statement, the efficient influence function of a bilinear functional of
+two CATEs (the core new derivation), the debiased estimator, the elbow-rate
+argument, and the finite-support collapse are given in the supplementary material.
+We condition on the sampled geometry throughout, exactly as in
+Proposition~\ref{prop:asymptotic}; the fully unconditional version, which
+additionally differentiates the kernel's dependence on $\PP_0$, is left to future
+work.
+
 \section{Example: TV-Ball Geometry}\label{sec:tv-implementation}
 
 We now instantiate the local geometric evaluation framework using total variation distance. The TV-ball
