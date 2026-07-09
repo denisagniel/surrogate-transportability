@@ -37,13 +37,20 @@ git add -A && git commit -m "A5-elbow Stage 1 + O2 infra" && git push
 # 1. on O2
 git pull
 cd explorations/2026-07-09_a5-elbow-validation
-
-# 2. quick single-task smoke test (one task, few units, ~seconds)
-STUDY_DIR="$(pwd)"; SCRATCH=/tmp/a5_test; mkdir -p "$SCRATCH"
 module load gcc/14.2.0 R/4.4.2
+# Stage 1 needs NO package (base R only). Stage 2 needs the installed package
+# (sample_tv_ball) + grf: from the repo root run `R CMD INSTALL .` after pulling.
+
+# 2. quick single-task smoke test. NOTE: even a few large-n (n=16000) units can
+# exceed the LOGIN NODE cap (SIGKILL -> "terminated", no R error). Run heavier
+# smoke tests / any profiling on an INTERACTIVE node, e.g.:
+#   srun --pty -p interactive -t 0-01:00 --mem=8G -c 1 bash
+#   module load gcc/14.2.0 R/4.4.2
+STUDY_DIR="$(pwd)"; SCRATCH=/tmp/a5_test; mkdir -p "$SCRATCH"
 Rscript slurm/run_replication.R --task-id 1 --reps-per-job 5 \
   --study-dir "$STUDY_DIR" --scratch-dir "$SCRATCH"
 # inspect: readRDS("/tmp/a5_test/task_000001.rds") should have 10 rows
+# (submit.sh itself is fine on the login node -- sbatch only queues.)
 
 # 3. submit the full array (reads config/sizing.env, mints a run-id)
 bash slurm/submit.sh

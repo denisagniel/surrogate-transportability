@@ -27,14 +27,27 @@ produced by the pre-fix estimator and are therefore suspect.
 ## Run (see ../README_O2.md and ../TRANSFER.md)
 
 ```bash
+# Profile to size the array. Run LOCALLY, or on an O2 INTERACTIVE node -- NOT on
+# the login node (each unit is ~20-40s at n=1e4; the login node's CPU/mem cap
+# SIGKILLs it: "zsh: terminated" with no R error). From the study dir use
+# --study-dir . (the script defaults to .. for when it is run from slurm/).
 cd simulations/canonical-validation
-Rscript slurm/profile_timing.R --target-hours 2   # size reps/task (unit ~20-40s at n=1e4)
-# push, then on O2:
+Rscript slurm/profile_timing.R --study-dir . --target-hours 2
+
+# On O2, if profiling there: grab an interactive node first, e.g.
+#   srun --pty -p interactive -t 0-01:00 --mem=8G -c 1 bash
+#   module load gcc/14.2.0 R/4.4.2
+
+# then submit the array (safe on the login node -- sbatch only queues):
 bash slurm/submit.sh
 bash slurm/monitor.sh
 Rscript slurm/combine.R --run-id <id> --scratch-dir <scratch> --study-dir .
 ```
 
-**Note:** the package must be installed on O2 (`R CMD INSTALL .`), since the
-scripts use `library(surrogateTransportability)` (module R has no devtools).
-Local smoke test (n=400) confirmed all four DGPs run, converge, and cover.
+**Note:** the package must be installed on O2 BEFORE running anything
+(`R CMD INSTALL .` from the repo root after `git pull`), since the scripts use
+`library(surrogateTransportability)` (module R has no devtools). Confirm the
+installed build is current with:
+`Rscript -e 'library(surrogateTransportability); packageVersion("surrogateTransportability"); exists("canonical_dgp_params")'`
+(expect 0.4.0 and TRUE). Local smoke test (n=400) confirmed all four DGPs run,
+converge, and cover.
