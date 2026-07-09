@@ -619,8 +619,556 @@ If asymptotic normality fails or coverage is poor:
 \paragraph{Implementation notes.}
 The R package \texttt{surrogateTransportability} implements this framework:
 \begin{itemize}
-\item \texttt{functional\_cate\_covariance()}: Estimates AIPW functionals with cross-fitting
-\item \texttt{estimate\_propensity\_score()}: Propensity score estimation with flexible methods (GAM, RF, boosting)
-\item \texttt{wasserstein\_minimax\_IF\_inference()}: Main inference function with bootstrap and analytic variance
+\item \texttt{tv\_ball\_correlation\_IF\_adaptive()}: main estimator (adaptive hit-and-run,
+  importance-weighting or cross-fitted AIPW, influence-function inference)
+\item \texttt{sample\_tv\_ball()}: uniform hit-and-run sampling on the TV ball
+\item \texttt{gradient\_correlation\_analytical()}: analytic gradient of the correlation functional
 \end{itemize}
 See package documentation for usage examples.
+
+% =====================================================================
+%  GENERAL ASYMPTOTIC-NORMALITY THEORY (extends Theorem \ref{thm:asymptotic-normality})
+%  Labels use an "A" scheme (thm:general, lem:*-A, cor:finite-support).
+%  Notation matches the finite-support proof above (explicit long form).
+% =====================================================================
+
+\section{General Estimand: Asymptotic Normality via the Bilinear-Functional Structure}
+\label{sec:general-theory}
+
+This section extends Theorem~\ref{thm:asymptotic-normality} from the finite-support,
+correlation-specific case to a general smooth functional $\Theta = \Psi(m_1,\dots,m_K)$
+of the across-study effect distribution, on discrete \emph{or} smooth-enough continuous
+covariate spaces. As in Theorem~\ref{thm:asymptotic-normality}, we \emph{condition on the
+sampled geometry}: the MCMC sample $\hat{\mu}_M$ (equivalently the reweighting-covariance
+kernel $C$ it induces, defined below) is treated as fixed, and the $\sqrt{M}$ MCMC term is
+handled exactly as before via Lemma~\ref{lem:mcmc-error}.
+
+\subsection{General estimand and the bilinear-functional structure}
+\label{subsec:bilinear-structure}
+
+\paragraph{Covariate-level effects.}
+Let $O=(X,A,S,Y)\sim\mathbb{P}_0$ with $A\in\{0,1\}$ and $X\in\mathcal{X}$, where
+$\mathcal{X}\subseteq\mathbb{R}^d$ (finite, or continuous of dimension $d$). Define the
+conditional average treatment effects (CATEs)
+\begin{equation}
+\tau_S(x) = \mathbb{E}_{\mathbb{P}_0}[S(1)-S(0)\mid X=x],
+\qquad
+\tau_Y(x) = \mathbb{E}_{\mathbb{P}_0}[Y(1)-Y(0)\mid X=x],
+\end{equation}
+and write $\beta=(\tau_S,\tau_Y)$. For a future study $\mathcal{Q}\ll\mathbb{P}_0$ with
+density ratio $w(x)=\tfrac{d\mathcal{Q}}{d\mathbb{P}_0}(x)$, the study-level effects are the
+\emph{linear} functionals
+\begin{equation}
+\Delta_a(\mathcal{Q}) = \mathbb{E}_{\mathbb{P}_0}[\,w(X)\,\tau_a(X)\,],
+\qquad a\in\{S,Y\}.
+\label{eq:delta-linear}
+\end{equation}
+
+\paragraph{The geometry and its kernel.}
+A geometry is a probability measure $\mu$ over reweightings $w$, supported on a local
+convex body $\{\mathcal{Q}:d(\mathcal{Q},\mathbb{P}_0)\le\lambda\}$ (Assumption~\ref{assm:geometry}).
+Define
+\begin{equation}
+\bar{a}(x) = \mathbb{E}_\mu[w(x)],
+\qquad
+C(x,x') = \mathrm{Cov}_\mu\!\big(w(x),\,w(x')\big),
+\label{eq:kernel-def}
+\end{equation}
+the reweighting mean and the \emph{reweighting-covariance kernel}. By construction $C$ is
+symmetric; under Assumptions~\ref{assm:treatment-effects}(c) and \ref{assm:geometry} it is
+bounded, $\sup_{x,x'}|C(x,x')|\le C_w^2<\infty$.
+
+\paragraph{Linear/bilinear reduction.}
+Taking $\mu$-moments of \eqref{eq:delta-linear} and using Fubini (justified by bounded weights
+and $\mathbb{E}_{\mathbb{P}_0}[\tau_a^2]<\infty$):
+\begin{align}
+\mathbb{E}_\mu[\Delta_a(\mathcal{Q})]
+   &= \int \bar{a}(x)\,\tau_a(x)\,d\mathbb{P}_0(x),
+   \tag{linear}\label{eq:reduction-linear}\\
+\mathrm{Cov}_\mu\!\big(\Delta_a(\mathcal{Q}),\Delta_b(\mathcal{Q})\big)
+   &= \iint C(x,x')\,\tau_a(x)\,\tau_b(x')\,d\mathbb{P}_0(x)\,d\mathbb{P}_0(x')
+   \;=:\; \Theta_{ab},
+   \tag{bilinear}\label{eq:reduction-bilinear}
+\end{align}
+for $a,b\in\{S,Y\}$. Thus every load-bearing $\mu$-moment is either a bounded \emph{linear}
+functional of $\beta$ (against the weight $\bar{a}$) or a bounded \emph{bilinear} functional
+of $\beta$ (against the kernel $C$). We write the moment vector
+\begin{equation}
+m = \big(\underbrace{\mathbb{E}_\mu\Delta_S,\ \mathbb{E}_\mu\Delta_Y}_{\text{linear}},\ 
+        \underbrace{\Theta_{SS},\ \Theta_{YY},\ \Theta_{SY}}_{\text{bilinear}},\ \dots\big)
+        \in\mathbb{R}^K,
+\end{equation}
+and the estimand is $\Theta = \Psi(m)$ for a smooth $\Psi:\mathbb{R}^K\to\mathbb{R}$
+(Assumption~\ref{assm:functional}). Correlation, $R^2$, MSPE, and concordance are instances.
+
+\paragraph{Discrete specialization ($C\to\Sigma$).}
+When $X\in\{1,\dots,K\}$ is finite with cell probabilities $p_0(k)$, write
+$\tau_a=(\tau_a(1),\dots,\tau_a(K))^\top$ and $q=(q_1,\dots,q_K)^\top$ the future-study cell
+mass. Then $w(k)=q_k/p_0(k)$, $\bar{a}(k)=\mathbb{E}_\mu[w(k)]$, and the kernel collapses to a
+$K\times K$ matrix $\Sigma$ with entries
+$\Sigma_{kk'} = C(k,k')\,p_0(k)\,p_0(k')=\mathrm{Cov}_\mu(q_k,q_{k'})$, so that
+\begin{equation}
+\Theta_{ab} = \iint C\,\tau_a\tau_b\,d\mathbb{P}_0^2
+            = \sum_{k,k'} p_0(k)p_0(k')\,C(k,k')\,\tau_a(k)\tau_b(k')
+            = \tau_a^\top \Sigma\, \tau_b .
+\label{eq:discrete-quadform}
+\end{equation}
+This is the $\tau^\top\Sigma\tau$ object of the finite-support proof; Corollary~\ref{cor:finite-support}
+shows the general result collapses to Theorem~\ref{thm:asymptotic-normality} here.
+
+\subsection{Assumption ledger A0--A8}
+\label{subsec:assumptions-A}
+
+Assumptions \ref{assm:treatment-effects}--\ref{assm:functional} and
+\ref{assm:nuisance}--\ref{assm:sample-size} carry over as the general-case A1--A4, A6--A8
+(with $\phi$-specific statements reread for $\Psi$ and the moment vector $m$). We state in full
+the two assumptions that are new relative to the finite-support proof: A0 (the causal scope of
+the estimand) and A5 (the bilinear-functional estimability boundary).
+
+\begin{assumption}[A0: Conditional-effect transportability given $X$]
+\label{assm:A0-transport}
+All cross-study variation in treatment effects is compositional in the measured covariates
+$X$: future studies $\mathcal{Q}$ differ from $\mathbb{P}_0$ only in the marginal law of $X$
+and share $\mathbb{P}_0$'s conditional law of potential outcomes given $X$. Equivalently, the
+reweighting $w=\tfrac{d\mathcal{Q}}{d\mathbb{P}_0}$ is a function of $X$ alone, so
+$\tau_S(x),\tau_Y(x)$ are frozen at their $\mathbb{P}_0$ values under every $\mathcal{Q}$,
+which is exactly what makes \eqref{eq:delta-linear} hold.
+\end{assumption}
+
+\begin{remark}[Definitional vs.\ interpretive reading of A0]
+\label{rem:A0-reading}
+Under the \emph{definitional} reading the estimand simply \emph{is} the functional over the
+class of $X$-compositional future studies, and A0 is a scope statement, not an assumption;
+under the \emph{interpretive} reading---reading $\Theta$ as ``does the surrogate transport to
+real future studies''---A0 is a substantive causal assumption of the effects-transport-given-$X$
+class, distinct from the support condition $\mathcal{Q}\ll\mathbb{P}_0$
+(Assumption~\ref{assm:treatment-effects}(c)) and not removable for a single-study point estimate.
+\end{remark}
+
+\begin{assumption}[A5: Bilinear-functional $\sqrt{n}$-estimability]
+\label{assm:A5-elbow}
+Each bilinear functional $\Theta_{ab}$ in \eqref{eq:reduction-bilinear} admits a
+$\sqrt{n}$-consistent, asymptotically linear (debiased) estimator. Let $\tau_S,\tau_Y$ lie in
+H\"older/Sobolev balls of smoothness $s_S,s_Y$ on $\mathcal{X}\subseteq\mathbb{R}^d$. Then, for
+the identity/Dirac kernel, $\sqrt{n}$-estimability of $\Theta_{ab}$ holds if and only if the
+sum-of-smoothness condition
+\begin{equation}
+s_S + s_Y > d/2
+\label{eq:elbow}
+\end{equation}
+holds. When \eqref{eq:elbow} fails, the minimax rate is
+$n^{-\,4s/(4s+d)}$ (with $s=\tfrac{1}{2}(s_S+s_Y)$ the effective smoothness), strictly slower
+than $n^{-1/2}$, and no $\sqrt{n}$-consistent asymptotically normal estimator exists
+\cite{BickelRitov1988,BirgeMassart1995,Robins2008HOIF,Robins2017Minimax,Kennedy2024Minimax,McClean2024DCDR}.
+\end{assumption}
+
+\begin{remark}[A5 is conservative; finite support is automatic]
+\label{rem:A5-conservative}
+Condition \eqref{eq:elbow} is the boundary for the \emph{Dirac} kernel. Our kernel $C$ is
+bounded and (typically) smooth under Assumptions~\ref{assm:treatment-effects}(c) and
+\ref{assm:geometry}; a genuinely smooth $C$ can only \emph{absorb} smoothness and \emph{relax}
+the requirement, so \eqref{eq:elbow} is a conservative sufficient condition here. On finite
+$X$ every function is arbitrarily smooth and $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ is a fixed
+smooth (indeed polynomial) function of finitely many cell means, so A5 holds automatically---%
+this is why the finite-support proof never states it. Higher-order influence functions attain
+the minimax rate below the elbow but do \emph{not} restore $\sqrt{n}$ normality.
+\end{remark}
+
+\subsection{Layer L1: CATE asymptotic linearity}
+
+\begin{lemma}[A1: CATE asymptotic linearity]
+\label{lem:cate-linearity-A}
+Under A1--A2 (Assumption~\ref{assm:treatment-effects} generalized off the finite simplex, plus
+a pluggable estimator supplying a CATE influence function), for each $a\in\{S,Y\}$ and each
+$x\in\mathcal{X}$ the CATE estimator admits the expansion
+\begin{equation}
+\hat{\tau}_a(x) - \tau_a(x)
+  = \frac{1}{n}\sum_{i=1}^n \mathrm{IF}_{\tau_a}(O_i;x) + R_a(x),
+\label{eq:cate-expansion}
+\end{equation}
+where $\mathbb{E}_{\mathbb{P}_0}[\mathrm{IF}_{\tau_a}(O;x)]=0$ for every $x$, and the remainder
+satisfies $\|R_a\|_{L^2(\mathbb{P}_0)}=o_P(n^{-1/4})$ (product-rate control under A6).
+For an RCT $\mathrm{IF}_{\tau_a}$ is the (per-$x$) difference-of-means score; for AIPW /
+DR-learners it is the pointwise AIPW score, and a generic learner is admissible whenever
+it supplies a valid $\mathrm{IF}_{\tau_a}$ satisfying \eqref{eq:cate-expansion}.
+\end{lemma}
+
+\begin{proof}[Proof of Lemma~\ref{lem:cate-linearity-A}]
+This is the pointwise (per-$x$) restatement of the AIPW expansion established, integrated
+against $w$, in Lemma~\ref{lem:cross-fitting}; the reweighted per-study score
+$\psi_a^{\text{AIPW}}(O;\eta_0,\mathcal{Q})$ of \eqref{eq:aipw-s}--\eqref{eq:aipw-y} equals
+$\int w(x)\,\mathrm{IF}_{\tau_a}(O;x)\,d\mathbb{P}_0(x)$ up to the mean-zero centering, so
+mean-zero-ness and the $o_P(n^{-1/2})$ integrated remainder transfer directly. For the discrete
+case the score is exactly the per-cell AIPW score of the companion derivation
+(\texttt{derivation\_influence\_functions.md}, \S2). The remainder rate is A6.
+% NOTE(auditor): \eqref{eq:cate-expansion} is stated pointwise in x. Downstream (Lemma
+% \ref{lem:bilinear-eif-A}) we only ever integrate IF against dP0 or the bounded kernel C, so a
+% pointwise-in-x, L2-in-O influence function suffices; no Donsker/uniform-in-x class is claimed.
+\end{proof}
+
+\subsection{Layer L3: the bilinear-functional EIF (core new result)}
+
+\begin{lemma}[A3: EIF of a bilinear functional of CATEs]
+\label{lem:bilinear-eif-A}
+Fix a bounded symmetric kernel $C$ and the covariate law of $\mathbb{P}_0$; treat both as
+known (conditioning on the sampled geometry, as in Theorem~\ref{thm:asymptotic-normality}).
+Suppose $\tau_a,\tau_b$ are pathwise differentiable with influence functions
+$\mathrm{IF}_{\tau_a},\mathrm{IF}_{\tau_b}$ (Lemma~\ref{lem:cate-linearity-A}), and
+$\mathbb{E}_{\mathbb{P}_0}[\tau_a^2],\mathbb{E}_{\mathbb{P}_0}[\tau_b^2]<\infty$. Then
+$\Theta_{ab}=\iint C(x,x')\tau_a(x)\tau_b(x')\,d\mathbb{P}_0(x)d\mathbb{P}_0(x')$ is pathwise
+differentiable with efficient influence function
+\begin{equation}
+\chi_{ab}(O)
+ = \int h_b(x)\,\mathrm{IF}_{\tau_a}(O;x)\,d\mathbb{P}_0(x)
+ + \int h_a(x')\,\mathrm{IF}_{\tau_b}(O;x')\,d\mathbb{P}_0(x')
+ - \Theta_{ab},
+\label{eq:chi-ab}
+\end{equation}
+where
+\begin{equation}
+h_b(x) = \int C(x,x')\,\tau_b(x')\,d\mathbb{P}_0(x'),
+\qquad
+h_a(x') = \int C(x',x)\,\tau_a(x)\,d\mathbb{P}_0(x).
+\label{eq:h-directions}
+\end{equation}
+In particular, when $a=b$,
+$\chi_{aa}(O) = 2\int h_a(x)\,\mathrm{IF}_{\tau_a}(O;x)\,d\mathbb{P}_0(x)-\Theta_{aa}$ with
+$h_a(x)=\int C(x,x')\tau_a(x')d\mathbb{P}_0(x')$; and for finite $X$, \eqref{eq:chi-ab}
+reduces to a quadratic/trace form in $\Sigma$ (Corollary~\ref{cor:finite-support}).
+\end{lemma}
+
+\begin{proof}[Proof of Lemma~\ref{lem:bilinear-eif-A}]
+\emph{Strategy.} $\Theta_{ab}$ depends on $\mathbb{P}_0$ (with $C$ and the covariate law
+fixed) only through the pair $(\tau_a,\tau_b)$. We compute the pathwise derivative by the
+product rule over the two $\tau$-factors, identify the Riesz representer of each directional
+derivative, and symmetrize.
+
+\emph{Step 1: one-dimensional submodel.} Let $\{\mathbb{P}_t\}$ be a regular parametric submodel
+through $\mathbb{P}_0$ at $t=0$ with score $g(O)$, and let $\tau_{a,t},\tau_{b,t}$ denote the
+CATEs under $\mathbb{P}_t$. Pathwise differentiability of the CATEs (Lemma~\ref{lem:cate-linearity-A})
+gives, for each fixed $x$,
+\begin{equation}
+\frac{d}{dt}\tau_{a,t}(x)\Big|_{t=0}
+   = \mathbb{E}_{\mathbb{P}_0}\!\big[\mathrm{IF}_{\tau_a}(O;x)\,g(O)\big],
+\label{eq:tau-derivative}
+\end{equation}
+and similarly for $\tau_b$. (Here $C$ and $d\mathbb{P}_0$ in the definition of $\Theta_{ab}$ are
+held fixed; see Remark~\ref{rem:kernel-dependence}.)
+
+\emph{Step 2: product rule over the two factors.} Write
+$\Theta_{ab}(t)=\iint C(x,x')\tau_{a,t}(x)\tau_{b,t}(x')\,d\mathbb{P}_0(x)d\mathbb{P}_0(x')$
+(covariate law fixed). Differentiating under the integral (Leibniz; justified because $C$ is
+bounded, $\tau_{a,t},\tau_{b,t}$ have square-integrable derivatives, and the domination is by
+$C_w^2(\,|\partial_t\tau_a||\tau_b| + |\tau_a||\partial_t\tau_b|)\in L^1$):
+\begin{align}
+\frac{d}{dt}\Theta_{ab}(t)\Big|_{t=0}
+ &= \iint C(x,x')\,\Big[\dot\tau_a(x)\,\tau_b(x') + \tau_a(x)\,\dot\tau_b(x')\Big]
+     \,d\mathbb{P}_0(x)d\mathbb{P}_0(x') \nonumber\\
+ &= \int \dot\tau_a(x)\,h_b(x)\,d\mathbb{P}_0(x)
+  + \int \dot\tau_b(x')\,h_a(x')\,d\mathbb{P}_0(x'),
+\label{eq:productrule}
+\end{align}
+where $\dot\tau_a(x)=\tfrac{d}{dt}\tau_{a,t}(x)|_{t=0}$ and we used Fubini (bounded $C$,
+square-integrable $\tau$) to collapse each double integral, defining the two \emph{directional}
+representers $h_b,h_a$ of \eqref{eq:h-directions}. This is the ``two directional derivatives,
+then symmetrize'' step: the $a$-factor is differentiated against the $b$-weight $h_b$, and the
+$b$-factor against the $a$-weight $h_a$.
+
+\emph{Step 3: substitute the CATE scores.} Insert \eqref{eq:tau-derivative} into
+\eqref{eq:productrule} and interchange the (finite-measure, bounded-integrand) $x$- and
+$O$-integrals by Fubini:
+\begin{align}
+\frac{d}{dt}\Theta_{ab}(t)\Big|_{t=0}
+ &= \mathbb{E}_{\mathbb{P}_0}\!\Big[\Big(\int h_b(x)\mathrm{IF}_{\tau_a}(O;x)d\mathbb{P}_0(x)
+     + \int h_a(x')\mathrm{IF}_{\tau_b}(O;x')d\mathbb{P}_0(x')\Big)\,g(O)\Big].
+\label{eq:riesz}
+\end{align}
+\emph{Step 4: identify the EIF.} Equation \eqref{eq:riesz} exhibits the pathwise derivative as
+$\mathbb{E}_{\mathbb{P}_0}[\tilde\chi_{ab}(O)g(O)]$ for every score $g$, where $\tilde\chi_{ab}$
+is the bracketed term; by the Riesz representation of pathwise derivatives $\tilde\chi_{ab}$ is
+the (canonical-gradient) influence function of $\Theta_{ab}$. Since
+$\mathbb{E}_{\mathbb{P}_0}[\mathrm{IF}_{\tau_a}(O;x)]=0$ for all $x$ we have
+$\mathbb{E}_{\mathbb{P}_0}[\tilde\chi_{ab}]=0$; the constant $-\Theta_{ab}$ in \eqref{eq:chi-ab}
+is the centering used for one-step debiasing (whose plug-in part carries $+\Theta_{ab}$).
+Efficiency holds because $\tilde\chi_{ab}$ is a $\mathbb{P}_0$-integral of the efficient CATE
+influence functions, hence lies in the tangent space.
+
+\emph{Step 5: diagonal check.} If $a=b$ then $h_a=h_b$ and $\mathrm{IF}_{\tau_a}=\mathrm{IF}_{\tau_b}$,
+so \eqref{eq:chi-ab} becomes
+$\chi_{aa}(O)=2\int h_a(x)\mathrm{IF}_{\tau_a}(O;x)d\mathbb{P}_0(x)-\Theta_{aa}$, the factor $2$
+being exactly the two identical directional derivatives---consistent with $\Theta_{aa}$ being a
+pure quadratic whose derivative carries the classical factor $2$.
+
+\emph{Step 6: discrete check.} On finite $X$, \eqref{eq:h-directions} gives
+$h_b(k)=\sum_{k'}C(k,k')\tau_b(k')p_0(k')$; substituting into \eqref{eq:chi-ab} and using
+$\int h_b\,\mathrm{IF}_{\tau_a}d\mathbb{P}_0=\sum_k p_0(k)h_b(k)\mathrm{IF}_{\tau_a}(\cdot;k)$
+reproduces the discrete $\Sigma$-quadratic score; contracting against the CATE-score covariance
+$V$ yields the $\mathrm{tr}(\Sigma V)$ debiasing term of the finite-support case
+(Corollary~\ref{cor:finite-support}).
+\end{proof}
+
+\begin{remark}[Scope: kernel and covariate-law dependence held fixed]
+\label{rem:kernel-dependence}
+Lemma~\ref{lem:bilinear-eif-A} differentiates only through $(\tau_a,\tau_b)$, holding the
+kernel $C$ and the covariate law $d\mathbb{P}_0$ fixed. This matches
+Theorem~\ref{thm:asymptotic-normality}, which conditions on the sampled geometry $\hat{\mu}_M$
+(hence on $C$). The \emph{unconditional} EIF, which would additionally differentiate $C$'s and
+the covariate law's dependence on $\mathbb{P}_0$, contributes further terms; deriving it is
+future work and is not needed for the conditional statement of Theorem~\ref{thm:general}.
+% NOTE(auditor): Genuine deferral, not a hidden step. Conditional-on-geometry stance inherited
+% from Theorem \ref{thm:asymptotic-normality}. An unconditional statement would add Gateaux terms
+% from differentiating dP0(x), dP0(x'), and (if C is a P0-plug-in) C itself. Localize here.
+\end{remark}
+
+\subsection{Layer L3: one-step debiased cross-fit estimator}
+
+\begin{lemma}[A4: debiased cross-fit estimator of $\Theta_{ab}$]
+\label{lem:onestep-A}
+Let $\hat\tau_a,\hat\tau_b,\hat{C}$ be cross-fitted estimators and
+$\hat h_b(x)=\int \hat C(x,x')\hat\tau_b(x')d\mathbb{P}_0(x')$ (etc.). The one-step estimator
+\begin{equation}
+\hat\Theta_{ab}
+ = \iint \hat C(x,x')\hat\tau_a(x)\hat\tau_b(x')\,d\mathbb{P}_0(x)d\mathbb{P}_0(x')
+ + \frac{1}{n}\sum_{i=1}^n \hat\chi_{ab}(O_i)
+\label{eq:onestep}
+\end{equation}
+is Neyman-orthogonal in $\beta=(\tau_a,\tau_b)$: the Gateaux derivative of the map
+$\beta\mapsto \mathbb{E}_{\mathbb{P}_0}[\text{(plug-in)}+\chi_{ab}]$ vanishes at the truth.
+\end{lemma}
+
+\begin{proof}[Proof of Lemma~\ref{lem:onestep-A}]
+By Lemma~\ref{lem:bilinear-eif-A}, $\chi_{ab}$ is the canonical gradient of $\Theta_{ab}$ in
+$\beta$; adding it to the plug-in cancels the first-order plug-in bias, the defining property of
+the one-step construction. Concretely, the directional derivative of the plug-in at $\beta$
+along $(\delta_a,\delta_b)$ is $\int h_b\delta_a\,d\mathbb{P}_0+\int h_a\delta_b\,d\mathbb{P}_0$
+by \eqref{eq:productrule}, while $\mathbb{E}_{\mathbb{P}_0}[\chi_{ab}]$ has directional derivative
+equal to its negative; the two cancel. The representer $h_b$ plays the role of the weight $w$ in
+Lemma~\ref{lem:orthogonality}: since $h_b,h_a$ are functions of $x$ that do \emph{not} depend on
+the outcome-model nuisances $\eta=(e,\mu_0,\mu_1)$ (only on $C$ and $\tau$), the
+``orthogonality survives reweighting'' argument of Lemma~\ref{lem:orthogonality}, Step~4, applies
+verbatim with $h_b$ (resp.\ $h_a$) in the role of $w(X;\mathcal{Q})$, so orthogonality \emph{in
+$\eta$} holds in addition to orthogonality \emph{in $\beta$}.
+% NOTE(auditor): Two orthogonalities: (i) in beta by the one-step construction; (ii) in eta,
+% inherited from Lemma \ref{lem:orthogonality} because h_a,h_b are eta-free x-functions. Both are
+% needed for the Lemma \ref{lem:elbow} remainder to be second order. Most worth re-checking.
+\end{proof}
+
+\subsection{Layer L3: remainder and the estimability elbow}
+
+\begin{lemma}[A5: bilinear remainder / elbow]
+\label{lem:elbow}
+Under Lemmas~\ref{lem:cate-linearity-A}, \ref{lem:onestep-A}, the estimator
+\eqref{eq:onestep} satisfies
+$\hat\Theta_{ab} - \Theta_{ab} = \frac{1}{n}\sum_{i=1}^n \chi_{ab}(O_i) + R_n$,
+where the second-order remainder is, up to $o_P(n^{-1/2})$ nuisance terms controlled by A6 and
+Lemma~\ref{lem:onestep-A},
+\begin{equation}
+R_n = \iint \hat C(x,x')\,(\hat\tau_a-\tau_a)(x)\,(\hat\tau_b-\tau_b)(x')\,d\mathbb{P}_0(x)d\mathbb{P}_0(x').
+\label{eq:remainder}
+\end{equation}
+By Cauchy--Schwarz with the bounded symmetric kernel $\hat C$ (operator norm
+$\|\hat C\|_{op}\le C_w^2$ under Assumptions~\ref{assm:treatment-effects}(c), \ref{assm:geometry}),
+\begin{equation}
+|R_n|
+ \le \|\hat C\|_{op}\,\big\|\hat\tau_a-\tau_a\big\|_{L^2(\mathbb{P}_0)}\,
+     \big\|\hat\tau_b-\tau_b\big\|_{L^2(\mathbb{P}_0)}.
+\label{eq:CS-remainder}
+\end{equation}
+Hence $R_n=o_P(n^{-1/2})$ if $\|\hat\tau_a-\tau_a\|\cdot\|\hat\tau_b-\tau_b\| = o_P(n^{-1/2})$,
+which holds under A5: for H\"older/Sobolev smoothness $s_S,s_Y$ the achievable rates give a
+product $o_P(n^{-1/2})$ exactly when $s_S+s_Y>d/2$. When \eqref{eq:elbow} fails, $\hat\Theta_{ab}$
+has the slower minimax rate $n^{-4s/(4s+d)}$ and no $\sqrt{n}$-normal estimator exists
+\cite{BickelRitov1988,BirgeMassart1995,Robins2008HOIF,Kennedy2024Minimax,McClean2024DCDR}.
+\end{lemma}
+
+\begin{proof}[Proof of Lemma~\ref{lem:elbow}]
+The von Mises expansion of \eqref{eq:onestep} has exact second-order remainder
+\eqref{eq:remainder}: the one-step correction removes the first-order term
+(Lemma~\ref{lem:onestep-A}), and $\Theta_{ab}$ is exactly \emph{bilinear} in $\beta$, so the
+Taylor expansion terminates at the product term with \emph{no} higher-order terms (a quadratic
+functional has zero third derivative). The nuisance-$\eta$ contribution is $o_P(n^{-1/2})$ by
+Neyman orthogonality in $\eta$ (Lemma~\ref{lem:onestep-A}) and the product-rate A6, exactly as in
+Lemma~\ref{lem:cross-fitting}. For \eqref{eq:CS-remainder}: writing $\delta_a=\hat\tau_a-\tau_a$,
+$\delta_b=\hat\tau_b-\tau_b$, $R_n=\langle \delta_a,\hat C\delta_b\rangle_{L^2(\mathbb{P}_0)}$
+with $(\hat C\delta_b)(x)=\int\hat C(x,x')\delta_b(x')d\mathbb{P}_0(x')$; Cauchy--Schwarz and the
+operator-norm bound give $|R_n|\le\|\hat C\|_{op}\|\delta_a\|\|\delta_b\|$. The smoothness
+accounting for the product rate is the quadratic-functional elbow of A5.
+\end{proof}
+
+\subsection{Layers L3--L4: moment-vector EIF and composition}
+
+\begin{lemma}[A7: moment-vector EIF and delta-method composition]
+\label{lem:moment-eif-A}
+Under A0--A8, the moment vector $m$ has influence function $\psi_m$ obtained by stacking:
+\begin{enumerate}[(a)]
+\item the linear-moment scores
+$\psi_{\mathbb{E}_\mu\Delta_a}(O)=\int\bar a(x)\,\mathrm{IF}_{\tau_a}(O;x)\,d\mathbb{P}_0(x)$
+for $a\in\{S,Y\}$;
+\item the bilinear scores $\chi_{SS},\chi_{YY},\chi_{SY}$ from Lemma~\ref{lem:bilinear-eif-A};
+\item for raw second moments, using $\mathbb{E}_\mu[\Delta_a^2]=\Theta_{aa}+(\mathbb{E}_\mu\Delta_a)^2$, the EIF
+$\psi_{\mathbb{E}_\mu\Delta_a^2}=\chi_{aa}+2\,\mathbb{E}_\mu[\Delta_a]\,\psi_{\mathbb{E}_\mu\Delta_a}$.
+\end{enumerate}
+Then, for smooth $\Psi$ with gradient $\nabla\Psi(m)$ (A7 non-degeneracy),
+\begin{equation}
+\psi_\Theta(O) = \nabla\Psi(m)^\top\,\psi_m(O).
+\label{eq:psi-theta}
+\end{equation}
+The cross-outcome score $\chi_{SY}$ carries
+$\mathbb{E}_{\mathbb{P}_0}[\mathrm{IF}_{\tau_S}(O;\cdot)\,\mathrm{IF}_{\tau_Y}(O;\cdot)]$
+(the two CATE influence functions are evaluated on the \emph{same unit} $O$), so
+$\mathrm{Var}(\psi_\Theta)$ is \textbf{not} block-diagonal across $S$ and $Y$.
+\end{lemma}
+
+\begin{proof}[Proof of Lemma~\ref{lem:moment-eif-A}]
+(a) is the linear-functional EIF (mean-zero and Riesz representation as in
+Lemma~\ref{lem:bilinear-eif-A}, Step~4, with the degenerate weight $\bar a$). (b) is
+Lemma~\ref{lem:bilinear-eif-A}. (c) is the chain rule on
+$m\mapsto\Theta_{aa}+(\mathbb{E}_\mu\Delta_a)^2$. Finally \eqref{eq:psi-theta} is the functional
+delta method (Lemma~\ref{lem:functional-expansion}) applied to $\Psi$ at $m$, whose Hadamard
+differentiability and bounded gradient are A7 (Assumptions~\ref{assm:functional},
+\ref{assm:lipschitz}, \ref{assm:nondegeneracy}). Non-block-diagonality is immediate because
+$\chi_{SY}$ pairs $\mathrm{IF}_{\tau_S}$ and $\mathrm{IF}_{\tau_Y}$ at the same $O$.
+\end{proof}
+
+\subsection{Main result: general asymptotic normality}
+
+\begin{theorem}[A: general asymptotic normality, conditional on the geometry]
+\label{thm:general}
+Under Assumptions~\ref{assm:A0-transport} (A0), \ref{assm:A5-elbow} (A5), and the general-case
+readings of Assumptions~\ref{assm:treatment-effects}--\ref{assm:functional} (A1--A4),
+\ref{assm:nuisance}--\ref{assm:sample-size} (A6--A8), with one-step cross-fit debiased
+estimators of the moments $m$ (Lemmas~\ref{lem:cate-linearity-A}--\ref{lem:elbow}) and
+$\hat\Theta=\Psi(\hat m)$, conditional on the sampled geometry $\hat{\mu}_M$ (equivalently on
+the kernel $C$), as $n\to\infty$,
+\begin{equation}
+\sqrt{n}\big(\hat\Theta - \Theta(\hat{\mu}_M)\big)
+ = \frac{1}{\sqrt{n}}\sum_{i=1}^n \psi_\Theta(O_i;\hat{\mu}_M)
+ + O_P\!\big((n/M)^{1/2}\big) + o_P(1)
+ \xrightarrow{d} N\!\big(0,\ \mathbb{E}_{\mathbb{P}_0}[\psi_\Theta^2]\big),
+\end{equation}
+with $\psi_\Theta$ of \eqref{eq:psi-theta}. If additionally $n=o(M)$
+(Assumption~\ref{assm:sample-size}), the MCMC term is $o_P(1)$ and unconditionally
+$\sqrt{n}(\hat\Theta-\Theta(\mu))\xrightarrow{d}N(0,\sigma^2(\mu))$,
+$\sigma^2(\mu)=\mathbb{E}_{\mathbb{P}_0}[\psi_\Theta(O;\mu)^2]$.
+\end{theorem}
+
+\begin{proof}[Proof of Theorem~\ref{thm:general}]
+\emph{Step 1 (moment expansions).} For the linear moments, Lemma~\ref{lem:cate-linearity-A}
+integrated against $\bar a$ gives
+$\widehat{\mathbb{E}_\mu\Delta_a}-\mathbb{E}_\mu\Delta_a=\frac1n\sum_i\psi_{\mathbb{E}_\mu\Delta_a}(O_i)+o_P(n^{-1/2})$.
+For the bilinear moments, Lemma~\ref{lem:elbow} gives
+$\hat\Theta_{ab}-\Theta_{ab}=\frac1n\sum_i\chi_{ab}(O_i)+o_P(n^{-1/2})$ \emph{provided A5 holds}
+(the only use of A5; below the elbow this step fails and the rate degrades). Stacking,
+$\hat m-m=\frac1n\sum_i\psi_m(O_i)+o_P(n^{-1/2})$.
+
+\emph{Step 2 (delta method / L4).} $\Psi$ is Hadamard differentiable with bounded gradient on
+$\{\mathrm{Var}_\mu\Delta_S,\mathrm{Var}_\mu\Delta_Y\ge c_0\}$ (Assumption~\ref{assm:nondegeneracy});
+Lemma~\ref{lem:functional-expansion} (reused, with $m$ in place of the per-study pair) gives
+$\sqrt n(\hat\Theta-\Theta(\hat\mu_M)) = \nabla\Psi(m)^\top\sqrt n(\hat m-m)+o_P(1)
+= \frac1{\sqrt n}\sum_i\psi_\Theta(O_i;\hat\mu_M)+o_P(1)$ by Lemma~\ref{lem:moment-eif-A}. For the
+ratio-type $\Psi$ (correlation), the second-order delta-method remainder is
+$O_P(\|\hat m-m\|^2)=O_P(n^{-1})=o_P(n^{-1/2})$ since $\nabla^2\Psi$ is bounded on the
+non-degenerate region (A7).
+% NOTE(auditor): ratio-Psi second-order remainder closes iff bounded Hessian x O_P(n^{-1}) =
+% o_P(n^{-1/2}), i.e. under A7 non-degeneracy. If c_0 -> 0 a TMLE targeting step substitutes for
+% one-step + delta method. This is the ratio-sufficiency point to re-check.
+
+\emph{Step 3 (CLT, conditional on $\hat\mu_M$).} Conditional on the geometry, $O_1,\dots,O_n$ are
+i.i.d.\ and independent of $\hat\mu_M$; $\mathbb{E}_{\mathbb{P}_0}[\psi_\Theta]=0$ (each stacked
+score is mean-zero: Lemma~\ref{lem:bilinear-eif-A}, Step~4) and
+$\mathbb{E}_{\mathbb{P}_0}[\psi_\Theta^2]<\infty$ under Assumption~\ref{assm:bounded-if-variance}
+(bounded weights, bounded $C$, bounded gradient). The Lindeberg--L\'evy CLT gives
+$\frac1{\sqrt n}\sum_i\psi_\Theta(O_i;\hat\mu_M)\xrightarrow{d}N(0,\mathbb{E}[\psi_\Theta^2])$.
+
+\emph{Step 4 (MCMC term).} $\Theta(\hat\mu_M)-\Theta(\mu)=O_P(M^{-1/2})$ by
+Lemma~\ref{lem:mcmc-error} applied to the bounded functional $g=\Psi(m(\cdot))$ of the chain
+(bounded under A3--A4, A7); scaling by $\sqrt n$ gives the $O_P((n/M)^{1/2})$ term, which is
+$o_P(1)$ iff $n=o(M)$ (Assumption~\ref{assm:sample-size}), yielding the unconditional statement.
+Combining Steps 1--4 gives the display.
+\end{proof}
+
+\subsection{Finite-support special case}
+
+\begin{corollary}[A10: recovery of Theorem~\ref{thm:asymptotic-normality}]
+\label{cor:finite-support}
+When $X\in\{1,\dots,K\}$ is finite, $C\to\Sigma$ (with $\Sigma_{kk'}=\mathrm{Cov}_\mu(q_k,q_{k'})$),
+$\mathrm{IF}_{\tau_a}$ is the per-cell AIPW score, and $\Psi$ is the correlation map $\varphi$ of
+Section~\ref{sec:correlation-application}, Theorem~\ref{thm:general} reduces to
+Theorem~\ref{thm:asymptotic-normality}, with the same influence function $\psi_\Theta$ and the
+same $\sigma^2(\hat\mu_M)$; the $\chi_{ab}$ centering becomes the discrete $\mathrm{tr}(\Sigma V)$
+debiasing form, where $V_{kk'}=\mathbb{E}_{\mathbb{P}_0}[\mathrm{IF}_{\tau_a}(O;k)\mathrm{IF}_{\tau_b}(O;k')]$
+is the CATE-score covariance.
+\end{corollary}
+
+\begin{proof}[Proof of Corollary~\ref{cor:finite-support}]
+On finite $X$, A5 is automatic (Remark~\ref{rem:A5-conservative}) and
+$\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ by \eqref{eq:discrete-quadform}. The directional representer
+satisfies $(h_b(k)p_0(k))_k \propto \Sigma\tau_b$, so Lemma~\ref{lem:bilinear-eif-A} gives
+$\chi_{ab}(O)=(\Sigma\tau_b)^\top\mathbf{IF}_{\tau_a}(O)+(\Sigma\tau_a)^\top\mathbf{IF}_{\tau_b}(O)-\tau_a^\top\Sigma\tau_b$,
+with $\mathbf{IF}_{\tau_a}(O)=(\mathrm{IF}_{\tau_a}(O;1),\dots,\mathrm{IF}_{\tau_a}(O;K))^\top$.
+The population mean of the first-order plug-in bias contracts the CATE-score vectors against
+$\Sigma$, giving $\mathrm{tr}(\Sigma V)$ with
+$V=\mathbb{E}_{\mathbb{P}_0}[\mathbf{IF}_{\tau_a}\mathbf{IF}_{\tau_b}^\top]$---the disattenuation
+term of the finite-support estimator. The per-cell AIPW score is that of
+Lemma~\ref{lem:cross-fitting} restricted to a cell, and $\varphi$'s gradient is the composed
+gradient of Remark~\ref{rem:aggregate-gradient}; substituting into \eqref{eq:psi-theta} reproduces
+$\psi_\Theta(O;\hat\mu_M)$ of Theorem~\ref{thm:asymptotic-normality}. All remainders are those of
+Lemmas~\ref{lem:cross-fitting}, \ref{lem:functional-expansion}, so the two limit laws coincide.
+% NOTE(auditor): The exact tr(Sigma V) constant depends on the factor-2 diagonal vs off-diagonal
+% pairing (Lemma \ref{lem:bilinear-eif-A}, Step 5). The claim is STRUCTURAL collapse (same object),
+% not a re-derivation of the finite-support constant (already validated in
+% Theorem \ref{thm:asymptotic-normality}). Re-check pairing if a numeric match is asserted.
+\end{proof}
+
+\subsection{Post-proof audit (general theory)}
+\label{subsec:audit-general}
+
+\paragraph{Assumption check.}
+A0 (Assumption~\ref{assm:A0-transport}) is used once, to license the frozen-effect
+representation \eqref{eq:delta-linear}. A1--A2 enter Lemma~\ref{lem:cate-linearity-A}; A3
+(Assumption~\ref{assm:treatment-effects}(c)) bounds $C$ and the weights; A4
+(Assumption~\ref{assm:geometry}) gives the bounded kernel and MCMC-CLT; A5
+(Assumption~\ref{assm:A5-elbow}) is used once, in Lemma~\ref{lem:elbow}; A6 controls nuisance
+remainders; A7 (Assumptions~\ref{assm:functional}, \ref{assm:lipschitz}, \ref{assm:nondegeneracy})
+gives the delta method and bounded Hessian; A8 (Assumption~\ref{assm:sample-size}) governs the $n$
+vs $M$ regime. No assumption is introduced mid-proof.
+
+\paragraph{Dependency check.}
+Riesz representation (Lemma~\ref{lem:bilinear-eif-A}): square-integrable CATE scores and bounded
+$C$, verified. Fubini/Leibniz: bounded $C$, $L^2$ CATEs, verified. Cauchy--Schwarz with
+operator-norm bound (Lemma~\ref{lem:elbow}): symmetric bounded kernel, verified under A3--A4.
+Chernozhukov et al.\ (2018) orthogonality/cross-fitting: reused via Lemmas~\ref{lem:orthogonality},
+\ref{lem:cross-fitting} with the $\eta$-free $h_a,h_b$ in the role of $w$. Markov-chain CLT
+(Lemma~\ref{lem:mcmc-error}) and delta method (Lemma~\ref{lem:functional-expansion}) reused
+unchanged. Minimax lower bounds
+\cite{BickelRitov1988,BirgeMassart1995,Robins2008HOIF,Robins2017Minimax,Kennedy2024Minimax,McClean2024DCDR}
+supply the below-elbow non-existence claim.
+
+\paragraph{Rate verification.}
+Bilinear remainder \eqref{eq:CS-remainder}: product of CATE $L^2$-rates, $o_P(n^{-1/2})$ iff
+$s_S+s_Y>d/2$ (A5); at equality $O_P(n^{-1/2})$ (no slack), below strictly slower and dominant, so
+no $\sqrt n$-normal limit. Nuisance-$\eta$ remainder: $o_P(n^{-1/2})$ via A6, as in
+Lemma~\ref{lem:cross-fitting}. Delta-method second-order remainder: $O_P(n^{-1})=o_P(n^{-1/2})$
+under bounded Hessian (A7). MCMC: $O_P((n/M)^{1/2})$, $o_P(1)$ iff $n=o(M)$.
+
+\paragraph{Edge-case scan.}
+(i) \emph{Near-elbow} $s_S+s_Y\downarrow d/2$: product rate loses slack, intervals widen; report
+the minimax rate honestly. (ii) \emph{Weak overlap} $e(x)\to0,1$: $\mathrm{IF}_{\tau_a}$ blows up
+(Assumption~\ref{assm:second-derivatives} fails); trim. (iii) \emph{Degenerate variance}: $\nabla\Psi$
+blows up like $c_0^{-3/2}$; A7 excludes. (iv) \emph{Kernel conditioning}: the bound
+\eqref{eq:CS-remainder} uses $\|C\|_{op}$, not $C^{-1}$, so ill-conditioning of $C$ does not break
+it---only extreme weights (bounded by A3) matter.
+
+\paragraph{Tightness.}
+Above the elbow the $\sqrt n$ rate is sharp: $\psi_\Theta$ is the canonical gradient, so
+$\mathbb{E}[\psi_\Theta^2]$ is the semiparametric efficiency bound. Below the elbow the
+$n^{-4s/(4s+d)}$ rate is minimax, so A5 is not improvable as a $\sqrt n$-condition for the Dirac
+kernel; for the smooth kernel $C$ it is conservative (Remark~\ref{rem:A5-conservative}).
+
+\paragraph{Failure localization.}
+Three steps warrant re-checking. (1) The $a\ne b$ symmetrization
+(Lemma~\ref{lem:bilinear-eif-A}, Steps~2--4): the two directional representers must be added,
+guarded by the diagonal (Step~5) and discrete (Step~6) checks. (2) Kernel/covariate-law
+$\mathbb{P}_0$-dependence (Remark~\ref{rem:kernel-dependence}): explicitly deferred. (3) Ratio
+one-step sufficiency (Theorem~\ref{thm:general}, Step~2): closes under bounded Hessian (A7); TMLE
+fallback if $c_0\to0$. The linear/bilinear/CLT core is otherwise standard.
