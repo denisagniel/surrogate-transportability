@@ -71,6 +71,34 @@ Everything else (L1 identification, L4 delta method) is standard.
 Grouped by layer. For each: statement, what it enables, and how it could be
 relaxed (the "generalization dial").
 
+### L0 — Meaning of the estimand (the transportability assumption)
+- **A0 (Conditional-effect transportability given X).** All cross-study variation
+  in treatment effects is *compositional in the measured covariates X*: future
+  studies may differ in the marginal distribution of X but share P₀'s conditional
+  law of potential outcomes given X. Equivalently, the reweighting `w = dQ/dP₀`
+  depends on X only, so `τ_S(x), τ_Y(x)` are frozen at their P₀ values in every Q.
+  *Buys:* the entire L2 construction `Δ_S(Q) = E_{P₀}[w(X)τ_S(X)]` — i.e. that the
+  sampled study effects are a functional of X-cell effects (this is what makes the
+  method "sample Q, reweight, correlate" without ever modelling within-X
+  heterogeneity). *Status:* this is a **substantive causal assumption**, of the
+  Dahabreh–Hernán "effects transport conditional on X" class — NOT a
+  support/computational condition. It was previously conflated with A3 (`Q ≪ P₀`);
+  they are distinct: A3 is support, A0 is the causal content.
+  *Two readings:*
+  - **Definitional (assumption-free):** the estimand simply IS the correlation
+    over the class of X-compositional future studies. Then A0 is not an assumption,
+    just a *scope statement* — be clear the futures considered differ in who-is-in-
+    them (by X), not in the X→effect relationship.
+  - **Interpretive (needs A0):** to read the estimand as "does the surrogate
+    transport to REAL future studies," A0 must hold — real futures differ from P₀
+    only compositionally in X.
+  *Dial / relaxation:* A0 **cannot be dropped for a point estimate from a single
+  study** — it is an identification barrier (to reweight two units with the same X
+  differently, `w` must depend on an unobserved modifier U, which cannot be keyed
+  to from one study; weighting on A breaks randomization, weighting on the factual
+  outcome selects on the outcome). It CAN be relaxed to an **interval** via the
+  observation-level construction (§3bis).
+
 ### L1 — Identification & estimation of the CATEs β
 - **A1 (Identification).** SUTVA, consistency, and either randomization
   (`A ⟂ (S(a),Y(a)) | X`, known e(x)) or unconfoundedness with overlap
@@ -85,11 +113,14 @@ relaxed (the "generalization dial").
   under rate conditions, forests only under Wager–Athey-type conditions.
 
 ### L2 — Reweighting (Q ≪ P₀)
-- **A3 (Absolute continuity + bounded weights).** Q ≪ P₀ and
+- **A3 (Absolute continuity + bounded weights).** Q ≪ P₀ (on the X-marginal) and
   `sup_x w(x) ≤ C < ∞` μ-a.s. *Buys:* Δ(Q) is a bounded linear functional of β;
-  no extrapolation beyond supp(P₀); AIPW remainder uniform over Q. *Dial:*
-  relaxing Q ≪ P₀ (extrapolation) requires a model for β off-support — a strictly
-  stronger, different theory. This is the paper's stated boundary.
+  no extrapolation beyond supp(P₀); AIPW remainder uniform over Q. *Distinct from
+  A0:* A3 is a support/computational condition (no new X values); A0 is the causal
+  claim that effects are frozen within X. Both are needed and they are not the
+  same. *Dial:* relaxing Q ≪ P₀ (extrapolation to new X) requires a model for β
+  off-support — a strictly stronger, different theory. This is the paper's stated
+  boundary on the X-support side; A0 is the boundary on the within-X side.
 
 ### L3 — μ-aggregation over the geometry (the quadratic-functional layer)
 - **A4 (Geometry regularity).** U(P₀,λ;d) is a convex body (TV, χ², L₂ balls);
@@ -141,13 +172,60 @@ relaxed (the "generalization dial").
 
 Minimality note: A1–A4, A6–A8 are essentially the canonical proof's assumptions
 generalized off the finite simplex. **A5 is the genuinely new, general-case
-assumption** the finite-support proof hides (there it is automatic).
+assumption** the finite-support proof hides (there it is automatic). **A0 is the
+substantive causal assumption** that makes the estimand a transportability claim.
+
+---
+
+## 3bis. Relaxing A0: the observation-level estimand as a partial-ID interval
+
+A0 freezes effects within X. Relaxing it defines the **observation-level estimand**:
+future studies may reweight the individual effect distribution `(τ_S(X,U),
+τ_Y(X,U))`, not just the X-marginal. Verified findings
+(`explorations/obs_level/`):
+
+- **Well-defined and A0-consistent:** the observation-level correlation equals the
+  X-level correlation exactly when A0 holds (no within-X effect heterogeneity), and
+  is otherwise **more conservative** (less extreme). The X-level ↔ obs-level GAP
+  measures exposure to unmeasured within-X heterogeneity — genuine signal, not a
+  noise artifact. (The deprecated `observation_level_minimax` code did NOT deliver
+  this — it reweighted by X-distance, so identical-X units got identical weights;
+  it was X-level in disguise. A real obs-level construction must perturb U|X.)
+
+- **Partial identification (the key result):** the obs-level correlation depends on
+  the within-X effect moments `v_S(x)=Var(τ_S|x)`, `v_Y(x)=Var(τ_Y|x)`,
+  `c_SY(x)=Cov(τ_S,τ_Y|x)`.
+  - `v_S, v_Y` are **identified** from an RCT: `Var(S|A=1,x) − Var(S|A=0,x)` (and
+    similarly Y). Verified.
+  - `c_SY(x)` is **NOT identified** — it is the correlation of potential outcomes
+    (τ_S and τ_Y effects are never jointly observed on one unit). The naive
+    difference-of-covariances estimator is valid only if effects are independent of
+    baselines within X, and breaks otherwise (stress test: error 0.05→0.56→1.21 as
+    effect–baseline dependence grows). Classic PO-correlation non-identifiability.
+
+- **⇒ A0-sensitivity interval.** Since `v_S, v_Y` are identified and `c_SY(x)` is
+  bounded by Cauchy–Schwarz, `|c_SY(x)| ≤ √(v_S(x) v_Y(x))`, sweep `c_SY` over its
+  feasible range and report `[ρ_obs_lo, ρ_obs_hi]`. This is a **data-powered
+  sensitivity analysis for A0**: the bound width is constrained by the observed
+  within-X spread, not a free dial. Reframes "report both X-level and obs-level" as
+  **"report the X-level point estimate and its A0-sensitivity bounds."**
+
+- **Where this sits in the layers:** the obs-level moments are again quadratic/
+  bilinear functionals (now of the individual-effect distribution), so A5's
+  estimability boundary applies to `v_S, v_Y` too; the extra content is only the
+  unidentified `c_SY` sweep. So this relaxation is *additive* on top of the L1–L5
+  machinery, not a separate theory.
+
+*Open (build phase):* prototype the interval, check coverage of the true obs-level
+correlation across scenarios, and whether cross-cell structure tightens the CS
+bound. (`explorations/obs_level/FINDINGS.md`.)
 
 ---
 
 ## 4. General limit theorem (target statement)
 
-> **Proposition (general).** Under A1–A8, with debiased (one-step, cross-fit)
+> **Proposition (general).** Under A0 (so the estimand is the X-compositional
+> transportability functional) and A1–A8, with debiased (one-step, cross-fit)
 > estimators of the L3 quadratic functionals and Θ̂ = Ψ(m̂),
 > ```
 > √n ( Θ̂ − Θ(P₀,λ) )  =  𝔾_n[ ψ_Θ ]  +  (n/M)^{1/2} 𝒵_M  +  o_P(1),
@@ -190,11 +268,18 @@ instance of the L3 debiasing term (verified, `CONTINUOUS_CASE.md`).
 
 The method has √n, asymptotically-normal, efficient inference for **any smooth
 functional Ψ of the study-effect distribution, under any convex local geometry,
-for discrete or smooth-enough continuous X** — the binding constraint is A5, the
-√n-estimability of the quadratic/bilinear functionals of the CATEs, which for
-continuous X requires the combined CATE smoothness `s_S + s_Y > dim(X)/2` (reducing
-to `s > dim(X)/4` when both CATEs are equally smooth); below that boundary only
-slower minimax rates are attainable and inference must be reported accordingly.
+for discrete or smooth-enough continuous X** — subject to two boundaries:
+- **A0 (causal / within-X):** the point estimand is a transportability claim only
+  under conditional-effect transportability given X (effects frozen within X).
+  This is an identification barrier, not an estimation one; relaxing it yields the
+  observation-level partial-ID interval (§3bis), not a different point estimate.
+- **A5 (statistical / smoothness):** √n-estimability of the quadratic/bilinear
+  functionals of the CATEs requires combined smoothness `s_S + s_Y > dim(X)/2`
+  (→ `s > dim(X)/4` under equal smoothness); below it only slower minimax rates.
+
+A0 governs *what the estimand means*; A5 governs *how well we can estimate it*.
+Both must be stated; neither is removable, but each has an honest fallback
+(A0 → sensitivity bounds; A5 → report the slower rate).
 
 ---
 
