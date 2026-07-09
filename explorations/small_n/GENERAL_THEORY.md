@@ -98,15 +98,31 @@ relaxed (the "generalization dial").
   well-defined bounded quadratic functionals; MCMC-CLT for the Σ_q / C estimate.
   *Dial:* non-uniform μ, other divergences (KL, Wasserstein) change C but not the
   quadratic structure.
-- **A5 (Quadratic-functional estimability — THE regularity boundary).** The
-  quadratic functionals `∬ C τ τ dP₀²` admit √n-consistent (debiased) estimation.
-  For discrete/finite X this is automatic. For continuous X this holds **only if β
-  is smooth enough relative to dim(X)** — the classical quadratic-functional
-  threshold: a functional like `∫τ²` is √n-estimable iff β lies in a Hölder/Sobolev
-  class of smoothness `s > d/4` (`d = dim X`); below that, the minimax rate is
-  slower than √n and no estimator is √n-normal. **This is the true outer limit of
-  the method's √n theory.** *Dial:* this is not an assumption we can remove — it is
-  a fact about the problem; below the threshold, report the slower rate honestly.
+- **A5 (Quadratic/bilinear-functional estimability — THE regularity boundary).**
+  The functionals `∬ C(x,x') τ_a(x) τ_b(x') dP₀²` (a,b ∈ {S,Y}) admit √n-consistent
+  (debiased) estimation. For discrete/finite X this is automatic. For continuous X
+  it is governed by the **quadratic-functional "elbow"** (VERIFIED against the
+  literature, 2026-07-09):
+  - **Variance terms** (a=b, pure quadratic `∬C τ_a τ_a`): √n-estimable iff τ_a has
+    Hölder/Sobolev smoothness `s_a > d/4` (`d = dim X`). At the elbow `s_a = d/4`
+    the rate hits √n; below it the minimax rate is `n^{−4s_a/(4s_a+d)}` (slower
+    than √n) and **no √n-normal estimator exists** (Bickel & Ritov 1988 for ∫f²;
+    Birgé & Massart 1995; Robins, Li, Tchetgen Tchetgen & van der Vaart 2008).
+  - **Covariance term** (a=S, b=Y, BILINEAR in two DIFFERENT CATEs — our actual
+    object): the correct condition is the **sum-of-smoothness** rule
+    `s_S + s_Y > d/2`, which reduces to `s > d/4` only when both CATEs share
+    smoothness `s`. A smoother surrogate CATE can compensate for a rougher outcome
+    CATE (McClean, Branson, Kennedy et al. 2022/2024; Robins et al. 2016; Kennedy,
+    Balakrishnan, Robins & Wasserman, Ann. Statist. 2024).
+  - **Kernel caveat:** the elbow is the boundary for the identity/Dirac kernel. A
+    genuinely smooth/bounded reweighting kernel `C` only *relaxes* the requirement
+    (absorbs smoothness), so `s_S + s_Y > d/2` is CONSERVATIVE here (our `C` is
+    bounded under A3–A4). Higher-order influence functions extend estimation below
+    the elbow to the minimax rate but do NOT restore √n.
+
+  **State A5 as `s_S + s_Y > d/2`.** *Dial:* not removable — a fact about the
+  problem. Below the boundary, report the slower minimax rate / wider intervals
+  honestly. Discrete X and smooth-enough continuous X are inside it.
 
 ### L4 — Outer smooth map Ψ and combination
 - **A6 (Nuisance rates / cross-fitting).** Product/second-order remainders are
@@ -161,11 +177,12 @@ instance of the L3 debiasing term (verified, `CONTINUOUS_CASE.md`).
    the two-stage IF of the existing proof. Debiasing term tr(ΣV). ✔ matches proof.
 2. **Discrete X, general Ψ (R², MSPE, concordance).** Only ∇Ψ changes; same ψ_Θ
    machinery. ✔ matches PAPER_OUTLINE general estimand.
-3. **Continuous X, smooth β (s > d/4).** A5 holds; the one-step debiased quadratic-
-   functional estimator gives √n-normal Θ̂; CATE learner supplies IF_τ. ← the target
-   continuous-case result.
-4. **Continuous X, rough β (s ≤ d/4).** A5 FAILS; Θ̂ has a slower-than-√n minimax
-   rate; no √n normality. ← the honest limit; report slower rate / wider intervals.
+3. **Continuous X, smooth β (`s_S + s_Y > d/2`).** A5 holds; the one-step debiased
+   quadratic/bilinear-functional estimator gives √n-normal Θ̂; CATE learner supplies
+   IF_τ. ← the target continuous-case result.
+4. **Continuous X, rough β (`s_S + s_Y ≤ d/2`).** A5 FAILS; Θ̂ has a slower-than-√n
+   minimax rate (higher-order IFs attain it but do not restore √n); no √n
+   normality. ← the honest limit; report slower rate / wider intervals.
 
 ---
 
@@ -174,9 +191,10 @@ instance of the L3 debiasing term (verified, `CONTINUOUS_CASE.md`).
 The method has √n, asymptotically-normal, efficient inference for **any smooth
 functional Ψ of the study-effect distribution, under any convex local geometry,
 for discrete or smooth-enough continuous X** — the binding constraint is A5, the
-√n-estimability of quadratic functionals of the CATE, which for continuous X
-requires CATE smoothness `s > dim(X)/4`; below that threshold only slower rates
-are attainable and inference must be reported accordingly.
+√n-estimability of the quadratic/bilinear functionals of the CATEs, which for
+continuous X requires the combined CATE smoothness `s_S + s_Y > dim(X)/2` (reducing
+to `s > dim(X)/4` when both CATEs are equally smooth); below that boundary only
+slower minimax rates are attainable and inference must be reported accordingly.
 
 ---
 
@@ -197,3 +215,33 @@ Open items feeding the formal write-up: explicit EIF algebra for the quadratic-
 functional layer; the exact A5 threshold statement + citation to the quadratic-
 functional minimax literature; whether one-step suffices or TMLE-iteration is
 needed for the ratio Ψ (expected: one-step + δ-method suffices under A7).
+
+---
+
+## 8. Key references for A5 (verified 2026-07-09)
+
+Quadratic-functional elbow (s = d/4) and slow rate n^{−4s/(4s+d)}:
+- Bickel, P. J. & Ritov, Y. (1988). Estimating integrated squared density
+  derivatives: sharp best order of convergence estimates. *Sankhyā A* 50(3),
+  381–393. [d=1 elbow at 1/4, verified verbatim]
+- Birgé, L. & Massart, P. (1995). Estimation of integral functionals of a density.
+  *Ann. Statist.* 23(1), 11–29.
+- Robins, Li, Tchetgen Tchetgen & van der Vaart (2008). Higher order influence
+  functions and minimax estimation of nonlinear functionals. *IMS Collections* 2,
+  335–421.
+- Robins, Li, Mukherjee, Tchetgen Tchetgen & van der Vaart (2017). Minimax
+  estimation of a functional on a structured high-dimensional model. *Ann.
+  Statist.* 45(5), 1951–1987.
+
+Bilinear sum-of-smoothness condition (s_S + s_Y > d/2) and modern causal/CATE case:
+- McClean, Branson, Kennedy et al. (2022/2024); McClean, Balakrishnan, Kennedy &
+  Wasserman (arXiv:2403.15175) — DR estimator √n-normal above elbow; slow minimax
+  below.
+- Kennedy, Balakrishnan, Robins & Wasserman (2024). *Ann. Statist.*
+  (DOI 10.1214/24-AOS2369) — "elbow phenomenon" for heterogeneous causal effects.
+- Chernozhukov et al. (2018). Double/debiased ML. *Econometrics J.* 21(1), C1–C68
+  — first-order orthogonality/cross-fitting (the o_p(n^{-1/4}) product rule, A6).
+
+Note: a few exact page ranges (Fan 1991; Robins et al. 2017) are standard-citation
+values, cross-checked against confirmed volume/DOI metadata but not re-quoted
+verbatim this session — glance at the PDFs before these go to print.
