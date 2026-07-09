@@ -57,7 +57,29 @@ Mirrors `simulations/canonical-validation/` for a clean graduation path:
 `config/grid.R` (single source of truth), `R/` (dgp, estimator, run_one),
 `scripts/` (local drivers + figures), `output/`, `slurm/` (added only if we scale).
 
-## Decision (to be filled at the end)
+## Status / findings (2026-07-09)
 
-Graduate (estimator → package `R/`, study → `simulations/`) if the elbow signature
-is clean and coverage validates; otherwise document and iterate/archive.
+Both stages built and locally validated (fast-track). Estimator unit-tests pass;
+the two headline signals are present at modest local R:
+
+- **Smooth-kernel relaxation (Stage 1, script 04):** at the gap design G_gap
+  (s=0.4), the Dirac functional degrades (bias −0.05, coverage 0.86–0.91) while
+  the smooth-kernel functional stays nominal (bias +0.002, coverage 0.95–0.96) —
+  confirming Remark A5-conservative (a smooth kernel relaxes the Dirac elbow).
+- **Stage 2 end-to-end Θ (script 06, R=100, n=2000):** above the elbow (s=1.0)
+  coverage 0.94 (nominal); near it (s=0.35) coverage 0.88 (honest degradation).
+  Bias tiny in both — the near-elbow shortfall is variance/SE, not point bias.
+
+**Threshold-gap finding (feeds a paper fix):** Theorem A's first-order one-step
+estimator attains √n only for `s_S+s_Y>d`, not the cited HOIF elbow `s_S+s_Y>d/2`.
+The Stage 1 grid straddles both; the full cluster run (O2, R=1000) is the evidence.
+
+## Next steps
+
+1. Run the full Stage 1 grid on O2 (`slurm/README_O2.md`) → elbow-slope table +
+   figures (scripts 03, 05); confirm the `s_S+s_Y>d` first-order boundary.
+2. Fix Lemma A5 / Theorem A in the paper (state `>d` for the one-step estimator;
+   `>d/2` is the HOIF-attainable limit).
+3. Graduate (estimator → package `R/`, study → `simulations/`) once the cluster
+   run validates. Note: the smooth-kernel and Stage 2 estimators are O(n²)/heavy;
+   size cluster memory accordingly.

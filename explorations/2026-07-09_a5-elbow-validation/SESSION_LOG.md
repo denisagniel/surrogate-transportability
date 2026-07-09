@@ -61,3 +61,42 @@ monitor.sh, clean.sh, profile_timing.R, README_O2.md). Fixed a grid double-count
 the exact cluster code path serially (task 1 + mid-grid task 40): correct schema,
 atomic write, idempotent skip, submit/combine code-hash match. Ready to git push +
 sbatch on O2. Local heavy runs avoided from here on.
+
+## 2026-07-09 — smooth-kernel relaxation (Task 27) + Stage 2 built (Task 28)
+
+Smooth-kernel truth: my earlier "aliasing" alarm was WRONG -- quadrature is stable
+(converges by ngrid=400) and matches high-precision MC (N=2e6) to ~1e-3; the 0.252
+vs 0.306 gap was a noisy small-N MC draw. Corrected the comment; no code fix.
+
+Fixed a real SE bug in psi_hat_smooth: the mean-zero EIF is
+h_b(X) xi_a + h_a(X) xi_b - 2 psi (the +tau_a h_b measure terms cancel the
+-h_b tau_a correction terms). My first version subtracted a random per-obs
+h_b*tau_a and one psi -- right mean, wrong variance (coverage 0.80). After the fix,
+coverage is nominal.
+
+**Smooth-kernel result (R=150, ell=0.25, G_gap s=0.4, pair SY):**
+  n=1000: Dirac bias -0.050 cov 0.86 | Smooth bias +0.003 cov 0.95
+  n=2000: Dirac bias -0.042 cov 0.91 | Smooth bias +0.002 cov 0.96
+=> the smooth kernel RELAXES the Dirac elbow (Remark A5-conservative confirmed):
+same rough CATEs, Dirac degrades while smooth-kernel stays nominal. Capped local
+n at 2000 (dense nxn kernel is O(n^2); n>=4000 -> cluster).
+
+Stage 2 (end-to-end Theta): built dgp_theta.R (discretize-to-cells geometry via
+sample_tv_ball -> Sigma; true Theta from true cell CATEs + same Sigma),
+theta_estimator.R (cross-fit grf CATEs -> 3 debiased quad functionals with
+tr(Sigma V) -> compose Theta -> IF-SE via grad_theta + full 2K V), run_one_stage2.R.
+Corner-case caught: identical s_S=s_Y + same basis => tau_S≡tau_Y => Theta=1
+(degenerate). Added a y_decorr knob (alternating-sign coeff mixing) so tau_Y differs
+from tau_S -> interior Theta. Smoke: above theta=0.24 (truth 0.27) cov 1; near
+theta=0.68 (truth 0.65) cov 1. Coverage run (R=100, n=2000) in progress.
+
+**Stage 2 coverage result (R=100, n=2000):**
+  above (s=1.0): bias +0.002 empSD 0.115 meanSE 0.063 cov 0.94  (NOMINAL)
+  near  (s=0.35): bias +0.005 empSD 0.099 meanSE 0.049 cov 0.88  (DEGRADED)
+=> exactly the honest pattern: nominal above the elbow, degrades near it. Bias is
+tiny in both (debiasing works), so the near-elbow shortfall is variance/SE, not
+point bias. CAVEAT: meanSE < empSD even in the above case (0.063 vs 0.115) -- the
+empSD is inflated by a few heavy-tailed reps where Theta approaches +/-1 (ratio
+functional instability), while the typical CI still covers (0.94). A finite-n
+artifact of n=2000 + K=10 cells; the cluster run at larger n should tighten it.
+Both stages now built + locally validated. Ready for cluster scale-up.

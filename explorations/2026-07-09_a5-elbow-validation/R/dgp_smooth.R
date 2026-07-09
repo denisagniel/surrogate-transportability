@@ -83,7 +83,8 @@ psi_true <- function(basis_a, basis_b, scale_a = 1, scale_b = 1) {
 generate_stage1 <- function(n, config,
                             c_S = 1, c_Y = 1,
                             rho_eps = 0.3, sigma_eps = 0.5,
-                            baseline_s = 3, J = NULL) {
+                            baseline_s = 3, J = NULL,
+                            y_decorr = 0) {
   d   <- as.integer(config$d)
   s_S <- config$s_S
   s_Y <- config$s_Y
@@ -96,6 +97,15 @@ generate_stage1 <- function(n, config,
   # bases
   bS <- cate_basis(s_S, d, J)
   bY <- cate_basis(s_Y, d, J)
+  # y_decorr in [0,1] mixes an alternating sign pattern into the Y coefficients:
+  # decay_Y := decay_Y * (1 - 2*y_decorr*(j odd)). This makes tau_Y a genuinely
+  # DIFFERENT function of x from tau_S (interior across-study correlation Theta)
+  # while preserving |coefficients| = smoothness for y_decorr in {0,1}. Used only
+  # in Stage 2 (Theta coverage); Stage 1 keeps y_decorr=0 (tau_S, tau_Y same shape).
+  if (y_decorr != 0) {
+    j1 <- bY$freqs[, 1]
+    bY$decay <- bY$decay * (1 - 2 * y_decorr * (j1 %% 2))
+  }
   # a smooth baseline g_a: same basis family but very smooth (baseline_s), so it
   # never binds the elbow. Independent frequencies not needed -- g cancels out of
   # psi_ab only if orthogonal; we keep g SMOOTH and separate from tau by using a

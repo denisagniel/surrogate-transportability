@@ -70,11 +70,14 @@ STAGE1_GRID$config_id <- seq_len(nrow(STAGE1_GRID))
 # geometry. One DGP above the elbow (expect nominal coverage), one near it
 # (expect honest degradation).
 # -----------------------------------------------------------------------------
+# y_decorr mixes an alternating-sign pattern into tau_Y so it differs from tau_S,
+# giving an INTERIOR true Theta (not pinned at +/-1). 0.5 -> partial decorrelation.
 STAGE2_DESIGN <- data.frame(
-  design = c("above", "near"),
-  d      = c(1L,       1L),
-  s_S    = c(1.0,      0.35),
-  s_Y    = c(1.0,      0.35),
+  design   = c("above", "near"),
+  d        = c(1L,       1L),
+  s_S      = c(1.0,      0.35),
+  s_Y      = c(1.0,      0.35),
+  y_decorr = c(0.5,      0.5),
   stringsAsFactors = FALSE
 )
 

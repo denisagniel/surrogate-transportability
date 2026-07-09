@@ -26,10 +26,12 @@ kernel_gauss <- function(x, xp, ell = 0.2) {
   exp(-outer(x, xp, function(a, b) (a - b)^2) / (2 * ell^2))
 }
 
-# --- closed-form-ish truth for psi_ab^C via tensor quadrature ----------------
+# --- truth for psi_ab^C via product-midpoint quadrature ----------------------
 # tau functions are cosine series; integrate C tau_a tau_b over [0,1]^2 by a fine
-# Gauss/Riemann grid. Returns psi_ab^C. Validated against the analytic double
-# series sum_{j,k} b^a_j b^b_k <phi_j, C phi_k> in the check script.
+# product-midpoint grid. Returns psi_ab^C. VALIDATED: converges by ngrid=400 and
+# agrees with an independent high-precision Monte-Carlo double integral (N=2e6) to
+# ~1e-3 across designs and kernel bandwidths (see /tmp check). Default ngrid=2000
+# is well past convergence.
 psi_true_smooth <- function(cfg, ell = 0.2, ngrid = 400, c_S = 1, c_Y = 1,
                             pair = "SY", J = 200L) {
   bS <- cate_basis(cfg$s_S, 1, J); bY <- cate_basis(cfg$s_Y, 1, J)
@@ -70,11 +72,13 @@ psi_hat_smooth <- function(data, pair, s_S, s_Y, ell = 0.2, K = 5) {
   # one-step: plugin + P_n[ h_b (xi_a - ta) + h_a (xi_b - tb) ]
   corr <- h_b * (xa - ta) + h_a * (xb - tb)
   psi <- plugin + mean(corr)
-  # IF (mean-zero): h_b(xi_a-ta) + h_a(xi_b-tb) + (C-plug per obs - psi). Use the
-  # standard one-step IF: score_i = h_b_i xi_a_i + h_a_i xi_b_i - h_b_i ta_i ... ;
-  # for SE we use the correction + centered plug-in contribution.
-  ctautau_i <- as.numeric(Cm %*% tb) / denom * ta   # per-obs plug-in contribution ~ h_b*ta
-  IF <- h_b * xa + h_a * xb - ctautau_i - psi
+  # Mean-zero EIF. Varying BOTH the empirical X-measure (V-statistic part) and the
+  # CATEs: the measure part tau_a h_b + tau_b h_a - 2 psi and the CATE-correction
+  # h_b(xi_a - tau_a) + h_a(xi_b - tau_b) combine; the +tau_a h_b measure terms
+  # cancel the -h_b tau_a correction terms, leaving
+  #   IF(O) = h_b(X) xi_a(O) + h_a(X) xi_b(O) - 2 psi.
+  # (E[h_b xi_a] = E[h_b tau_a] = psi and likewise E[h_a xi_b] = psi, so E[IF]=0.)
+  IF <- h_b * xa + h_a * xb - 2 * psi
   se <- sqrt(mean(IF^2) / n)
   z <- qnorm(0.975)
   list(psi = psi, se = se, ci_lower = psi - z * se, ci_upper = psi + z * se,
