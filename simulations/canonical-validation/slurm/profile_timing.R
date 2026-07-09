@@ -56,8 +56,15 @@ library(mgcv); library(ranger)
 
 ut <- unit_table()
 total_units <- nrow(ut)
+# Spread probes EVENLY across the unit table, not the first n_probe. unit_table()
+# enumerates rep-fastest within config, so the first units are all config #1
+# (e.g. dgp1); probing them alone would size off one DGP and never exercise the
+# others (incl. the dgp5 stress regime). Even spacing hits every config.
 n_probe <- min(opt$n_units_probe, total_units)
-cat(sprintf("Profiling %d of %d total work units...\n", n_probe, total_units))
+probe_idx <- unique(round(seq(1, total_units, length.out = n_probe)))
+n_probe <- length(probe_idx)
+cat(sprintf("Profiling %d of %d total work units (spread across the grid)...\n",
+            n_probe, total_units))
 
 # --- Time each probe unit; track peak memory ---------------------------------
 # Capture each result and check it is non-degenerate: a unit whose estimators all
@@ -70,9 +77,9 @@ cat(sprintf("Profiling %d of %d total work units...\n", n_probe, total_units))
 invisible(gc(reset = TRUE))
 per_unit_secs <- numeric(n_probe)
 n_degenerate  <- 0L
-for (i in seq_len(n_probe)) {
+for (i in seq_along(probe_idx)) {
   res <- NULL
-  t <- system.time(res <- run_one(ut[i, , drop = FALSE]))
+  t <- system.time(res <- run_one(ut[probe_idx[i], , drop = FALSE]))
   per_unit_secs[i] <- unname(t["elapsed"])
   if (is.null(res) || !("estimate" %in% names(res)) || all(is.na(res$estimate))) {
     n_degenerate <- n_degenerate + 1L
