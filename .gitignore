@@ -11,6 +11,8 @@ sims/data/
 sims/results/
 sims/*.rds
 sims/*.png
+# Cluster study output (results live in scratch/results, not git history)
+simulations/**/results/*.rds
 sims/*.pdf
 
 # R session files
