@@ -39,10 +39,17 @@ CATEs (500k-sample empirical match).
 ```bash
 # 0. Build the package (once) so library(surrogateTransportability) works on O2.
 
-# 1. OFFLINE PREP on O2 (NOT the login node — use an interactive/batch node).
-#    Balanced seeds + exact truth table. Slow (many high-M MCMC truths).
-Rscript slurm/prep_offline.R --study-dir . --scan 8000:8800 --per-bin 7 --m-ref 100000
-#    -> writes config/ensemble_seeds.rds and config/truth_table.rds
+# 1. OFFLINE PREP on O2 -- ONE command, runs as a chained SLURM pipeline:
+#      Step 1 prep_seeds (1 job) -> balanced ensemble_seeds.rds + prep_ntasks.txt
+#      Step 2 truth array (N tasks, PARALLEL) -> config/truth/truth_<id>.rds
+#      Step 3 combine (1 job) -> config/truth_table.rds
+#    Step 1 self-submits Steps 2+3 (array size = nrow(GRID), known only after
+#    seeds are chosen). The launcher just submits jobs, so it IS login-node-safe.
+bash slurm/prep_offline.sh 8000:8800 7 100000    # scan  per_bin  m_ref
+#    Watch: squeue -u $USER ; logs in config/prep_logs/. Truth array is ~20 min
+#    walltime/task but all tasks run in parallel -> minutes total. Truth files
+#    are idempotent (skip if present) so a failed array can be re-run cheaply.
+#    (Serial fallback: slurm/prep_offline.R does the same on one core, ~2 hr.)
 
 # 2. Profile to size the array (worst-case per-config sizing; fixes the
 #    median-sizing timeout that hit canonical-validation).
@@ -64,7 +71,10 @@ Rscript slurm/combine.R --run-id <RID> --scratch-dir <SCRATCH> --study-dir .
 - `R/dgp.R` — dispatch canonical vs random.
 - `R/estimators.R` — IW estimate + VECTORIZED grouped jackknife (raw + corrected).
 - `R/run_one.R` — one unit -> one row (raw + jackknife columns).
-- `slurm/prep_offline.R` — one-time balanced-seeds + truth-table build.
+- `slurm/prep_offline.sh` — one-command chained prep pipeline (RECOMMENDED):
+  `prep_seeds.R` (seeds) -> `prep_truth_array.slurm` + `prep_truth_one.R` (parallel
+  per-config truth) -> `prep_truth_combine.R` (assemble truth_table.rds).
+- `slurm/prep_offline.R` — serial fallback (same output, one core, ~2 hr).
 - `slurm/{profile_timing,submit,array,run_replication,monitor,combine,clean}.*` —
   standard cluster scaffolding (profiler patched for worst-case sizing).
 
