@@ -16,8 +16,10 @@
 STUDY_NAME   <- "canonical-validation"
 PROJECT_NAME <- "surrogate-transportability"
 
-# Base seed for the whole study. Per-unit seeds are BASE_SEED + unit_index so
-# every replication is independent, reproducible, and parallel-safe.
+# Base seed for the whole study. Per-(config, rep) seeds are derived from this
+# (see .unit_seed) so every replication is independent, reproducible, and
+# parallel-safe -- and INDEPENDENT of unit ORDERING (adding/reordering configs
+# never changes an existing replication's seed).
 # Distinct range from the pre-fix study (seeds 10000-19999) to avoid confusion.
 BASE_SEED <- 70800000L
 
@@ -46,6 +48,31 @@ GRID <- expand.grid(
 GRID$config_id <- seq_len(nrow(GRID))
 
 # -----------------------------------------------------------------------------
+# stratum_of() -- assign each configuration to a COST stratum (scaffolding).
+# canonical-validation is single-cost (one n, one method, four DGPs of similar
+# per-unit cost), so a SINGLE stratum "all" is correct and behavior is identical
+# to the existing global sizing. The hook exists so per-stratum sizing can be
+# opted into later by editing this function only. Labels must match [A-Za-z0-9_]+.
+# -----------------------------------------------------------------------------
+stratum_of <- function(grid = GRID) {
+  rep("all", nrow(grid))
+}
+
+# -----------------------------------------------------------------------------
+# .unit_seed() -- deterministic seed for a (config, rep) pair.
+# Depends ONLY on (config_id, rep_id), never on unit ORDERING, so adding or
+# reordering configs does NOT change any existing replication's seed (S6). Done
+# in doubles then reduced mod 2^31-1 into the valid 32-bit range set.seed()
+# requires (base-R integer arithmetic overflows to NA past 2^31 -- see MEMORY
+# base-r-hashing-gotcha; NO bitwXor/as.integer on large intermediates).
+# -----------------------------------------------------------------------------
+.unit_seed <- function(config_id, rep_id, total_reps = TOTAL_REPS, base_seed = BASE_SEED) {
+  MOD    <- 2147483647                                   # 2^31 - 1 (Mersenne prime)
+  offset <- (as.double(config_id) - 1) * total_reps + rep_id
+  as.integer((base_seed + offset) %% MOD)
+}
+
+# -----------------------------------------------------------------------------
 # unit_table() -- deterministic enumeration of all (config, rep) work units.
 # Returns a data frame with columns: unit, config_id, rep_id, seed, plus the
 # grid columns. unit runs 1..(nrow(GRID) * TOTAL_REPS).
@@ -63,7 +90,8 @@ unit_table <- function(grid = GRID, total_reps = TOTAL_REPS, base_seed = BASE_SE
     )
   }))
   ut$unit <- seq_len(nrow(ut))
-  ut$seed <- base_seed + ut$unit
+  # Ordering-invariant per-(config, rep) seed (S6): does NOT depend on ut$unit.
+  ut$seed <- .unit_seed(ut$config_id, ut$rep_id, total_reps, base_seed)
   ut[, c("unit", "config_id", "rep_id", "seed",
          setdiff(names(ut), c("unit", "config_id", "rep_id", "seed")))]
 }

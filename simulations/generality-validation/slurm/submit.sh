@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# submit.sh -- submit the "canonical-validation" study as chunked, throttled SLURM arrays
+# submit.sh -- submit the "generality-validation" study as chunked, throttled SLURM arrays
 # =============================================================================
 # Run ON O2 from the study directory after profiling. It:
 #   1. Reads config/sizing.env (produced by profile_timing.R).
@@ -35,6 +35,47 @@ fi
 source "${SIZING_ENV}"
 : "${TOTAL_TASKS:?}" "${REPS_PER_JOB:?}" "${MAX_ARRAY_SIZE:?}" \
   "${MAX_CONCURRENT_JOBS:?}" "${CONCURRENCY_CAP:?}" "${WALLTIME:?}" "${MEM_GB:?}"
+
+# =============================================================================
+# PREFLIGHT (S3): fail loudly BEFORE launching thousands of tasks.
+# =============================================================================
+preflight_fail() { echo "PREFLIGHT FAILED: $*" >&2; exit 1; }
+
+# (a) Required staged input files. This study reads two OFFLINE caches built by
+# slurm/prep_offline.R: the rho-balanced ensemble seeds (which DEFINE the grid)
+# and the exact per-config truth table (rho_true, used for coverage). Without
+# them grid.R falls back to a naive seed block and truth is all-NA -- coverage
+# would be silently meaningless. Fail loud if either is missing.
+REQUIRED_INPUTS=(
+  "${STUDY_DIR}/config/ensemble_seeds.rds"
+  "${STUDY_DIR}/config/truth_table.rds"
+)
+# ${arr[@]+"${arr[@]}"} expands safely even when the array is empty under set -u
+# (bash 3.2 aborts on "${arr[@]}" when the array is empty).
+for f in ${REQUIRED_INPUTS[@]+"${REQUIRED_INPUTS[@]}"}; do
+  [[ -e "${f}" ]] || preflight_fail "required offline cache not found: ${f} (run slurm/prep_offline.R first)."
+done
+
+# (b) Installed-package freshness. The agent cannot `git push` from the dev box,
+# so a forgotten rebuild means the cluster runs STALE code. Verify the project
+# package is installed and at least as new as the working tree's DESCRIPTION.
+PKG_NAME="surrogateTransportability"
+if [[ -n "${PKG_NAME}" ]]; then
+  module load gcc/14.2.0 2>/dev/null || module load gcc || true
+  module load R/4.4.2   2>/dev/null || module load R
+  # Expected version = the working tree's DESCRIPTION Version (repo root is two
+  # levels above the study dir: <repo>/simulations/<study>).
+  PKG_MIN_VERSION=$(grep -m1 '^Version:' "${STUDY_DIR}/../../DESCRIPTION" 2>/dev/null | sed 's/^Version:[[:space:]]*//')
+  Rscript -e "
+    pkg <- '${PKG_NAME}'; want <- '${PKG_MIN_VERSION}'
+    if (!requireNamespace(pkg, quietly = TRUE))
+      stop(sprintf('project package %s is NOT installed on this node -- R CMD INSTALL it first (agent cannot git push).', pkg))
+    if (nzchar(want) && utils::packageVersion(pkg) < want)
+      stop(sprintf('installed %s %s < working-tree %s -- rebuild/reinstall the package before submitting.', pkg, utils::packageVersion(pkg), want))
+    cat(sprintf('preflight: %s %s OK\n', pkg, utils::packageVersion(pkg)))
+  " || preflight_fail "project package '${PKG_NAME}' missing or stale (see message above)."
+fi
+echo "Preflight OK."
 
 # --- Run identity -------------------------------------------------------------
 GIT_SHA="$(git -C "${STUDY_DIR}" rev-parse --short HEAD 2>/dev/null || echo nogit)"

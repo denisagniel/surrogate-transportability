@@ -36,6 +36,43 @@ source "${SIZING_ENV}"
 : "${TOTAL_TASKS:?}" "${REPS_PER_JOB:?}" "${MAX_ARRAY_SIZE:?}" \
   "${MAX_CONCURRENT_JOBS:?}" "${CONCURRENCY_CAP:?}" "${WALLTIME:?}" "${MEM_GB:?}"
 
+# =============================================================================
+# PREFLIGHT (S3): fail loudly BEFORE launching thousands of tasks.
+# =============================================================================
+preflight_fail() { echo "PREFLIGHT FAILED: $*" >&2; exit 1; }
+
+# (a) Required staged input files this study's tasks read from the filesystem.
+# canonical-validation is self-contained: the DGP params + true rho live in the
+# package (canonical_dgp_params), so there are no staged .rds inputs to check.
+REQUIRED_INPUTS=(
+)
+# ${arr[@]+"${arr[@]}"} expands safely even when the array is empty under set -u
+# (bash 3.2 aborts on "${arr[@]}" when the array is empty).
+for f in ${REQUIRED_INPUTS[@]+"${REQUIRED_INPUTS[@]}"}; do
+  [[ -e "${f}" ]] || preflight_fail "required input not found: ${f}"
+done
+
+# (b) Installed-package freshness. The agent cannot `git push` from the dev box,
+# so a forgotten rebuild means the cluster runs STALE code. Verify the project
+# package is installed and at least as new as the working tree's DESCRIPTION.
+PKG_NAME="surrogateTransportability"
+if [[ -n "${PKG_NAME}" ]]; then
+  module load gcc/14.2.0 2>/dev/null || module load gcc || true
+  module load R/4.4.2   2>/dev/null || module load R
+  # Expected version = the working tree's DESCRIPTION Version (repo root is two
+  # levels above the study dir: <repo>/simulations/<study>).
+  PKG_MIN_VERSION=$(grep -m1 '^Version:' "${STUDY_DIR}/../../DESCRIPTION" 2>/dev/null | sed 's/^Version:[[:space:]]*//')
+  Rscript -e "
+    pkg <- '${PKG_NAME}'; want <- '${PKG_MIN_VERSION}'
+    if (!requireNamespace(pkg, quietly = TRUE))
+      stop(sprintf('project package %s is NOT installed on this node -- R CMD INSTALL it first (agent cannot git push).', pkg))
+    if (nzchar(want) && utils::packageVersion(pkg) < want)
+      stop(sprintf('installed %s %s < working-tree %s -- rebuild/reinstall the package before submitting.', pkg, utils::packageVersion(pkg), want))
+    cat(sprintf('preflight: %s %s OK\n', pkg, utils::packageVersion(pkg)))
+  " || preflight_fail "project package '${PKG_NAME}' missing or stale (see message above)."
+fi
+echo "Preflight OK."
+
 # --- Run identity -------------------------------------------------------------
 GIT_SHA="$(git -C "${STUDY_DIR}" rev-parse --short HEAD 2>/dev/null || echo nogit)"
 RUN_ID="$(date '+%Y%m%d-%H%M%S')_${GIT_SHA}"

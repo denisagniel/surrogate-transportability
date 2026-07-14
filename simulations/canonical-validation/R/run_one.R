@@ -14,6 +14,14 @@
 #           unit whose `estimate` is all-NA as a FAILED replication and refuses
 #           to size the job array if every probe unit fails. Keep this column
 #           (or generalize that check) if you change the output schema.
+#           SHOULD include `error_msg` (character, NA on success). run_one() need
+#           NOT set it on the happy path: run_replication.R wraps run_one() in a
+#           tryCatch and populates `error_msg` with the condition message when a
+#           replication throws, so a failure persists its ERROR TEXT rather than
+#           a silent all-NA row (Constitution Section 9: no silent fallback).
+#   NOTE: the numeric `error` column below is the ESTIMATION error (estimate -
+#         truth) for bias/coverage; it is DISTINCT from `error_msg` (failure
+#         text). Do not conflate them.
 # =============================================================================
 
 # Assumes generate_data(), estimate(), true_value() are already sourced
@@ -46,10 +54,11 @@ run_one <- function(unit_row) {
     ci_lower  = est$ci_lower,
     ci_upper  = est$ci_upper,
     truth     = truth,
-    error     = est$estimate - truth,
+    error     = est$estimate - truth,   # ESTIMATION error (bias); NOT a failure flag
     covered   = covered,
     M_final   = est$M_final,
     converged = as.integer(est$converged),
+    error_msg = NA_character_,           # failure text; set by run_replication.R on throw
     stringsAsFactors = FALSE
   )
 }

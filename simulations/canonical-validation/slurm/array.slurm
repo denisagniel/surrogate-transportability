@@ -33,11 +33,29 @@ echo "[$(date '+%F %T')] host=$(hostname) array_idx=${SLURM_ARRAY_TASK_ID} offse
 
 mkdir -p "${SCRATCH_DIR}"
 
-# --- Run one task's block of units -------------------------------------------
+# --- SIGTERM trap (M3): SLURM sends SIGTERM then (after grace) SIGKILL on a
+# wall-time TIMEOUT. Report how many per-unit partials this task flushed so the
+# over-run is visibly recoverable (a resubmit skips completed units). The
+# "received SIGTERM" line is the sentinel monitor.sh scans for.
+on_term() {
+  local pdir="${SCRATCH_DIR}/partials"
+  local n=0
+  [[ -d "${pdir}" ]] && n=$(find "${pdir}" -maxdepth 1 -name 'unit_*.rds' 2>/dev/null | wc -l | tr -d ' ')
+  echo "[$(date '+%F %T')] global_task=${GLOBAL_TASK_ID} received SIGTERM (likely TIMEOUT); ${n} unit partial(s) flushed and safe. Resubmit to resume." >&2
+  exit 143
+}
+trap on_term TERM
+
+# --- Run one task's block of units (backgrounded so the trap can fire) --------
 Rscript "${STUDY_DIR}/slurm/run_replication.R" \
   --task-id      "${GLOBAL_TASK_ID}" \
   --reps-per-job "${REPS_PER_JOB}" \
   --study-dir    "${STUDY_DIR}" \
-  --scratch-dir  "${SCRATCH_DIR}"
+  --scratch-dir  "${SCRATCH_DIR}" &
+# `wait` returns the child's exit status; `|| status=$?` keeps `set -e` from
+# aborting before we print the "finished with status N" sentinel monitor.sh needs.
+status=0
+wait $! || status=$?
 
-echo "[$(date '+%F %T')] global_task=${GLOBAL_TASK_ID} finished with status $?"
+echo "[$(date '+%F %T')] global_task=${GLOBAL_TASK_ID} finished with status ${status}"
+exit "${status}"

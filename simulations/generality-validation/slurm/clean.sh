@@ -19,7 +19,7 @@ set -euo pipefail
 
 HMS_ID="dma12"
 PROJECT_NAME="surrogate-transportability"
-STUDY_NAME="canonical-validation"
+STUDY_NAME="generality-validation"
 
 SLURM_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STUDY_DIR="$(dirname "${SLURM_DIR}")"

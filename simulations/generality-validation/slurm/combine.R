@@ -3,12 +3,18 @@
 # combine.R -- aggregate per-task scratch results into ONE final file in home
 # =============================================================================
 # Reads every task_*.rds from the run's scratch dir, verifies completeness
-# against the expected task count, streams them into a single data frame, and
-# writes the ONLY home-directory artifact of the run: results/<run-id>.rds.
+# against the expected task count, DE-DUPLICATES by work-unit id (keeping the
+# newest file on collision), binds them into a single data frame, and writes the
+# ONLY home-directory artifact of the run: results/<run-id>.rds.
 #
 # Loud-failure guarantees (Constitution Section 9, no silent fallbacks):
 #   * Errors if the scratch dir does not match the current grid hash (stale code).
 #   * Reports every missing task id; refuses to write unless --allow-partial.
+#   * De-duplicates by `unit` (duplicate task files -- e.g. from a re-run --
+#     otherwise inflate N).
+#   * Asserts every unit in 1..TOTAL_UNITS appears exactly once (unless partial).
+#   * Reports how many rows carry an `error_msg` (failed replications) so a high
+#     silent-failure rate cannot hide.
 #
 # Usage:
 #   Rscript slurm/combine.R --run-id RID --scratch-dir DIR --study-dir DIR \
@@ -74,13 +80,16 @@ if (length(files) == 0) stop(sprintf("No task_*.rds files in %s", opt$scratch_di
 
 found_ids <- as.integer(sub("^task_0*([0-9]+)\\.rds$", "\\1", basename(files)))
 
-# Expected task count from sizing.env (authoritative) if present.
+# Expected task/unit counts from sizing.env (authoritative) if present.
 sizing_env <- file.path(opt$study_dir, "config", "sizing.env")
 expected_tasks <- NA_integer_
+expected_units <- n_units()
 if (file.exists(sizing_env)) {
   kv <- readLines(sizing_env, warn = FALSE)
   tt <- grep("^TOTAL_TASKS=", kv, value = TRUE)
+  tu <- grep("^TOTAL_UNITS=", kv, value = TRUE)
   if (length(tt)) expected_tasks <- as.integer(sub("^TOTAL_TASKS=", "", tt[1]))
+  if (length(tu)) expected_units <- as.integer(sub("^TOTAL_UNITS=", "", tu[1]))
 }
 
 if (!is.na(expected_tasks)) {
@@ -96,15 +105,61 @@ if (!is.na(expected_tasks)) {
   }
 }
 
-# --- Stream + bind -----------------------------------------------------------
+# --- Stream + bind (data.table::rbindlist; fallback do.call(rbind)) -----------
 cat(sprintf("Combining %d task files...\n", length(files)))
-parts <- vector("list", length(files))
-for (i in seq_along(files)) {
-  parts[[i]] <- readRDS(files[i])
+# Read newest-file-LAST so that on a duplicate `unit` the newest row wins the
+# later de-dup (which keeps the last occurrence).
+ord <- order(file.info(files)$mtime)
+files <- files[ord]
+parts <- lapply(files, readRDS)
+
+use_dt <- requireNamespace("data.table", quietly = TRUE)
+if (use_dt) {
+  result <- as.data.frame(data.table::rbindlist(parts, use.names = TRUE, fill = TRUE))
+} else {
+  cat("NOTE: data.table not installed; using do.call(rbind) (slower, needs matching cols).\n")
+  cols <- unique(unlist(lapply(parts, names)))
+  parts <- lapply(parts, function(d) { for (c in setdiff(cols, names(d))) d[[c]] <- NA; d[, cols, drop = FALSE] })
+  result <- do.call(rbind, parts)
 }
-result <- do.call(rbind, parts)
+
+# --- De-duplicate by unit (keep newest = last occurrence) --------------------
+n_raw <- nrow(result)
+dup <- duplicated(result$unit, fromLast = TRUE)
+if (any(dup)) {
+  cat(sprintf("De-dup: dropping %d duplicate unit row(s) (kept newest).\n", sum(dup)))
+  result <- result[!dup, , drop = FALSE]
+}
 result <- result[order(result$unit), , drop = FALSE]
-cat(sprintf("Combined %d rows (expected %d units).\n", nrow(result), n_units()))
+cat(sprintf("Combined %d rows (from %d raw; expected %d units).\n",
+            nrow(result), n_raw, expected_units))
+
+# --- Coverage assertion: every unit exactly once (catches mapping bugs) ------
+if (!opt$allow_partial) {
+  missing_units <- setdiff(seq_len(expected_units), result$unit)
+  extra_units   <- setdiff(result$unit, seq_len(expected_units))
+  if (length(missing_units) > 0 || length(extra_units) > 0) {
+    stop(sprintf(paste0(
+      "COVERAGE FAILURE: %d unit(s) missing, %d out-of-range.\n  missing: %s\n  extra: %s\n",
+      "Refusing to write. This usually means a sizing mismatch or lost tasks."),
+      length(missing_units), length(extra_units),
+      paste(head(missing_units, 30), collapse = ", "),
+      paste(head(extra_units, 30), collapse = ", ")))
+  }
+}
+
+# --- Surface failed replications (M4: no silent all-NA) ----------------------
+if ("error_msg" %in% names(result)) {
+  n_err <- sum(!is.na(result$error_msg))
+  if (n_err > 0) {
+    cat(sprintf("WARNING: %d/%d unit(s) (%.1f%%) carry an error_msg (failed replications).\n",
+                n_err, nrow(result), 100 * n_err / nrow(result)))
+    ex <- head(unique(result$error_msg[!is.na(result$error_msg)]), 3)
+    cat("  example error(s):\n"); for (e in ex) cat(sprintf("    - %s\n", e))
+  } else {
+    cat("All units succeeded (no error_msg set).\n")
+  }
+}
 
 # --- Attach provenance metadata ----------------------------------------------
 attr(result, "run_id")    <- opt$run_id

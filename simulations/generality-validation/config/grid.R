@@ -25,6 +25,18 @@ PROJECT_NAME <- "surrogate-transportability"
 BASE_SEED <- 80800000L      # distinct range from canonical-validation
 TOTAL_REPS <- 500L          # ensemble reads across-DGP distribution; 500 is ample
 
+# .unit_seed() -- deterministic per-(config, rep) seed (S6). Depends ONLY on
+# (config_id, rep_id), never on unit ORDERING, so adding/reordering ensemble
+# seeds or n-grid blocks does NOT change any existing replication's seed. Done in
+# doubles then reduced mod 2^31-1 into the valid 32-bit range set.seed() requires
+# (base-R integer arithmetic overflows to NA past 2^31 -- see MEMORY
+# base-r-hashing-gotcha; NO bitwXor/as.integer on large intermediates).
+.unit_seed <- function(config_id, rep_id, total_reps = TOTAL_REPS, base_seed = BASE_SEED) {
+  MOD    <- 2147483647                                   # 2^31 - 1 (Mersenne prime)
+  offset <- (as.double(config_id) - 1) * total_reps + rep_id
+  as.integer((base_seed + offset) %% MOD)
+}
+
 # --- Design knobs ------------------------------------------------------------
 ENS_SEED0    <- 8000L                  # base rng_seed for draw_random_dgp
 N_LARGE      <- 10000L                 # "operating" sample size
@@ -132,7 +144,8 @@ unit_table <- function(grid = GRID, total_reps = TOTAL_REPS, base_seed = BASE_SE
     )
   }))
   ut$unit <- seq_len(nrow(ut))
-  ut$seed <- base_seed + ut$unit
+  # Ordering-invariant per-(config, rep) seed (S6): does NOT depend on ut$unit.
+  ut$seed <- .unit_seed(ut$config_id, ut$rep_id, total_reps, base_seed)
   ut[, c("unit", "config_id", "rep_id", "seed", "rho_true",
          setdiff(names(ut), c("unit", "config_id", "rep_id", "seed", "rho_true")))]
 }

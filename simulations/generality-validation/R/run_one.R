@@ -8,7 +8,12 @@
 #
 # Contract: input = one row of unit_table() (config cols + ids/seed + rho_true);
 # output = ONE-ROW data.frame with an `estimate` column (profile_timing.R treats
-# all-NA `estimate` as a failed unit).
+# all-NA `estimate` as a failed unit). SHOULD include `error_msg` (character, NA
+# on success): run_replication.R wraps run_one() in a tryCatch and fills it with
+# the condition message when a replication throws, so a failure persists its
+# ERROR TEXT rather than a silent all-NA row (Constitution Section 9).
+# NOTE: the numeric `error`/`error_jk` columns are ESTIMATION error (estimate -
+# truth), DISTINCT from `error_msg` (failure text). Do not conflate them.
 #
 # Assumes generate_data(), estimate(), true_value() sourced (dgp.R, estimators.R),
 # and grid.R for column names.
@@ -53,6 +58,7 @@ run_one <- function(unit_row) {
     # diagnostics
     M_final    = est$M_final,
     converged  = as.integer(est$converged),
+    error_msg  = NA_character_,          # failure text; set by run_replication.R on throw
     stringsAsFactors = FALSE
   )
 }

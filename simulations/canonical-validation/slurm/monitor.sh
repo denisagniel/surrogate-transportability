@@ -60,46 +60,70 @@ echo " logs   : ${LOG_DIR}"
 echo "=============================================================="
 
 # --- Progress: completed task files vs expected -------------------------------
+# find (never `ls | wc`): a glob overflows to a wrong/zero count at ~100k files,
+# which silently reads as "done" and triggers a stale combine/resume.
 DONE=$(find "${SCRATCH_DIR}" -maxdepth 1 -name 'task_*.rds' 2>/dev/null | wc -l | tr -d ' ')
 EXPECTED="?"
+EXPECTED_UNITS="?"
 if [[ -f "${STUDY_DIR}/config/sizing.env" ]]; then
   EXPECTED=$(grep '^TOTAL_TASKS=' "${STUDY_DIR}/config/sizing.env" | cut -d= -f2)
+  EXPECTED_UNITS=$(grep '^TOTAL_UNITS=' "${STUDY_DIR}/config/sizing.env" | cut -d= -f2)
 fi
 echo "Completed task files: ${DONE} / ${EXPECTED}"
+
+# Per-unit checkpoint progress (partials): finer-grained than task files.
+PARTIALS=$(find "${SCRATCH_DIR}/partials" -maxdepth 1 -name 'unit_*.rds' 2>/dev/null | wc -l | tr -d ' ')
+echo "Completed unit partials: ${PARTIALS} / ${EXPECTED_UNITS}"
 
 # --- Queue state for this user's jobs ----------------------------------------
 echo
 echo "Queue (squeue) for ${HMS_ID}, job name ${STUDY_NAME}:"
 squeue -u "${HMS_ID}" --name="${STUDY_NAME}" \
   --format="%.18i %.9P %.20j %.8T %.10M %.6D %R" 2>/dev/null || echo "  (squeue unavailable)"
-RUNNING=$(squeue -u "${HMS_ID}" --name="${STUDY_NAME}" -h -t RUNNING 2>/dev/null | wc -l | tr -d ' ')
-PENDING=$(squeue -u "${HMS_ID}" --name="${STUDY_NAME}" -h -t PENDING 2>/dev/null | wc -l | tr -d ' ')
+# `|| true` so a transient squeue failure (or its absence) never aborts the
+# monitor under `set -e pipefail`.
+RUNNING=$( (squeue -u "${HMS_ID}" --name="${STUDY_NAME}" -h -t RUNNING 2>/dev/null || true) | wc -l | tr -d ' ')
+PENDING=$( (squeue -u "${HMS_ID}" --name="${STUDY_NAME}" -h -t PENDING 2>/dev/null || true) | wc -l | tr -d ' ')
 echo "Running: ${RUNNING}   Pending: ${PENDING}"
 
 # --- Most recent log files (log discovery) -----------------------------------
 echo
 echo "Newest log files:"
-ls -t "${LOG_DIR}"/*.out "${LOG_DIR}"/*.err 2>/dev/null | head -8 | while read -r f; do
-  printf "  %s  %s\n" "$(date -r "${f}" '+%F %T' 2>/dev/null || echo '?')" "${f}"
-done || echo "  (no logs yet)"
+# find + sort (never `ls *.out`): the glob overflows / errors at ~100k logs.
+find "${LOG_DIR}" -maxdepth 1 \( -name '*.out' -o -name '*.err' \) -printf '%T@ %p\n' 2>/dev/null \
+  | sort -rn | head -8 | while read -r ts f; do
+      printf "  %s  %s\n" "$(date -d "@${ts%.*}" '+%F %T' 2>/dev/null || echo '?')" "${f}"
+    done || echo "  (no logs yet)"
 
-# --- Failed-task detection ----------------------------------------------------
-# A task is suspect if its .err has content or the .out lacks a 'finished' line.
+# --- Failed-task detection (A3: sentinel/exit-code, not grep-the-.err) --------
+# array.slurm writes "finished with status N" to the .out on completion and a
+# distinctive "received SIGTERM" line on a wall-time TIMEOUT. Relying on those
+# sentinels (and the exit status) avoids the false positives that grepping .err
+# for "error" produces from ever-present import/S7/mgcv/ranger startup warnings.
+#   FAILED     = definite failures (SIGTERM/timeout, or non-zero exit)
+#   INCOMPLETE = no finish sentinel yet AND no result file -> still running or killed
 echo
-echo "Scanning for failed/incomplete tasks..."
+echo "Scanning for failed/incomplete tasks (exit-status sentinels)..."
 FAILED=()
-shopt -s nullglob
-for errf in "${LOG_DIR}"/*.err; do
-  if [[ -s "${errf}" ]] && grep -qiE 'error|cannot|killed|oom|not found' "${errf}"; then
-    FAILED+=("${errf}")
+INCOMPLETE=()
+while IFS= read -r -d '' outf; do
+  if grep -q 'received SIGTERM' "${outf}" 2>/dev/null; then
+    FAILED+=("${outf}")                                    # wall-time TIMEOUT
+  elif grep -qE 'finished with status [1-9]' "${outf}" 2>/dev/null; then
+    FAILED+=("${outf}")                                    # non-zero exit
+  elif ! grep -q 'finished with status 0' "${outf}" 2>/dev/null; then
+    INCOMPLETE+=("${outf}")                                # no sentinel: running OR killed
   fi
-done
-shopt -u nullglob
+done < <(find "${LOG_DIR}" -maxdepth 1 -name 'task_*.out' -print0 2>/dev/null)
+
+if (( ${#INCOMPLETE[@]} > 0 )); then
+  echo "  ${#INCOMPLETE[@]} task log(s) have no finish sentinel yet (still running, or killed/OOM if the job is gone from squeue)."
+fi
 
 if (( ${#FAILED[@]} == 0 )); then
-  echo "  No obvious failures in .err logs."
+  echo "  No failed/timed-out tasks detected via exit sentinels."
 else
-  echo "  ${#FAILED[@]} task log(s) show errors:"
+  echo "  ${#FAILED[@]} task log(s) failed or timed out:"
   for f in "${FAILED[@]}"; do echo "    ${f}"; done
   if (( TAIL_FAILURES == 1 )); then
     echo
