@@ -3,6 +3,8 @@ paths:
   - "quality_reports/**"
 ---
 
+<!-- GENERATED from .claude/rules/session-logging.md by scripts/generate-omo-rules.sh — DO NOT EDIT -->
+
 # Session Logging — RETIRED 2026-09-01
 
 **This rule is retired. The single session record is `session_notes/YYYY-MM-DD.md`.**

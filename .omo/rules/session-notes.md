@@ -3,6 +3,8 @@ paths:
   - "session_notes/**"
 ---
 
+<!-- GENERATED from .claude/rules/session-notes.md by scripts/generate-omo-rules.sh — DO NOT EDIT -->
+
 # Session Notes
 
 **Location:** `<project_root>/session_notes/` (in the repo the user is working in)

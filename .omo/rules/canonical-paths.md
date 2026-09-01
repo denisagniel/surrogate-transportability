@@ -3,6 +3,8 @@ paths:
   - "**/*"
 ---
 
+<!-- GENERATED from .claude/rules/canonical-paths.md by scripts/generate-omo-rules.sh — DO NOT EDIT -->
+
 # Canonical Path Structure
 
 **Purpose:** Enforce consistent directory structure across projects to reduce cognitive load and improve tooling predictability.
