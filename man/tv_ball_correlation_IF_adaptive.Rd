@@ -16,6 +16,9 @@ tv_ball_correlation_IF_adaptive(
   thin = 5,
   alpha = 0.05,
   method = c("bootstrap", "importance_weighting", "aipw"),
+  jackknife = FALSE,
+  jackknife_groups = 20L,
+  debiased = FALSE,
   verbose = TRUE,
   e_hat = NULL,
   mu_1_S = NULL,
@@ -50,6 +53,20 @@ tv_ball_correlation_IF_adaptive(
 
 \item{method}{"bootstrap", "importance_weighting", or "aipw"}
 
+\item{jackknife}{Logical. If TRUE, compute a grouped delete-block jackknife
+bias-corrected estimate. The jackknife halves finite-sample attenuation bias
+at small n (e.g., n <= 2000) and is harmless at large n. Uses G = 20 groups
+and the same Q draws as the plug-in (vectorized, no MCMC refit). Returns
+additional fields: rho_jk, jk_bias, ci_lower_jk, ci_upper_jk. Default FALSE.}
+
+\item{jackknife_groups}{Number of jackknife groups (default: 20).}
+
+\item{debiased}{Logical. If TRUE, compute the one-step bias-corrected estimate
+via the tr(Sigma * V) / n correction (Corollary A10 of the paper). Corrects
+the leading second-order bias of the plug-in correlation using the sample
+geometry covariance kernel and CATE-score cross-covariance. Returns additional
+fields: rho_os, os_bias_correction. Default FALSE.}
+
 \item{verbose}{Print progress?}
 
 \item{e_hat}{Estimated propensity scores (for AIPW external mode, length n). If NULL, cross-fitting is used.}
@@ -69,10 +86,15 @@ tv_ball_correlation_IF_adaptive(
 \item{n_folds}{Number of cross-fitting folds (default: 5)}
 }
 \value{
-List with rho_hat, se, ci_lower, ci_upper, IF_vals, and convergence info
+List with rho_hat, se, ci_lower, ci_upper, IF_vals, and convergence info.
+  If jackknife = TRUE, also returns rho_jk, jk_bias, ci_lower_jk, ci_upper_jk.
+  If debiased = TRUE, also returns rho_os, os_bias_correction.
+  The se and CI fields always target the conditional estimand Theta(mu_hat_M).
 }
 \description{
 Automatically increases M until correlation estimate stabilizes.
+Optionally applies a jackknife bias correction and/or a one-step debiased
+correction for the finite-sample attenuation bias of the plug-in estimator.
 }
 \details{
 The algorithm:

@@ -1,22 +1,19 @@
 \documentclass{article}
 \usepackage[utf8]{inputenc}
-% %\input{GrandMacros.tex}
-% %\input{Macro.tex}
-\usepackage{amsthm}
+\usepackage{amsmath,amsfonts,amssymb,amsthm}
 \usepackage{xcolor}
-\newtheorem{remark}{Remark}
-\newtheorem{lemma}{Lemma}
-\newtheorem{theorem}{Theorem}
-\newtheorem{proposition}{Proposition}
-\newtheorem{corollary}{Corollary}
-\newtheorem{assumption}{Assumption}
-\usepackage{graphicx,verbatim,array,multicol, subfigure, color, lscape, mathrsfs, dsfont,url}
-%\usepackage{psfrag, amsmath, amsfonts, epsfig, fancybox, setspace,soul, cancel,biometri}
-\usepackage{psfrag, amsmath, amsfonts, epsfig, fancybox, setspace, soul, amsthm, longtable, threeparttable, threeparttablex, makecell, xcolor, pdflscape, tabu, booktabs, natbib, amssymb}
+\usepackage{graphicx,verbatim,array,multicol,subfigure,color,lscape,mathrsfs,dsfont,url}
+\usepackage{psfrag,epsfig,fancybox,setspace,soul,longtable,threeparttable,threeparttablex,makecell,pdflscape,tabu,booktabs,natbib}
 \usepackage[normalem]{ulem}
 \usepackage{cancel}
 \usepackage{enumerate}  % enables \begin{enumerate}[(a)] labels used in the proof
-\usepackage[utf8]{inputenc}
+% Theorem environments (defined once, after amsthm is loaded)
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{lemma}{Lemma}
+\newtheorem{assumption}{Assumption}
+\newtheorem{remark}{Remark}
 \parindent 16pt
 \include{common-defs}
 \newcommand{\PP}{\mathbb{P}}
@@ -35,9 +32,9 @@
 
 Surrogate markers promise to accelerate clinical research by replacing expensive or long-term outcomes with earlier-measured alternatives. A central question is whether a surrogate validated in one study will perform well in future trials with different populations. This is fundamentally a question of \textbf{transportability}: will the surrogate-outcome relationship observed in the current study hold when the population, treatment effect heterogeneity, or covariate distributions change?
 
-Traditional validation methods---proportion of treatment effect (PTE; \cite{chen2003pte}), within-study correlation, principal stratification \cite{frangakis2002principal}, and causal mediation \cite{vanderweele2015mediation}---are designed for this prospective use case. However, these methods \textbf{assume} that observed relationships will transport to future settings. PTE assumes the proportion of treatment effect remains stable; mediation assumes pathway structures persist; principal stratification assumes stratum definitions transfer. When these assumptions are violated---as may occur with covariate shift, treatment effect heterogeneity, or selection mechanisms---inference can be misleading. \cite{parast2024} identified ``limited work on transportability of surrogate knowledge from one study to another'' as a critical methodological gap.
+Traditional validation criteria---Prentice's criteria \cite{prentice1989surrogate}, proportion of treatment effect (PTE; \cite{freedman1992statistical,chen2003pte}), within-study correlation, principal stratification \cite{frangakis2002principal}, and causal mediation \cite{vanderweele2015mediation}---evaluate surrogates within a single study and implicitly assume that the observed relationships will transport to future settings. PTE assumes the proportion of treatment effect remains stable; mediation assumes pathway structures persist; principal stratification assumes stratum definitions transfer. When these assumptions are violated---as may occur with covariate shift, treatment effect heterogeneity, or selection mechanisms---inference can be misleading. The causal transportability literature \citep{pearl2011transportability,bareinboim2016causal} formalizes when causal quantities can be transported across studies, but focuses on identification from heterogeneous sources rather than on estimating a transportability functional from a single study. \citet{parast2025tutorial} identified the transportability of surrogate knowledge from one study to another as an open problem in the field. % UPDATED: was parast2024 (prediction models paper); now points to the 2025 tutorial which discusses this gap explicitly
 
-We introduce a framework for \textbf{local geometric evaluation} of transportability. Rather than assuming the surrogate--outcome relationship transports, we characterize how a surrogate-quality functional $\phi(\cF)$ behaves across a distribution of plausible future studies $\Q \sim \cF$, restricting $\cF$ to a \emph{local geometry} $U(\PP_0, \lambda; d) = \{\Q : d(\Q, \PP_0) \leq \lambda\}$ around the observed study. The ``local'' constraint (distance $\leq \lambda$) focuses on plausible shifts; the ``geometric'' aspect (the choice of distance $d$) captures the mechanism of shift; and ``evaluation'' means we make explicit how surrogate quality varies as future studies deviate from $\PP_0$, without assuming transportability holds. Our primary instantiation takes $d$ to be total variation, $\cF$ the uniform measure on the resulting ball, and $\phi$ the correlation of treatment effects on surrogate and outcome across studies. We estimate this functional from a single study by sampling future studies via hit-and-run Markov chain Monte Carlo, reweighting the observed data to obtain each study's treatment effects, and applying a two-stage influence-function argument that yields $\sqrt{n}$-consistent, asymptotically normal inference (Section~\ref{sec:estimation}). The approach thus delivers a future-study estimand---like meta-analysis---from a single study---like mediation analysis---and applies to continuous surrogates.
+We introduce a framework for \textbf{local geometric evaluation} of transportability. Rather than assuming the surrogate--outcome relationship transports, we characterize how a surrogate-quality functional $\phi(\mu)$ behaves across a distribution of plausible future studies $\Q \sim \mu$, restricting $\mu$ to a \emph{local geometry} $U(\PP_0, \lambda; d) = \{\Q : d(\Q, \PP_0) \leq \lambda\}$ around the observed study. The ``local'' constraint (distance $\leq \lambda$) focuses on plausible shifts; the ``geometric'' aspect (the choice of distance $d$) captures the mechanism of shift; and ``evaluation'' means we make explicit how surrogate quality varies as future studies deviate from $\PP_0$, without assuming transportability holds. Our primary instantiation takes $d$ to be total variation, $\mu$ the uniform measure on the resulting ball, and $\phi$ the correlation of treatment effects on surrogate and outcome across studies. We estimate this functional from a single study by sampling future studies via hit-and-run Markov chain Monte Carlo, reweighting the observed data to obtain each study's treatment effects, and applying a two-stage influence-function argument that yields $\sqrt{n}$-consistent, asymptotically normal inference (Section~\ref{sec:estimation}). The approach thus delivers a future-study estimand---like meta-analysis---from a single study---like mediation analysis---and applies to continuous surrogates.
 
 
 \section{Setting}\label{sec:setting}
@@ -54,7 +51,7 @@ To formalize this, we characterize a class of future studies to which we might w
     \Theta(\mu) = \Corr_{\Q \sim \mu}\{\Delta_S(\Q), \Delta_Y(\Q)\}
     = \frac{\Cov_{\mu}\{\Delta_S(\Q), \Delta_Y(\Q)\}}{\sqrt{\Var_\mu\{\Delta_S(\Q)\}\,\Var_\mu\{\Delta_Y(\Q)\}}}.
 \]
-We estimate $\Theta(\mu)$ for an appropriately chosen $\mu$, thereby characterizing how the surrogate--outcome relationship may behave in future studies. Section~\ref{sec:setting} specifies $\mu$ as the uniform measure on a local geometry around $\PP_0$; we write $\phi$ for a generic functional when results apply beyond correlation.
+We estimate $\Theta(\mu)$ for an appropriately chosen $\mu$, thereby characterizing how the surrogate--outcome relationship may behave in future studies. Below, we specify $\mu$ as the uniform measure on a local geometry around $\PP_0$; we write $\phi$ for a generic functional when results apply beyond correlation.
 
 \subsection{Local geometries for future studies}
 
@@ -73,6 +70,34 @@ To characterize surrogate quality across a range of plausible future studies, we
 to denote that $\Q$ is a random draw from $\mu$ with support on $U(\PP_0, \lambda; d)$. A natural choice is the \emph{uniform measure} on $U(\PP_0, \lambda; d)$, which treats all study distributions at the same distance from $\PP_0$ as equally plausible. This uniform measure can be approximated via Markov chain Monte Carlo methods (e.g., hit-and-run sampling) when the geometry is a convex body.
 
 The choice of $\mu$ determines which directions of deviation from $\PP_0$ are probabilistically emphasized. A uniform measure provides a conservative, non-informative assessment: surrogate quality is averaged over all directions of perturbation equally. Alternative choices (e.g., measures that concentrate near $\PP_0$) may be appropriate if prior knowledge suggests certain types of study differences are more plausible than others.
+
+\paragraph{What does $\lambda$ mean?} A closed form clarifies the construction's
+intent. When $\lambda$ is small enough that no covariate stratum can be reweighted to
+zero mass---formally, when the probability simplex's nonnegativity constraints do not
+bind on $U(\PP_0,\lambda;d_{\mathrm{TV}})$---the correlation $\Theta(\PP_0,\lambda)$
+reduces exactly to the ordinary, unweighted Pearson correlation of the conditional
+average treatment effects across covariate strata, independent of both $\lambda$ and
+$\PP_0$'s composition (Supplementary Material, Proposition on the interior-regime
+reduction). This is precisely the correlation a stratum-level meta-analysis would
+report if each covariate stratum were treated as its own study: the local geometric
+construction is, in this regime, a rigorous single-study stand-in for that analysis,
+and inference reduces to the delta method applied to the per-cell CATE estimators
+directly, with no smoothness elbow (Supplementary Material, Corollary on the
+interior-regime efficient influence function).
+For larger $\lambda$---the regime used in the numerical studies of
+Section~\ref{sec:simulation}---the simplex boundary makes it asymmetrically harder to
+reweight rare strata upward without exhausting common ones, and $\Theta(\PP_0,\lambda)$
+genuinely depends on $\PP_0$'s composition; this is where the estimation machinery of
+Section~\ref{sec:estimation} is needed. The same unweighted closed form recurs, by an
+independent symmetry argument, once $\lambda$ is large enough that the TV ball covers
+the entire probability simplex (Supplementary Material, Proposition on the
+saturated-regime closed form): the reduction is therefore not a small-$\lambda$
+artifact, and it is only the intermediate range of $\lambda$ that is genuinely
+$\lambda$- and $\PP_0$-dependent. Both closed forms require a finite (or countably
+atomic, mass-bounded-below) covariate space; for continuous $X$ the corresponding
+limit is obtained instead via an equal-mass discretization that is refined without
+bound (Supplementary Material, Proposition on the equal-mass sieve limit), converging
+to the ordinary $\PP_0$-weighted correlation of the CATE functions.
 
 % \subsubsection{Choosing the innovation distribution $\mu$}
 %
@@ -188,6 +213,27 @@ For the correlation functional, there exists $\epsilon > 0$ such that
 where the variance is taken over $\Q \sim \mu$ on $U(\PP_0, \lambda; d)$
 (i.e., variation across different future studies, not within a single study).
 
+\noindent\textbf{Assumption A0 (Conditional-effect transportability given $X$).}\label{ass:A0}
+Future studies $\Q$ differ from $\PP_0$ only in the marginal distribution of the
+covariates $X$: the reweighting $w = d\Q/d\PP_0$ is a function of $X$ alone, and
+the conditional average treatment effects $\tau_S(x) = \E[S(1)-S(0)\mid X=x]$ and
+$\tau_Y(x) = \E[Y(1)-Y(0)\mid X=x]$ are the same under $\Q$ and $\PP_0$ for
+every $x$.
+
+\begin{remark}[Scope of Assumption~A0]
+Under the \emph{definitional} reading, the estimand $\Theta(\PP_0,\lambda)$ is
+simply the transportability functional over the class of $X$-compositional future
+studies; A0 is a scope statement, not an additional restriction.  Under the
+\emph{interpretive} reading---reading $\Theta$ as ``does the surrogate transport
+to real future studies with different populations?''---A0 is a substantive causal
+assumption: that effect modification by $X$ is the only source of heterogeneity
+across studies, and that unmeasured study-level factors do not alter the
+conditional effects.  This assumption is not testable from a single study; it
+should be assessed on scientific grounds in each application. Sensitivity to
+departures is explored implicitly through the radius $\lambda$ and can be
+addressed formally via the extended estimand of Section~\ref{sec:general}.
+\end{remark}
+
 \begin{remark}[On finite support]
 Assumption~\ref{ass:finite} (finite support, stated in Section~\ref{sec:setting}) is restrictive
 and primarily computational. It renders the local geometry a convex body in the
@@ -215,18 +261,45 @@ Given current state $\Q_t \in U(\PP_0, \lambda; d)$:
 After a burn-in period, the chain converges to the uniform distribution on $U(\PP_0, \lambda; d)$.
 
 \paragraph{The plug-in estimator.}
-For fixed $\lambda$ and distance metric $d$, define the plug-in estimator
+For fixed $\lambda$ and distance metric $d$, the plug-in estimator takes two forms depending
+on the functional. For \emph{pointwise} functionals $\phi(\Q_m)$ (e.g., the mean treatment
+effect under a single study), we average over MCMC draws:
 \[
-    \hat{\phi}_n(\lambda) = \frac{1}{M}\sum_{m=1}^M \phi(\Q_m)
+    \hat{\phi}_n(\lambda) = \frac{1}{M}\sum_{m=1}^M \phi(\Q_m).
 \]
-where $\Q_1, \ldots, \Q_M$ are drawn (after burn-in) from hit-and-run MCMC on $U(\hat{\PP}_n, \lambda; d)$. Operationally, we:
+For \emph{aggregate} functionals such as the across-study correlation, which depend on the
+\emph{joint distribution} of treatment effects rather than their per-study values, the estimator
+is instead a single functional of all $M$ treatment-effect pairs:
+\[
+    \hat{\Theta}_n(\lambda) = \Corr\!\big(\hat{\Delta}_S(\Q_1),\ldots,\hat{\Delta}_S(\Q_M);\;
+    \hat{\Delta}_Y(\Q_1),\ldots,\hat{\Delta}_Y(\Q_M)\big).
+\]
+This is the sample correlation of the $M$ pairs---a single evaluation of $\varphi$ at
+the empirical MCMC measure $\hat\mu_M$, not an average of per-study correlations.
+The two forms coincide when $\phi$ is linear in $\Q$; for the correlation functional they differ.
+Operationally, we:
 \begin{enumerate}
     \item Run hit-and-run MCMC to generate $M$ samples $\Q_m$ from $U(\hat{\PP}_n, \lambda; d)$
     \item For each $\Q_m$, compute treatment effects $(\hat{\Delta}_S(\Q_m), \hat{\Delta}_Y(\Q_m))$
           via deterministic reweighting of observed data
-    \item Compute $\hat{\phi}_n(\lambda)$ as the sample correlation (or other functional)
+    \item Compute $\hat{\Theta}_n(\lambda)$ as the sample correlation
           of the $M$ pairs $\{(\hat{\Delta}_S(\Q_m), \hat{\Delta}_Y(\Q_m))\}_{m=1}^M$
 \end{enumerate}
+
+\begin{remark}[Plug-in bias and finite-sample behavior]\label{rem:plugin-bias}
+For the correlation functional, the sample correlation of the $M$ treatment-effect pairs is a
+plug-in estimator; it is $\sqrt{n}$-consistent (Proposition~\ref{prop:asymptotic}) but exhibits
+finite-sample attenuation bias that diminishes as $n \to \infty$. The source is the quadratic
+dependence of correlation on the estimated treatment effects: the plug-in
+$\hat\Theta = \varphi(\hat{m})$ incurs a second-order bias
+$\mathrm{tr}(\Sigma\, V) / n + O(n^{-3/2})$ (see Supplementary Material,
+Corollary~A10), where $\Sigma$ is the covariance kernel of the geometry and
+$V$ is the CATE-score covariance. In large samples ($n \geq 5{,}000$) this term
+is negligible; in small samples, a one-step debiased estimator
+$\hat\Theta^{\mathrm{os}} = \hat\Theta + \widehat{\mathrm{tr}(\Sigma\, V)}/n$
+eliminates the leading bias term. The current implementation uses the plug-in; the
+one-step correction is discussed in Section~\ref{sec:sim-future}.
+\end{remark}
 
 \paragraph{Treatment effect estimation via deterministic reweighting.}
 For each $\Q_m$ drawn from the geometry, we do \emph{not} resample data. Instead, we compute observation weights $w_i^{(m)} = q_m(O_i)$ where $q_m$ is the probability mass function of $\Q_m$. The treatment effects are then estimated by applying standard causal inference methods to the weighted data.
@@ -242,7 +315,7 @@ For each $\Q_m$ drawn from the geometry, we do \emph{not} resample data. Instead
     \hat{\Delta}_S(\Q_m) &= \sum_i w_i^{(m)} \left[\frac{A_i(S_i - \hat{\mu}_1^S(\bX_i))}{\hat{e}(\bX_i)} - \frac{(1-A_i)(S_i - \hat{\mu}_0^S(\bX_i))}{1-\hat{e}(\bX_i)} + \hat{\mu}_1^S(\bX_i) - \hat{\mu}_0^S(\bX_i)\right]\\
     \hat{\Delta}_Y(\Q_m) &= \sum_i w_i^{(m)} \left[\frac{A_i(Y_i - \hat{\mu}_1^Y(\bX_i))}{\hat{e}(\bX_i)} - \frac{(1-A_i)(Y_i - \hat{\mu}_0^Y(\bX_i))}{1-\hat{e}(\bX_i)} + \hat{\mu}_1^Y(\bX_i) - \hat{\mu}_0^Y(\bX_i)\right].
 \end{align*}
-Cross-fitting ensures that nuisance parameters ($\hat{e}, \hat{\mu}_a$) are estimated on independent data, enabling asymptotic normality under weak conditions (Chernozhukov et al., 2018).
+Cross-fitting ensures that nuisance parameters ($\hat{e}, \hat{\mu}_a$) are estimated on independent data, enabling asymptotic normality under weak conditions \citep{chernozhukov2018,kennedy2022}.
 
 In both cases, the deterministic reweighting approach eliminates sampling variability within each $\Q_m$, leaving only two sources of error: estimation of $\PP_0$ and Monte Carlo approximation of the geometry.
 
@@ -256,7 +329,7 @@ The variance of $\hat{\phi}_n(\lambda)$ arises from two sources:
 \end{enumerate}
 
 Under Assumptions~\ref{ass:bounded}--\ref{ass:smoothness}, the dominant term is
-(1) when $M = o(n)$ and MCMC has converged. Thus, $M = O(n^{1/2})$ suffices to make Monte Carlo error negligible compared to sampling error.
+(1) when MCMC has converged. In practice we operate in the \emph{conditional regime}: $M$ is fixed (or grows slowly relative to $n$), inference targets the MCMC-approximated estimand $\Theta(\hat{\mu}_M)$, and the MCMC approximation bias $O_p(M^{-1/2})$ is controlled by the choice of $M$. The \emph{unconditional} CLT, centered at the population target $\Theta(\PP_0,\lambda)$, additionally requires $n = o(M)$ (i.e., $M$ growing faster than $n$); the two regimes are detailed in the supplementary material.
 
 \paragraph{Asymptotic normality.}
 The population estimand $\Theta(\PP_0, \lambda)$ is the functional evaluated over the
@@ -269,15 +342,32 @@ a single functional of the distribution over $\Q \sim \mu$ (not an average of a
 per-study quantity), consistently estimated by the sample correlation of the $M$
 treatment-effect pairs $\{(\hat\Delta_S(\Q_m), \hat\Delta_Y(\Q_m))\}_{m=1}^M$.
 
-\begin{proposition}\label{prop:asymptotic}
+\begin{proposition}[Conditional asymptotic normality]\label{prop:asymptotic}
 Suppose Assumptions~\ref{ass:bounded}--\ref{ass:nondegeneracy} hold. For fixed $\lambda$ and $d$,
-conditional on the $M$ sampled studies and after MCMC burn-in,
+conditional on the $M$ sampled studies $\{\Q_1,\ldots,\Q_M\}$ and after MCMC burn-in,
 \[
-    \sqrt{n}\{\hat{\Theta}_n(\lambda) - \Theta(\PP_0, \lambda)\}
-    \xrightarrow{d} N(0, \sigma^2(\lambda))
+    \sqrt{n}\{\hat{\Theta}_n(\lambda) - \Theta(\hat{\mu}_M)\}
+    \xrightarrow{d} N(0, \sigma^2(\hat{\mu}_M))
 \]
-where $\sigma^2(\lambda) = \E[\psi_\Theta(O; \PP_0)^2]$ for an influence function $\psi_\Theta$ that accounts for treatment effect estimation error. The Monte Carlo error from finite $M$ is $O_p(M^{-1/2})$ and is negligible relative to the $\sqrt{n}$ term when $M$ grows faster than $n$; otherwise inference is conditional on the sampled studies. A complete statement, including the two regimes, appears in the supplementary material.
+where $\Theta(\hat{\mu}_M)$ is the correlation functional evaluated at the empirical MCMC measure,
+$\sigma^2(\hat{\mu}_M) = \E[\psi_\Theta(O;\hat{\mu}_M)^2]$, and
+$\psi_\Theta$ is an influence function that accounts for treatment effect estimation error.
+The MCMC approximation error satisfies $|\Theta(\hat{\mu}_M) - \Theta(\PP_0,\lambda)| = O_p(M^{-1/2})$.
+A complete derivation appears in the supplementary material.
 \end{proposition}
+
+\begin{corollary}[Unconditional asymptotic normality]\label{cor:asymptotic-unconditional}
+Under the conditions of Proposition~\ref{prop:asymptotic}, if additionally $M = M(n) \to \infty$
+with $n = o(M)$, then the MCMC term $\sqrt{n}\{\Theta(\hat{\mu}_M) - \Theta(\PP_0,\lambda)\} = O_p((n/M)^{1/2}) = o_p(1)$
+vanishes and unconditionally
+\[
+    \sqrt{n}\{\hat{\Theta}_n(\lambda) - \Theta(\PP_0,\lambda)\}
+    \xrightarrow{d} N(0, \sigma^2(\PP_0,\lambda)).
+\]
+In practice (e.g., $M \approx 2100$, $n = 10{,}000$), we operate in the conditional regime;
+inference targets $\Theta(\hat{\mu}_M)$ and the MCMC approximation bias is controlled by the
+choice of $M$.
+\end{corollary}
 
 \begin{proof}[Proof sketch]
 The proof proceeds in two stages, corresponding to the two-stage structure of the estimator.
@@ -286,12 +376,25 @@ The proof proceeds in two stages, corresponding to the two-stage structure of th
 \[
     \psi_{\Delta_S}(O; \Q) = w(\Q, O) \left[\frac{A\,(S - m_{S,1})}{\pi} - \frac{(1-A)\,(S - m_{S,0})}{1-\pi}\right],
 \]
-where $w(\Q, O) = q(O)/p_0(O)$ is the importance weight and $m_{S,a}$ is the (weighted) mean of $S$ in arm $a$. In observational studies with cross-fitted AIPW, the influence function takes the doubly-robust form that removes nuisance parameter estimation bias \cite{chernozhukov2018}.
+where $w(\Q, O) = q(O)/p_0(O)$ is the importance weight and $m_{S,a}$ is the (weighted) mean of $S$ in arm $a$. In observational studies with cross-fitted AIPW, the influence function takes the doubly-robust form that removes nuisance parameter estimation bias \citep{chernozhukov2018,kennedy2016}.
 
 \textit{Stage 2: Functional aggregation.} For the correlation functional, $\Theta$ is a smooth function of five moments of the distribution of $(\Delta_S(\Q), \Delta_Y(\Q))$ over $\Q \sim \mu$ ($\E_\mu \Delta_S$, $\E_\mu \Delta_Y$, $\E_\mu \Delta_S^2$, $\E_\mu \Delta_Y^2$, $\E_\mu \Delta_S\Delta_Y$). By Hadamard differentiability (Assumption~\ref{ass:smoothness}, with the non-degeneracy of Assumption~\ref{ass:nondegeneracy}), the functional delta method composes the Stage-1 influence functions with the moment gradient to yield the overall influence function $\psi_\Theta$, giving asymptotic normality.
 
 A complete derivation is provided in the supplementary material, for both randomized and observational studies. For observational studies with cross-fitted AIPW, the key property is Neyman orthogonality under reweighting, which combined with $o_P(n^{-1/4})$ nuisance convergence rates yields an $o_P(n^{-1/2})$ remainder uniformly over the sampled studies. The Monte Carlo term is handled by a Markov chain central limit theorem for the geometrically ergodic hit-and-run sampler.
 \end{proof}
+
+\begin{remark}[What ``conditional'' means for reported confidence intervals]\label{rem:conditional-inference}
+The confidence interval reported by \texttt{tv\_ball\_correlation\_IF\_adaptive()}
+targets $\Theta(\hat{\mu}_M)$---the correlation of treatment effects across the
+$M$ specific future studies sampled by hit-and-run, not the population functional
+$\Theta(\PP_0,\lambda)$ defined over the entire uniform measure. The reported SE
+captures only the \emph{sampling variation} from finite $n$; it does not account
+for MCMC approximation error, which is an additional $O_p(M^{-1/2})$ term. With
+$M \approx 2100$ and $n = 10{,}000$, the MCMC error is $O_p(1/\sqrt{2100}) \approx 0.022$,
+comfortably below the typical SE from estimation ($\sim 0.03$--$0.05$ at these sample sizes),
+so the conditional interval is a reliable guide to the population quantity. Users
+who require the fully unconditional interval should use $M \gg n$.
+\end{remark}
 
 \paragraph{Bootstrap inference.}
 Direct computation of the asymptotic variance requires explicit influence function formulas and may be
@@ -357,13 +460,36 @@ one statistical.
     \item \textbf{(A5) Estimability of the bilinear functionals} (statistical). For
     a continuous $d$-dimensional $X$, $\sqrt{n}$-consistent estimation of the
     bilinear terms in \eqref{eq:bilinear-body} requires the CATEs to be smooth
-    enough: with H\"older/Sobolev smoothness $s_S,s_Y$, the condition is
-    $s_S+s_Y>d/2$ (reducing to $s>d/4$ under equal smoothness). Below this
+    enough: the off-diagonal moment $\Theta_{SY}$ (a bilinear functional of two
+    \emph{different} functions) has boundary $s_S+s_Y>d/2$, while each diagonal
+    moment $\Theta_{SS},\Theta_{YY}$ (a quadratic functional of a single function)
+    has the sharper boundary $s_a>d/4$; since $\hat\Theta$ requires all three
+    moments, the binding combined condition is $\min(s_S,s_Y)>d/4$ (reducing to
+    $s>d/4$ under equal smoothness, where the two boundaries coincide). Below this
     ``elbow'' the minimax rate is slower than $\sqrt{n}$ and no $\sqrt{n}$-consistent,
     asymptotically normal estimator exists
     \citep{BickelRitov1988,BirgeMassart1995,Robins2008HOIF,Robins2017Minimax,Kennedy2024Minimax}.
-    On a finite covariate space the condition holds automatically.
+    This condition presumes the reweighting-covariance kernel is identity-like
+    (non-smoothing); on a finite covariate space, or more generally whenever the
+    kernel has finite rank, the condition is not the relevant one --- the elbow is
+    removed entirely by finite rank, not satisfied automatically by finiteness of
+    $X$ per se (supplementary material).
 \end{itemize}
+
+\begin{remark}[Practical implications of the estimability elbow]\label{rem:elbow-practice}
+For discrete or discretized covariates---the setting of the simulations and the
+\texttt{surrogateTransportability} package---the reweighting-covariance kernel has
+finite rank, the elbow is inapplicable, and $\sqrt{n}$ inference is always
+available. For continuous $X$ of dimension $d$, the condition $\min(s_S,s_Y)>d/4$
+can be assessed informally: if the CATEs appear smooth relative to
+the covariate dimension (e.g., a low-dimensional $X$ with smooth effect modification),
+A5 will hold; if $d$ is large relative to the available smoothness (e.g., many
+covariates with possibly non-smooth heterogeneity), one should discretize $X$ into
+a coarser grid to reduce $d$ and ensure the condition holds. Below the elbow,
+higher-order influence function methods \citep{Robins2008HOIF,Kennedy2024Minimax}
+attain the minimax rate but do not restore $\sqrt{n}$ normality; reporting
+conservative, undersmoothed intervals is the appropriate fallback.
+\end{remark}
 
 \begin{theorem}[General asymptotic normality]\label{thm:general-body}
 Under A0, A5, and the regularity conditions of the supplementary material
@@ -544,7 +670,7 @@ on surrogate and outcome can make PTE at $\PP_0$ look favorable while treatment
 effects are nearly uncorrelated across studies; such a configuration is a natural
 target for the finite-sample studies in Section~\ref{sec:sim-future}.
 
-\subsection{Further numerical studies (in progress)}\label{sec:sim-future}
+\subsection{Further numerical studies}\label{sec:sim-future}
 
 The studies above fix $n = 10{,}000$ and $\lambda = 0.3$ and use the total-variation
 geometry, to validate the asymptotic theory in the regime where it is cleanest.
@@ -605,11 +731,20 @@ The framework accommodates other smooth functionals beyond correlation---for
 example $R^2$ (variance explained) and mean squared prediction error. It applies
 directly to prediction-powered inference, where one asks whether a machine-learning
 prediction is a reliable surrogate for an expensive gold-standard label across
-deployment contexts. Software implementing the framework is available in the R
+deployment contexts. The TV-ball geometry is also related to distributionally
+robust optimization \citep{bentalnemirovski2013,esfahanikuhn2018}, where worst-case
+performance over a TV or Wasserstein ambiguity set is the objective; the present
+framework instead characterizes the \emph{distribution} of transportability
+functionals across the ball, providing richer information than worst-case bounds alone.
+Software implementing the framework is available in the R
 package \texttt{surrogateTransportability}.
 
-  \input{proof_asymptotic_normality}
+\paragraph{Theoretical supplement.} All notation, assumptions, results, and proofs
+(the finite-support correlation theorem, its randomized-trial corollary, the
+interior-regime closed form, and the general bilinear-functional extension) are
+collected in the standalone theoretical companion \texttt{inst/paper/theory.tex},
+compiled separately as \texttt{theory.pdf}.
 
 \bibliography{refs}
-\bibliographystyle{plain}
+\bibliographystyle{plainnat}
 \end{document}

@@ -1,6 +1,8 @@
 #' TV Ball Correlation with Adaptive M (IF-Based Inference)
 #'
 #' Automatically increases M until correlation estimate stabilizes.
+#' Optionally applies a jackknife bias correction and/or a one-step debiased
+#' correction for the finite-sample attenuation bias of the plug-in estimator.
 #'
 #' @param data Data frame with X, A, S, Y
 #' @param lambda TV ball radius
@@ -13,6 +15,17 @@
 #' @param thin MCMC thinning
 #' @param alpha Significance level
 #' @param method "bootstrap", "importance_weighting", or "aipw"
+#' @param jackknife Logical. If TRUE, compute a grouped delete-block jackknife
+#'   bias-corrected estimate. The jackknife halves finite-sample attenuation bias
+#'   at small n (e.g., n <= 2000) and is harmless at large n. Uses G = 20 groups
+#'   and the same Q draws as the plug-in (vectorized, no MCMC refit). Returns
+#'   additional fields: rho_jk, jk_bias, ci_lower_jk, ci_upper_jk. Default FALSE.
+#' @param jackknife_groups Number of jackknife groups (default: 20).
+#' @param debiased Logical. If TRUE, compute the one-step bias-corrected estimate
+#'   via the tr(Sigma * V) / n correction (Corollary A10 of the paper). Corrects
+#'   the leading second-order bias of the plug-in correlation using the sample
+#'   geometry covariance kernel and CATE-score cross-covariance. Returns additional
+#'   fields: rho_os, os_bias_correction. Default FALSE.
 #' @param verbose Print progress?
 #' @param e_hat Estimated propensity scores (for AIPW external mode, length n). If NULL, cross-fitting is used.
 #' @param mu_1_S Estimated E[S|A=1,X] (for AIPW external mode, length n)
@@ -23,7 +36,10 @@
 #' @param method_mu Method for outcome regression in cross-fitting mode (if e_hat is NULL)
 #' @param n_folds Number of cross-fitting folds (default: 5)
 #'
-#' @return List with rho_hat, se, ci_lower, ci_upper, IF_vals, and convergence info
+#' @return List with rho_hat, se, ci_lower, ci_upper, IF_vals, and convergence info.
+#'   If jackknife = TRUE, also returns rho_jk, jk_bias, ci_lower_jk, ci_upper_jk.
+#'   If debiased = TRUE, also returns rho_os, os_bias_correction.
+#'   The se and CI fields always target the conditional estimand Theta(mu_hat_M).
 #'
 #' @details
 #' The algorithm:
@@ -51,6 +67,9 @@ tv_ball_correlation_IF_adaptive <- function(data,
                                            thin = 5,
                                            alpha = 0.05,
                                            method = c("bootstrap", "importance_weighting", "aipw"),
+                                           jackknife = FALSE,
+                                           jackknife_groups = 20L,
+                                           debiased = FALSE,
                                            verbose = TRUE,
                                            e_hat = NULL,
                                            mu_1_S = NULL,
@@ -631,28 +650,281 @@ tv_ball_correlation_IF_adaptive <- function(data,
   ci_lower <- rho_hat - z_crit * se
   ci_upper <- rho_hat + z_crit * se
 
+  # --- Jackknife bias correction -------------------------------------------
+  # Grouped delete-block jackknife (G groups). Validated in the generality-
+  # validation Phase 0: halves bias at n<=2000, harmless at large n. Vectorized
+  # over Q draws — no MCMC refit.
+  jk_result <- NULL
+  if (jackknife && method == "importance_weighting") {
+    jk_result <- .jackknife_rho_iw(
+      data         = data,
+      Q            = Q_samples_final,
+      P0           = P0_categorical,
+      X_unique     = X_unique,
+      G            = as.integer(jackknife_groups),
+      alpha        = alpha
+    )
+  } else if (jackknife && method != "importance_weighting") {
+    warning("jackknife is currently only supported for method = 'importance_weighting'. Skipping.")
+  }
+
+  # --- One-step (tr(Sigma * V) / n) bias correction -----------------------
+  # Corrects the leading second-order bias of the plug-in correlation using the
+  # sample geometry covariance kernel Sigma_{kk'} = Cov_mu(q_k, q_k') and the
+  # per-cell CATE-score cross-covariance V_{kk'} = (1/n) sum_i psi_S[i,k] psi_Y[i,k'].
+  # The bias applies to Cov_mu(Delta_S, Delta_Y), which then propagates to rho
+  # via the delta-method gradient. Only implemented for importance_weighting.
+  os_result <- NULL
+  if (debiased && method == "importance_weighting") {
+    os_result <- .onestep_debiased_rho(
+      rho_hat      = rho_hat,
+      Delta_S      = Delta_S,
+      Delta_Y      = Delta_Y,
+      Q            = Q_samples_final,
+      P0           = P0_categorical,
+      X_unique     = X_unique,
+      data         = data,
+      n            = n,
+      alpha        = alpha,
+      se           = se
+    )
+  } else if (debiased && method != "importance_weighting") {
+    warning("debiased is currently only supported for method = 'importance_weighting'. Skipping.")
+  }
+
   if (verbose) {
     message(sprintf("\n=== Results ==="))
     message(sprintf("ρ̂ = %.4f (SE = %.4f)", rho_hat, se))
     message(sprintf("95%% CI: [%.4f, %.4f]", ci_lower, ci_upper))
+    if (!is.null(jk_result)) {
+      message(sprintf("ρ̂_jk = %.4f (bias correction: %.4f)",
+                      jk_result$rho_jk, jk_result$jk_bias))
+    }
+    if (!is.null(os_result)) {
+      message(sprintf("ρ̂_os = %.4f (one-step correction: %.4f)",
+                      os_result$rho_os, os_result$os_bias_correction))
+    }
     message(sprintf("Converged: %s (M = %d)", ifelse(converged, "YES", "NO"), M_final))
   }
 
+  out <- list(
+    rho_hat      = rho_hat,
+    se           = se,
+    ci_lower     = ci_lower,
+    ci_upper     = ci_upper,
+    IF_vals      = psi_Theta,
+    Delta_S      = Delta_S,
+    Delta_Y      = Delta_Y,
+    M_final      = M_final,
+    M_history    = M_history,
+    rho_history  = rho_history,
+    converged    = converged,
+    tolerance    = tolerance,
+    n_stable     = n_stable,
+    method       = method,
+    se_type      = "conditional"  # SE is conditional on μ̂_M (see §4 of derivation)
+  )
+
+  # Append optional correction fields
+  if (!is.null(jk_result)) {
+    out$rho_jk       <- jk_result$rho_jk
+    out$jk_bias      <- jk_result$jk_bias
+    out$ci_lower_jk  <- jk_result$ci_lower_jk
+    out$ci_upper_jk  <- jk_result$ci_upper_jk
+  }
+  if (!is.null(os_result)) {
+    out$rho_os              <- os_result$rho_os
+    out$os_bias_correction  <- os_result$os_bias_correction
+    out$ci_lower_os         <- os_result$ci_lower_os
+    out$ci_upper_os         <- os_result$ci_upper_os
+  }
+
+  out
+}
+
+# =============================================================================
+# Internal helpers
+# =============================================================================
+
+# Vectorized grouped delete-block jackknife for the IW correlation of Deltas.
+# Ported from simulations/generality-validation/R/estimators.R (Phase 0 validated).
+# Uses the same Q draws as the main estimator — no MCMC refit needed.
+#
+# @param data    Original data frame (X, A, S, Y).
+# @param Q       M x K matrix of Q draws (rows = studies, cols = cell probs).
+# @param P0      K-vector of P0 cell probabilities.
+# @param X_unique K-vector of unique X values (sorted).
+# @param G       Number of jackknife groups (default 20).
+# @param alpha   Significance level.
+# @return List: rho_jk, jk_bias, ci_lower_jk, ci_upper_jk.
+.jackknife_rho_iw <- function(data, Q, P0, X_unique, G = 20L, alpha = 0.05) {
+  n  <- nrow(data)
+  M  <- nrow(Q)
+  # Map each obs to its cell index
+  k_i <- match(data$X, X_unique)
+  # M x n importance-weight matrix (w_{mi} = q_{m,k_i} / p0_{k_i})
+  W   <- Q[, k_i, drop = FALSE] / matrix(P0[k_i], M, n, byrow = TRUE)
+
+  A <- data$A; S <- data$S; Y <- data$Y
+
+  # Full-sample per-arm weighted sums (M-vectors)
+  sumW1 <- as.numeric(W %*% A)
+  sumW0 <- as.numeric(W %*% (1 - A))
+  sumS1 <- as.numeric(W %*% (S * A))
+  sumS0 <- as.numeric(W %*% (S * (1 - A)))
+  sumY1 <- as.numeric(W %*% (Y * A))
+  sumY0 <- as.numeric(W %*% (Y * (1 - A)))
+
+  rho_from_sums <- function(w1, w0, s1, s0, y1, y0) {
+    dS <- s1 / w1 - s0 / w0
+    dY <- y1 / w1 - y0 / w0
+    stats::cor(dS, dY)
+  }
+  rho_full <- rho_from_sums(sumW1, sumW0, sumS1, sumS0, sumY1, sumY0)
+
+  # Delete-block jackknife: subtract each group's contribution from sums
+  grp     <- sample(rep(seq_len(G), length.out = n))
+  rho_mg  <- numeric(G)
+  for (g in seq_len(G)) {
+    keep <- grp != g
+    Wg   <- W[, keep, drop = FALSE]
+    Ag   <- A[keep]; Sg <- S[keep]; Yg <- Y[keep]
+    rho_mg[g] <- rho_from_sums(
+      as.numeric(Wg %*% Ag),
+      as.numeric(Wg %*% (1 - Ag)),
+      as.numeric(Wg %*% (Sg * Ag)),
+      as.numeric(Wg %*% (Sg * (1 - Ag))),
+      as.numeric(Wg %*% (Yg * Ag)),
+      as.numeric(Wg %*% (Yg * (1 - Ag)))
+    )
+  }
+
+  bias    <- (G - 1) * (mean(rho_mg) - rho_full)
+  rho_jk  <- max(min(rho_full - bias, 1), -1)
+
+  # CI: IF-based SE recentred at the jackknife point estimate (Phase 0: sampling
+  # variance essentially unchanged by the bias correction).
+  z_crit      <- stats::qnorm(1 - alpha / 2)
+  # We don't have se here; caller passes it via the parent function — but we
+  # compute SE from the jackknife distribution as a self-contained alternative.
+  se_jk       <- sqrt((G - 1) / G * sum((rho_mg - mean(rho_mg))^2))
+
   list(
-    rho_hat = rho_hat,
-    se = se,
-    ci_lower = ci_lower,
-    ci_upper = ci_upper,
-    IF_vals = psi_Theta,
-    Delta_S = Delta_S,
-    Delta_Y = Delta_Y,
-    M_final = M_final,
-    M_history = M_history,
-    rho_history = rho_history,
-    converged = converged,
-    tolerance = tolerance,
-    n_stable = n_stable,
-    method = method,
-    se_type = "conditional"  # SE is conditional on μ̂_M (see §4 of derivation)
+    rho_jk      = rho_jk,
+    jk_bias     = bias,
+    ci_lower_jk = rho_jk - z_crit * se_jk,
+    ci_upper_jk = rho_jk + z_crit * se_jk
+  )
+}
+
+
+# One-step (tr(Sigma * V) / n) debiased rho.
+# Corrects the leading plug-in bias via the bilinear-functional EIF (Corollary A10).
+# Sigma_{kk'} = sample Cov_mu(q_k, q_k') from the M MCMC draws.
+# V_{kk'}     = (1/n) sum_i psi_S(O_i; delta_k) * psi_Y(O_i; delta_k') where
+#               psi_S(O_i; delta_k) = IW influence function for Delta_S under the
+#               point-mass study Q = delta_k (w_i = 1{X_i = k}/p0(k)).
+#
+# The bias correction applies to Cov_mu(Delta_S, Delta_Y) and propagates to rho
+# via the delta-method gradient of the correlation functional.
+#
+# @param rho_hat  Plug-in rho (scalar).
+# @param Delta_S  M-vector of surrogate treatment effects.
+# @param Delta_Y  M-vector of outcome treatment effects.
+# @param Q        M x K matrix of Q draws.
+# @param P0       K-vector of P0 cell probabilities.
+# @param X_unique K-vector of unique X values.
+# @param data     Data frame (X, A, S, Y).
+# @param n        Sample size.
+# @param alpha    Significance level.
+# @param se       IF-based SE (used to form CI around one-step point).
+# @return List: rho_os, os_bias_correction, ci_lower_os, ci_upper_os.
+.onestep_debiased_rho <- function(rho_hat, Delta_S, Delta_Y, Q, P0,
+                                   X_unique, data, n, alpha = 0.05, se) {
+  M <- nrow(Q)
+  K <- length(P0)
+
+  # --- Sigma: K x K sample covariance of Q draws (Cov_mu(q_k, q_k')) ----------
+  q_bar  <- colMeans(Q)               # K-vector: sample mean of each cell
+  Q_cent <- sweep(Q, 2, q_bar)        # M x K: centred draws
+  Sigma  <- crossprod(Q_cent) / (M - 1)  # K x K: Cov_mu(q_k, q_k')
+
+  # --- Per-cell IW influence functions: psi_S(O_i; delta_k) --------------------
+  # Under Q = delta_k (point mass on cell k), the importance weight for obs i is
+  # w_i = 1{X_i=k} / p0(k). The IW influence function (★★ in derivation §2) is:
+  # psi_S(O_i; delta_k) = (w_i / mean_arm_weight) *
+  #   [ A_i (S_i - m_{S,1,k}) / ebar1_k - (1-A_i)(S_i - m_{S,0,k}) / ebar0_k ]
+  # where m_{S,a,k} and ebar_a,k are weighted means under Q = delta_k.
+
+  k_i     <- match(data$X, X_unique)   # obs -> cell index
+  A       <- data$A; S <- data$S; Y <- data$Y
+
+  # n x K matrices of per-cell influence functions for S and Y
+  psi_S_cell <- matrix(0, n, K)
+  psi_Y_cell <- matrix(0, n, K)
+
+  for (k in seq_len(K)) {
+    # Importance weights: w_i = 1{X_i=k} / p0(k)
+    w_k <- as.numeric(k_i == k) / P0[k]
+    w_k_norm <- w_k / max(mean(w_k), 1e-12)  # normalize to mean 1
+
+    ebar1_k <- mean(w_k_norm * A)
+    ebar0_k <- mean(w_k_norm * (1 - A))
+
+    if (ebar1_k < 1e-8 || ebar0_k < 1e-8) {
+      # Cell has no treated or no control obs: IF is zero (no information)
+      next
+    }
+
+    # Weighted arm means
+    m_S1_k <- sum(w_k_norm * A * S) / sum(w_k_norm * A + 1e-300)
+    m_S0_k <- sum(w_k_norm * (1 - A) * S) / sum(w_k_norm * (1 - A) + 1e-300)
+    m_Y1_k <- sum(w_k_norm * A * Y) / sum(w_k_norm * A + 1e-300)
+    m_Y0_k <- sum(w_k_norm * (1 - A) * Y) / sum(w_k_norm * (1 - A) + 1e-300)
+
+    psi_S_cell[, k] <- w_k_norm * (
+      A * (S - m_S1_k) / ebar1_k - (1 - A) * (S - m_S0_k) / ebar0_k
+    )
+    psi_Y_cell[, k] <- w_k_norm * (
+      A * (Y - m_Y1_k) / ebar1_k - (1 - A) * (Y - m_Y0_k) / ebar0_k
+    )
+  }
+
+  # --- V: K x K CATE-score cross-covariance -----------------------------------
+  # V_{kk'} = (1/n) sum_i psi_S(O_i; delta_k) * psi_Y(O_i; delta_k')
+  V <- crossprod(psi_S_cell, psi_Y_cell) / n   # K x K
+
+  # --- Bias correction for Cov_mu(Delta_S, Delta_Y) via tr(Sigma * V) / n ----
+  # From Corollary A10: E[plug-in Cov] - true Cov = tr(Sigma * V) / n
+  bias_cov <- sum(Sigma * V) / n   # tr(A * B) = sum(A * t(B)) = sum(A * B) if both symmetric
+
+  # Propagate the covariance bias correction to rho via delta method.
+  # rho = Cov / (sd_S * sd_Y); partial d(rho)/d(Cov) = 1 / (sd_S * sd_Y)
+  sd_S <- stats::sd(Delta_S)
+  sd_Y <- stats::sd(Delta_Y)
+
+  if (sd_S < 1e-10 || sd_Y < 1e-10) {
+    warning("One-step debiased: near-zero variance in Delta_S or Delta_Y. Returning plug-in.")
+    return(list(
+      rho_os             = rho_hat,
+      os_bias_correction = 0,
+      ci_lower_os        = rho_hat - stats::qnorm(1 - alpha / 2) * se,
+      ci_upper_os        = rho_hat + stats::qnorm(1 - alpha / 2) * se
+    ))
+  }
+
+  # One-step corrected rho: add the estimated bias correction to the plug-in.
+  # tr(Sigma * V) / n estimates how much the plug-in Cov under-estimates the
+  # true Cov_mu(Delta_S, Delta_Y); adding it corrects upward (toward the truth).
+  # Propagated to rho via partial d(rho)/d(Cov) = 1 / (sd_S * sd_Y).
+  os_correction <- bias_cov / (sd_S * sd_Y)
+  rho_os <- max(min(rho_hat + os_correction, 1), -1)
+
+  z_crit <- stats::qnorm(1 - alpha / 2)
+  list(
+    rho_os             = rho_os,
+    os_bias_correction = os_correction,
+    ci_lower_os        = rho_os - z_crit * se,
+    ci_upper_os        = rho_os + z_crit * se
   )
 }
