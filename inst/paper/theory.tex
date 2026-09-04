@@ -1,0 +1,1938 @@
+\documentclass[11pt]{article}
+
+% ---------------------------------------------------------------------------
+% Portable preamble: compiles with pdfLaTeX or XeLaTeX, no project macros.
+% ---------------------------------------------------------------------------
+\usepackage{amsmath,amsthm,amssymb}
+\usepackage[margin=1in]{geometry}
+\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue]{hyperref}
+\usepackage{mathtools}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage[round,authoryear]{natbib}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{assumption}{Assumption}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{convention}[theorem]{Convention}
+
+\renewcommand{\theassumption}{A\arabic{assumption}}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\PP}{\mathbb{P}}
+\newcommand{\Pn}{\widehat{\PP}_n}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\cX}{\mathcal{X}}
+\newcommand{\cS}{\mathcal{S}}
+\newcommand{\cY}{\mathcal{Y}}
+\newcommand{\cO}{\mathcal{O}}
+\newcommand{\cM}{\mathcal{M}}
+\newcommand{\cQ}{\mathcal{Q}}
+\newcommand{\cB}{\mathcal{B}}
+\newcommand{\Q}{\mathcal{Q}}
+\newcommand{\Qhat}{\widehat{\mu}_M}
+\newcommand{\ez}{e_0}
+\newcommand{\ehat}{\widehat{e}}
+\newcommand{\muhat}{\widehat{\mu}}
+\newcommand{\what}{\widehat{w}}
+\newcommand{\that}{\widehat{\tau}}
+\newcommand{\Thetahat}{\widehat{\Theta}}
+\newcommand{\pihat}{\widehat{\pi}}
+\newcommand{\Sighat}{\widehat{\Sigma}}
+\newcommand{\Ltwo}[1]{\lVert #1 \rVert_{2}}
+\newcommand{\Lw}[1]{\lVert #1 \rVert_{2,w}}
+\newcommand{\Linf}[1]{\lVert #1 \rVert_{\infty}}
+\newcommand{\IF}{\mathrm{IF}}
+\newcommand{\Cov}{\mathrm{Cov}}
+\newcommand{\Corr}{\mathrm{cor}}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\plim}{plim}
+\DeclarePairedDelimiter{\abs}{\lvert}{\rvert}
+\DeclarePairedDelimiter{\card}{\lvert}{\rvert}
+\DeclarePairedDelimiter{\norm}{\lVert}{\rVert}
+
+\title{Evaluating Surrogate Transportability via Local Geometric Analysis\\[2pt]
+\large Theory}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We develop inference for the correlation of treatment effects on a surrogate marker
+and a clinical outcome across a distribution of hypothetical future studies, drawn
+uniformly from a total-variation ball of radius $\lambda$ around the observed study
+$\PP_0$. Our main result is a $\sqrt n$-consistent, asymptotically normal estimator of
+this correlation on a finite (or discretized) covariate space, built from
+importance-weighted or cross-fitted augmented-inverse-probability-weighted (AIPW)
+treatment-effect estimates in each of $M$ hit-and-run Monte Carlo draws from the ball,
+with a two-stage influence function combining $\sqrt n$ estimation error and
+$\sqrt M$ Monte Carlo error. The randomized-trial estimator is recovered as an exact
+corollary of the AIPW theorem. We further give a closed-form characterization of the
+estimand when the ball's probability-simplex boundary constraints do not bind: in this
+interior regime the correlation reduces exactly, independently of $\lambda$ and of
+$\PP_0$'s composition, to the ordinary Pearson correlation of the conditional average
+treatment effects across covariate strata --- the same object a stratum-level
+meta-analysis would report. We extend the finite-support theory to a general smooth
+functional of the across-study treatment-effect distribution on a possibly continuous
+covariate space, showing that every load-bearing moment is a linear or bilinear
+functional of the two conditional average treatment effect (CATE) surfaces, derive the
+efficient influence function of such a bilinear functional, and give the smoothness
+condition under which $\sqrt n$-consistent estimation remains possible. The
+finite-support theorem is recovered as the discrete special case of this general
+theory. We state throughout, and discuss the consequences of, the causal scope
+restriction that future studies differ from $\PP_0$ only in covariate composition, and
+we condition on the sampled geometry, deferring a fully unconditional treatment to
+future work.
+\end{abstract}
+
+\tableofcontents
+
+% ===========================================================================
+\section{Scope and organisation}\label{sec:scope}
+% ===========================================================================
+
+This document is the theoretical companion to the manuscript
+\texttt{inst/paper/main.tex} (``Evaluating Surrogate Transportability via Local
+Geometric Analysis'').
+
+\paragraph{What this document covers.} Two co-equal main results, built on the same
+influence-function machinery.
+
+\begin{itemize}
+  \item \textbf{The finite-support theorem} (Section~\ref{sec:layer1}): $X$ takes
+  finitely many values (e.g., after discretizing a continuous covariate). This is the
+  case implemented in the \texttt{surrogateTransportability} package
+  (\texttt{tv\_ball\_correlation\_IF\_adaptive()}) and validated by the four-DGP
+  simulation study in the main text. We state one unified theorem for the
+  cross-fitted AIPW estimator (Theorem~\ref{thm:main}), with the randomized-trial,
+  importance-weighting estimator recovered as an exact corollary
+  (Corollary~\ref{cor:rct}) rather than as a separately re-derived special case. A
+  further result (Proposition~\ref{prop:interior}) gives the closed-form,
+  $\lambda$-free reduction of the estimand in the interior of the probability simplex.
+  \item \textbf{The general theorem} (Section~\ref{sec:layer2}): $X$ is allowed to be
+  continuous, and the target functional $\Theta$ is allowed to be any smooth function
+  of finitely many moments of the across-study effect distribution (correlation,
+  $R^2$, mean squared prediction error, and concordance are instances). This section
+  is not implemented in the package and not exercised by the simulation study; it is
+  included because it strictly generalizes Section~\ref{sec:layer1}, and
+  Section~\ref{sec:recovery} verifies the finite-support theorem is recovered as its
+  discrete special case.
+\end{itemize}
+
+\paragraph{Standing convention.} Both sections \emph{condition on the sampled
+geometry}: the $M$ Monte Carlo draws $\{\Q_m\}$ (equivalently, the induced
+reweighting-covariance kernel) are treated as fixed inputs to the inference problem
+for the data $O_1,\dots,O_n$, and the two sources of randomness --- estimation error in
+$n$ and Monte Carlo error in $M$ --- are combined explicitly rather than assumed away.
+We further condition on using a $\sqrt n$-consistent estimate $\Pn$ of $\PP_0$ to
+\emph{center} the sampled ball; a fully unconditional theory that additionally
+differentiates the geometry's own dependence on $\PP_0$ is deferred to future work
+(Remark~\ref{rem:geometry-scope}). Every result inherits this convention; we do not
+repeat it in each statement.
+
+\paragraph{What is proved in full vs.\ what is scoped out.} Every theorem, proposition,
+and corollary in the main text of this document has a complete proof in
+Appendix~\ref{app:proofs}. Section~\ref{sec:layer2}'s Corollary~\ref{cor:onestep-match}
+is the one point in this document where we assert a structural fact --- the general
+one-step bilinear correction and the package's finite-support ad hoc debiasing
+correction are the same object up to normalization --- without closing the exact
+per-cell normalization bookkeeping required for a numerically exact match;
+Remark~\ref{rem:onestep-scope} states this limitation precisely.
+Appendix~\ref{app:counterex} collects four counterexamples delimiting the theory's
+scope.
+
+% ===========================================================================
+\section{Setup, notation, and standing assumptions}\label{sec:setup}
+% ===========================================================================
+
+\subsection{Data, treatment effects, and the estimand}
+
+We observe $n$ i.i.d.\ copies $O_1,\dots,O_n$ of $O=(X,A,S,Y)\sim\PP_0$: $A\in\{0,1\}$
+is a binary treatment, $S$ is a surrogate marker, $Y$ is the clinical outcome of
+interest, and $X\in\cX$ are pre-treatment covariates. For any probability measure $\PP$
+on the same sample space, define the treatment effects on the surrogate and the
+outcome,
+\begin{equation}\label{eq:delta-def}
+    \Delta_S(\PP) = \E_\PP\{S(1)-S(0)\}, \qquad \Delta_Y(\PP) = \E_\PP\{Y(1)-Y(0)\}.
+\end{equation}
+Under randomization or unconfoundedness (Assumption~\ref{ass:causal} below), these are
+identified from the observables under $\PP$.
+
+A \emph{future study} is a probability measure $\Q$ on the same sample space. We model
+$\Q$ as a draw from a probability measure $\mu$ (a distribution over study
+distributions), supported on a \emph{local geometry}
+\begin{equation}\label{eq:geometry}
+    U(\PP_0,\lambda;d) = \{\Q\in\cM_1(\cO): d(\Q,\PP_0)\le\lambda\}
+\end{equation}
+around $\PP_0$, where $d$ is a distance metric between probability measures and
+$\lambda\ge0$ is a tolerance. Our primary instantiation takes $d$ to be total variation,
+$\mu=\mathrm{Uniform}\{U(\PP_0,\lambda;d_{\mathrm{TV}})\}$, and the estimand to be the
+correlation of the two treatment effects across studies,
+\begin{equation}\label{eq:estimand}
+    \Theta(\PP_0,\lambda) = \Corr_{\Q\sim\mu}\{\Delta_S(\Q),\Delta_Y(\Q)\}
+    = \frac{\Cov_\mu\{\Delta_S(\Q),\Delta_Y(\Q)\}}
+           {\sqrt{\Var_\mu\{\Delta_S(\Q)\}\,\Var_\mu\{\Delta_Y(\Q)\}}}.
+\end{equation}
+$\Theta\approx1$ means the surrogate transports well across the population
+compositions $\mu$ deems plausible; $\Theta\approx0$ means it does not.
+
+\subsection{Absolute continuity and the signed-measure parametrization}
+
+We restrict attention to $\Q\ll\PP_0$: future studies reweight the observed support of
+$\PP_0$ rather than extrapolating to unobserved covariate values. It is convenient to
+parametrize $\Q$ directly as a perturbation of $\PP_0$. Write
+\begin{equation}\label{eq:signed-measure}
+    \Q = \PP_0 + V,
+\end{equation}
+where $V$ is a finite signed measure with $V(\cO)=0$ (so $\Q$ is a probability measure)
+and $\PP_0+V\ge0$ pointwise (so $\Q$ is nonnegative). For the total-variation ball,
+$d_{\mathrm{TV}}(\Q,\PP_0)=\tfrac12\|V\|_1\le\lambda$, i.e.\ $\|V\|_1\le2\lambda$. The
+density ratio (importance weight) is $w(x)=d\Q/d\PP_0(x) = 1+v(x)/p_0(x)$ where $v$ is
+the density of $V$ against a base measure containing $\PP_0$; when $\cX$ is finite this
+is simply $w(k)=q_k/p_0(k)$ for cell probabilities $q_k=\PP_0(k)+V(k)$.
+
+This parametrization makes explicit that $U(\PP_0,\lambda;d_{\mathrm{TV}})$, restricted
+to the finite-support case, is the intersection of three convex constraint sets: the
+zero-sum hyperplane $\{V:\mathbf{1}^\top V=0\}$, the $\ell_1$-ball
+$\{V:\|V\|_1\le2\lambda\}$, and the simplex-nonnegativity region
+$\{V:\PP_0+V\ge0\}$. Only the first two are permutation-symmetric in the cells; the
+third depends on $\PP_0$'s composition and is what makes the general theory
+$\lambda$- and $\PP_0$-dependent (Section~\ref{sec:layer1}), while its absence in a
+restricted range of $\lambda$ is what makes the closed-form reduction of
+Proposition~\ref{prop:interior} possible.
+
+\subsection{Conditional average treatment effects}
+
+Define the conditional average treatment effects (CATEs)
+\begin{equation}\label{eq:cate}
+    \tau_S(x) = \E_{\PP_0}\{S(1)-S(0)\mid X=x\}, \qquad
+    \tau_Y(x) = \E_{\PP_0}\{Y(1)-Y(0)\mid X=x\}.
+\end{equation}
+
+\begin{assumption}[A0: Conditional-effect transportability given $X$]\label{ass:A0}
+Future studies $\Q\in\mathrm{supp}(\mu)$ differ from $\PP_0$ only in the marginal law of
+$X$: the reweighting $w=d\Q/d\PP_0$ is a function of $X$ alone, and $\tau_S,\tau_Y$ are
+the same under $\Q$ and $\PP_0$. Equivalently, all cross-study variation in treatment
+effects is compositional in the measured covariates.
+\end{assumption}
+
+Under Assumption~\ref{ass:A0}, study-level effects are exactly the linear functionals
+\begin{equation}\label{eq:delta-linear}
+    \Delta_a(\Q) = \E_{\PP_0}\{w(X)\,\tau_a(X)\}, \qquad a\in\{S,Y\}.
+\end{equation}
+
+\begin{remark}[Definitional vs.\ interpretive reading of A0]\label{rem:A0-reading}
+Under a \emph{definitional} reading, $\Theta(\PP_0,\lambda)$ simply \emph{is} the
+transportability functional over the class of $X$-compositional future studies, and
+Assumption~\ref{ass:A0} is a scope statement rather than a restriction. Under an
+\emph{interpretive} reading --- treating $\Theta$ as answering ``does the surrogate
+transport to arbitrary real future studies?'' --- Assumption~\ref{ass:A0} is a
+substantive causal assumption (effect modification by $X$ is the only source of
+cross-study heterogeneity), it is not testable from a single study, and it cannot be
+relaxed to a point estimate without additional data. See
+Section~\ref{sec:discussion}.
+\end{remark}
+
+\subsection{The reweighting-covariance kernel}
+
+A geometry induces a mean reweighting function and a \emph{reweighting-covariance
+kernel},
+\begin{equation}\label{eq:kernel-def}
+    \bar a(x) = \E_\mu[w(x)], \qquad C(x,x') = \Cov_\mu\{w(x),w(x')\}.
+\end{equation}
+Taking $\mu$-moments of \eqref{eq:delta-linear} (Fubini, justified by bounded weights
+and $\E_{\PP_0}[\tau_a^2]<\infty$) reduces every load-bearing moment of the estimand to
+a linear or bilinear functional of the CATE pair $(\tau_S,\tau_Y)$:
+\begin{align}
+    \E_\mu[\Delta_a(\Q)] &= \int \bar a(x)\,\tau_a(x)\,d\PP_0(x),
+    \tag{linear}\label{eq:reduction-linear}\\
+    \Cov_\mu\{\Delta_a(\Q),\Delta_b(\Q)\} &= \iint C(x,x')\,\tau_a(x)\,\tau_b(x')\,
+        d\PP_0(x)\,d\PP_0(x') \;=:\; \Theta_{ab}. \tag{bilinear}\label{eq:reduction-bilinear}
+\end{align}
+On a finite covariate space $\cX=\{1,\dots,K\}$ with cell probabilities $p_0(k)$, write
+$\tau_a=(\tau_a(1),\dots,\tau_a(K))^\top$; the kernel collapses to a $K\times K$ matrix
+\begin{equation}\label{eq:sigma-def}
+    \Sigma_{kk'} = \Cov_\mu(q_k,q_{k'}) = C(k,k')\,p_0(k)\,p_0(k'),
+\end{equation}
+and
+\begin{equation}\label{eq:discrete-quadform}
+    \Theta_{ab} = \tau_a^\top\Sigma\,\tau_b.
+\end{equation}
+This is the object Sections~\ref{sec:layer1}--\ref{sec:interior} work with directly;
+Section~\ref{sec:layer2} works with the general kernel $C$.
+
+\subsection{Standing assumptions}
+
+\begin{assumption}[Sampling]\label{ass:iid}
+$O_1,\dots,O_n$ are i.i.d.\ draws from $\PP_0$.
+\end{assumption}
+
+\begin{assumption}[Identification and positivity]\label{ass:causal}
+For $a\in\{0,1\}$: $Y(a),S(a)\perp A\mid X$ under $\PP_0$ (randomization or
+unconfoundedness), and $\PP_0(A=a\mid X)>0$ almost surely. In the observational case,
+the propensity score satisfies $e(x)=\PP_0(A=1\mid X=x)\in[c,1-c]$ for some $c>0$
+(strong positivity).
+\end{assumption}
+
+\begin{assumption}[Moments and bounded weights]\label{ass:moments}
+$\E_{\PP_0}[S^2+Y^2]<\infty$, and there exists $C_w<\infty$ such that
+$\sup_{\Q\in\mathrm{supp}(\mu)}\sup_{x\in\mathrm{supp}(\PP_0)} w(x)\le C_w$.
+\end{assumption}
+
+\begin{assumption}[Non-degeneracy]\label{ass:nondegeneracy}
+There exists $c_0>0$ such that $\Var_\mu\{\Delta_S(\Q)\}\ge c_0$ and
+$\Var_\mu\{\Delta_Y(\Q)\}\ge c_0$.
+\end{assumption}
+
+\begin{assumption}[Nuisance rates, cross-fitted case]\label{ass:nuisance}
+Propensity and outcome-regression estimators $\ehat,\hat\mu_a^S,\hat\mu_a^Y$ ($a\in\{0,1\}$)
+are obtained by $K$-fold cross-fitting and satisfy
+$\|\ehat-e\|_{L^2(\PP_0)}=o_P(n^{-1/4})$,
+$\|\hat\mu_a-\mu_a\|_{L^2(\PP_0)}=o_P(n^{-1/4})$, hence the product rate
+$\|\ehat-e\|_{L^2}\cdot\|\hat\mu_a-\mu_a\|_{L^2}=o_P(n^{-1/2})$.
+\end{assumption}
+
+\begin{assumption}[Geometry regularity and MCMC ergodicity]\label{ass:geometry}
+$\mathrm{supp}(\mu)$ is compact, and the hit-and-run sampler generating
+$\{\Q_1,\dots,\Q_M\}$ is geometrically ergodic with stationary distribution $\mu$.
+\end{assumption}
+
+\begin{convention}[Conditioning on the geometry]\label{conv:geometry}
+Throughout, inference is conditional on the sampled geometry $\{\Q_1,\dots,\Q_M\}$
+(equivalently on the empirical kernel it induces). This is the convention flagged in
+Section~\ref{sec:scope}; Remark~\ref{rem:geometry-scope} states what is deferred.
+\end{convention}
+
+\begin{remark}[Scope: the geometry is centered at an estimate of $\PP_0$]\label{rem:geometry-scope}
+In practice $\{\Q_m\}$ are drawn from $U(\Pn,\lambda;d_{\mathrm{TV}})$, a ball centered at
+the empirical distribution $\Pn$, not at $\PP_0$. Two consequences, both handled by
+Convention~\ref{conv:geometry} rather than resolved: (i) \emph{estimation, conditional
+on a drawn $\Q_m$, is unaffected.} For the finite-support estimators of
+Section~\ref{sec:layer1}, the empirical cell probability entering the importance
+weight cancels exactly against the per-cell sample-size normalization in the
+treatment-effect estimator (Lemma~\ref{lem:cancellation}), so $\hat\Delta_a(\Q_m)$ is a
+consistent, asymptotically linear estimator of the \emph{true}
+$\Delta_a(\Q_m)=\sum_k q_{m,k}\tau_a(k)$ using the true CATEs, for any fixed $\Q_m$,
+regardless of whether $\Q_m$ was itself drawn from a ball centered at $\PP_0$ or
+$\Pn$. (ii) \emph{which $\Q_m$'s get drawn is data-dependent.} Because
+$U(\Pn,\lambda)\to U(\PP_0,\lambda)$ as $\Pn\to\PP_0$ (the ball's boundary is Lipschitz
+in its center for the total-variation metric), $\hat\mu_M\to\mu$ picks up an additional
+$O_P(n^{-1/2})$ recentering error beyond the $O_P(M^{-1/2})$ Monte Carlo error of
+Lemma~\ref{lem:mcmc-error}. A fully unconditional theory would differentiate through
+this dependence (as it would through the kernel $C$'s dependence on $\PP_0$ in
+Section~\ref{sec:layer2}, Remark~\ref{rem:kernel-dependence}); we do not pursue this
+here, and the conditional statements of Theorems~\ref{thm:main} and~\ref{thm:general}
+are unaffected by it.
+\end{remark}
+
+% ===========================================================================
+\section{The interior-regime reduction: a closed form}\label{sec:interior}
+% ===========================================================================
+
+Before developing the general estimation theory, we characterize what the estimand
+\emph{is} in the simplest case, where the local geometry's simplex-boundary
+constraints do not bind. This gives an immediate interpretive anchor: in this regime,
+$\Theta$ is exactly the stratum-level meta-analytic correlation of treatment effects,
+computed within a single study rather than across several.
+
+\begin{definition}[Interior regime]\label{def:interior}
+The local geometry $U(\PP_0,\lambda;d_{\mathrm{TV}})$ on a finite covariate space
+$\cX=\{1,\dots,K\}$ is in the \emph{interior regime} if the nonnegativity constraint
+$\PP_0+V\ge0$ never binds on the feasible set, i.e.\ if
+$\{V:\mathbf 1^\top V=0,\ \|V\|_1\le2\lambda\} = \{V:\mathbf 1^\top V=0,\ \|V\|_1\le2\lambda,\ \PP_0+V\ge0\}$.
+A sharp sufficient condition is $\lambda\le\min_k p_0(k)$: for any $V$ with
+$\mathbf1^\top V=0$ and $\|V\|_1\le2\lambda$, the triangle inequality
+$\|V\|_1\ge|V_k|+|\sum_{j\ne k}V_j|=2|V_k|$ (using the zero-sum constraint) forces
+$|V_k|\le\lambda$ for every $k$, so $q_k=p_0(k)+V_k\ge p_0(k)-\lambda\ge0$ whenever
+$\lambda\le\min_kp_0(k)$; this bound is attained (not merely sufficient) when the
+$\ell_1$ budget is split between cell $k$ and a single other cell.
+\end{definition}
+
+\begin{lemma}[The interior regime requires atomic support, and the sufficient
+condition is sharp]\label{lem:interior-atomic}
+Fix $\lambda\in(0,1]$ (the total-variation distance is bounded by $1$, so
+$\lambda>1$ is vacuous; also exclude the degenerate $K=1$ case, where $V\equiv0$ is
+forced by $V\ll\PP_0$ and $V(\cX)=0$, and the interior regime holds trivially at
+every $\lambda$). Definition~\ref{def:interior} extends verbatim to a general
+covariate law $\PP_0$ on any measurable $\cX$, not only a finite one, once the
+signed-measure parametrization of \eqref{eq:signed-measure} is read literally (with
+$V\ll\PP_0$ throughout, the ambient constraint of \S2.2): $U(\PP_0,\lambda;d_{\mathrm{TV}})$
+is in the interior regime at $\lambda$ if $\{V:V(\cX)=0,\|V\|_1\le2\lambda\}\subseteq\{V:\PP_0+V\ge0\}$.
+This holds at $\lambda$ if and only if there is no measurable $A\subseteq\cX$ with
+$0<\PP_0(A)<\lambda$; equivalently (Step 0 below), if and only if $\PP_0$ is purely
+atomic with finitely many atoms $\{1,\dots,K\}$, $K\le\lfloor1/\lambda\rfloor$, and
+$\min_k p_0(k)\ge\lambda$. In particular, Definition~\ref{def:interior}'s sufficient
+condition $\lambda\le\min_kp_0(k)$ is not merely sufficient but \emph{sharp}.
+\end{lemma}
+
+\begin{proof}
+\emph{Step 0 (the two characterizations coincide).} If $\PP_0$ has a non-atomic
+component of mass $c>0$, that component's range $\{\PP_0(B):B\subseteq\text{component}\}$
+is the full interval $[0,c]$ (a standard consequence of countable additivity for
+non-atomic measures, e.g.\ via repeated halving --- the Sierpi\'nski/Lyapunov range
+theorem), so it contains a set $A$ with $0<\PP_0(A)<\min(\lambda,c)\le\lambda$. If
+$\PP_0$ has infinitely many atoms, their masses sum to at most $1$ and hence tend to
+$0$, so some atom has mass $<\lambda$ and is itself such an $A$. Conversely, if
+$\PP_0$ is purely atomic with finitely many atoms all of mass $\ge\lambda$, no such
+$A$ exists (any measurable set is a union of atoms, each contributing $0$ or
+$\ge\lambda$ to its total mass, so no partial sum lands strictly between $0$ and
+$\lambda$); finiteness of the atom count is then forced by $\sum_kp_0(k)=1$ and
+$p_0(k)\ge\lambda>0$, giving $K\le\lfloor1/\lambda\rfloor$. So ``no such $A$ exists''
+$\iff$ ``$\PP_0$ purely atomic, finitely many atoms, $\min_kp_0(k)\ge\lambda$.''
+
+($\Leftarrow$) If every measurable $A$ has $\PP_0(A)=0$ or $\PP_0(A)\ge\lambda$
+(equivalently, by Step 0, $\PP_0$ is purely atomic with $\min_kp_0(k)\ge\lambda$),
+then for any feasible $V$ ($V(\cX)=0$, $\|V\|_1\le2\lambda$) and any atom $k$, the
+triangle-inequality argument already used in Definition~\ref{def:interior} gives
+$|V_k|\le\lambda\le p_0(k)$, so $p_0(k)+V_k\ge0$: the interior regime holds.
+
+($\Rightarrow$) Suppose $\exists A$ with $0<\PP_0(A)=\varepsilon<\lambda$ (so
+$\varepsilon<\lambda\le1$, hence $\varepsilon<1$ and $\PP_0(A^c)=1-\varepsilon>0$).
+The density perturbation $v=-\mathbf1_A+\big(\varepsilon/(1-\varepsilon)\big)\mathbf1_{A^c}$
+against $\PP_0$ defines $V=v\,d\PP_0$; since $v$ is a bounded density against
+$\PP_0$, $V\ll\PP_0$ throughout, respecting the ambient constraint. It satisfies
+$\int v\,d\PP_0=-\varepsilon+\frac{\varepsilon}{1-\varepsilon}\cdot\PP_0(A^c)=-\varepsilon+\frac{\varepsilon}{1-\varepsilon}(1-\varepsilon)=-\varepsilon+\varepsilon=0$
+(zero-sum) and drives the density to exactly $0$ on $A$. Its total-variation cost is
+$\|V\|_1=\varepsilon+\varepsilon=2\varepsilon$, since the negative and positive parts
+of $v\,d\PP_0$ each carry mass exactly $\varepsilon$ by construction. Because
+$\varepsilon<\lambda$, $\|V\|_1=2\varepsilon<2\lambda$: this $V$ is strictly inside
+the TV budget yet already drives $\PP_0+V$ to $0$ on $A$, so rescaling $v$ by a
+factor $1+\delta$ for small enough $\delta>0$ (remaining feasible, since
+$2\varepsilon(1+\delta)<2\lambda$ for $\delta<\lambda/\varepsilon-1>0$) drives
+$\PP_0+V$ strictly negative on $A$. The interior regime therefore fails at $\lambda$.
+\end{proof}
+
+\begin{remark}[No continuous-$X$ analog of the closed form]\label{rem:no-continuous-interior}
+Lemma~\ref{lem:interior-atomic} settles, in the negative, the question of whether
+Proposition~\ref{prop:interior} below has an analog for continuous $X$: the interior
+regime is empty for \emph{every} $\lambda>0$ whenever $\PP_0$ has a continuous
+component (or infinitely many atoms), by Step 0 of the lemma's proof. The premise of
+Proposition~\ref{prop:interior} --- a $\lambda>0$ at which the geometry is in the
+interior regime --- therefore cannot hold outside finite atomic support, and there
+is no direct continuous-$X$ closed form to derive from the same symmetry argument.
+(The saturated regime of Section~\ref{sec:saturated} is a different matter: for
+continuous $\PP_0$, $\sup_{\Q\ll\PP_0}d_{\mathrm{TV}}(\Q,\PP_0)=1$ still, so a
+saturated regime at $\lambda\ge1$ is not ruled out by this lemma; but
+Proposition~\ref{prop:saturated}'s argument does not directly generalize either,
+since $\mathrm{Uniform}(\Delta_{K-1})$ has no analog on the infinite-dimensional
+simplex of probability measures $\ll\PP_0$ --- there is no uniform probability
+measure on an infinite-dimensional convex body, so $\mu$ itself is not well-defined
+there, independently of any symmetry argument.) Section~\ref{sec:sieve-limit}
+gives the honest continuous-$X$ limit instead, obtained by discretizing rather than
+by relaxing Definition~\ref{def:interior} itself.
+\end{remark}
+
+\begin{proposition}[Interior-regime closed form]\label{prop:interior}
+In the interior regime, for any $\lambda>0$,
+\begin{equation}\label{eq:interior-reduction}
+    \Theta(\PP_0,\lambda) = \Corr_K(\tau_S,\tau_Y)
+    := \frac{\frac1K\sum_k(\tau_S(k)-\bar\tau_S)(\tau_Y(k)-\bar\tau_Y)}
+            {\sqrt{\frac1K\sum_k(\tau_S(k)-\bar\tau_S)^2}\,\sqrt{\frac1K\sum_k(\tau_Y(k)-\bar\tau_Y)^2}},
+\end{equation}
+the ordinary (unweighted) Pearson correlation of the $K$ cell-level CATEs, where
+$\bar\tau_a=\frac1K\sum_k\tau_a(k)$. In particular $\Theta(\PP_0,\lambda)$ does not
+depend on $\lambda$ and does not depend on $\PP_0$'s composition $(p_0(k))_k$
+(only on which cells have $p_0(k)>0$).
+\end{proposition}
+
+The proof (Appendix~\ref{app:proofs}, Section~\ref{app:proof-interior}) shows that in
+the interior regime the feasible region $\{V:\mathbf1^\top V=0,\|V\|_1\le2\lambda\}$ is
+invariant under permutations of the $K$ cells, that the uniform measure on any
+permutation-invariant convex body inherits that symmetry, and that this forces the
+induced covariance kernel to take the form $\Sigma=a(\lambda)(I_K-\tfrac1K\mathbf1\mathbf1^\top)$
+for a scalar $a(\lambda)>0$; substituting into \eqref{eq:discrete-quadform} and forming
+the ratio in \eqref{eq:estimand} cancels $a(\lambda)$ and $p_0$ entirely.
+
+\begin{remark}[Interpretation and scope]\label{rem:interior-scope}
+Proposition~\ref{prop:interior} is a genuine reduction, not an approximation, but its
+regime ($\lambda\le\min_kp_0(k)$) is typically \emph{smaller} than the $\lambda$
+values used for the paper's validation study (Section~\ref{sec:layer1} operates at
+$\lambda=0.3$ with $\min_k p_0(k)=0.05$, well outside the interior regime; the
+reported estimand there is genuinely $\lambda$- and $\PP_0$-dependent). The
+proposition should be read as a limiting characterization --- what $\Theta$ converges
+to as the geometry shrinks toward the interior --- that motivates the general
+construction (Section~\ref{sec:layer1}) without replacing it: for $\lambda$ small
+enough that no stratum can be driven to zero mass, evaluating cross-study
+transportability by the local geometric method reduces to exactly what a
+meta-analysis would report if each covariate stratum were an independent study; for
+larger $\lambda$, the simplex boundary makes rare strata harder to reweight upward
+without exhausting common strata, and the estimand reflects this asymmetry.
+\end{remark}
+
+\subsection{The interior-regime efficient influence function}\label{sec:interior-eif}
+
+Proposition~\ref{prop:interior} identifies what $\Theta$ \emph{is} in the interior
+regime; the following identifies its EIF there, specializing the general bilinear
+EIF of Lemma~\ref{lem:bilinear-eif} rather than re-deriving it from scratch.
+
+\begin{corollary}[Interior-regime efficient influence function]\label{cor:interior-eif}
+Suppose $K\ge3$ and, in the interior regime with $\lambda<\min_kp_0(k)$
+\emph{strictly}, the across-cell CATE spreads $s_S,s_Y>0$ and
+$|\Corr_K(\tau_S,\tau_Y)|<1$ (the finite-$K$ specialization of
+Assumption~\ref{ass:nondegeneracy}; $K=2$ is degenerate, since then
+$\Theta=\pm1$ identically, see Remark~\ref{rem:interior-eif-scope}). Then
+$\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$ (Proposition~\ref{prop:interior}) is a
+smooth function of the finite-dimensional parameter $(\tau_S,\tau_Y)\in\R^{2K}$,
+hence pathwise differentiable, with efficient influence function
+\begin{equation}\label{eq:interior-eif}
+    \chi_\Theta(O) = \sum_{k=1}^K\frac{\partial\Corr_K}{\partial\tau_S(k)}(\tau_S,\tau_Y)\,\IF_{\tau_S}(O;k)
+    \;+\; \sum_{k=1}^K\frac{\partial\Corr_K}{\partial\tau_Y(k)}(\tau_S,\tau_Y)\,\IF_{\tau_Y}(O;k),
+\end{equation}
+where $\IF_{\tau_a}(O;k)=\frac{\mathbf1\{X=k\}}{p_0(k)}\big(\mathrm{score}_a(O)-\tau_a(k)\big)$
+is the per-cell CATE influence function (the pointwise, mean-zero specialization of
+Lemma~\ref{lem:cate-linearity}'s $\IF_{\tau_a}$ to a point mass at $k$), and
+$\mathrm{score}_a(O)$ is the cross-fitted AIPW bracket \eqref{eq:aipw-estimator}'s
+per-unit expression --- a single, estimator-independent quantity (an EIF for a fixed
+nonparametric model does not depend on which consistent estimator is used). On cell
+$k$, since $\mu_1^a(k)-\mu_0^a(k)=\tau_a(k)$, $\mathrm{score}_a(O)-\tau_a(k)$
+collapses exactly to $\frac{A(S-\mu_1^a(k))}{e(X)}-\frac{(1-A)(S-\mu_0^a(k))}{1-e(X)}$,
+the \emph{stratified difference-of-means} influence function, regardless of whether
+$e$ is known or estimated (the unaugmented Horvitz--Thompson score
+$\frac{AS}{e(X)}-\frac{(1-A)S}{1-e(X)}-\tau_a(k)$ is a valid but strictly less
+efficient influence function, not this one). \eqref{eq:interior-eif} does not depend on $a(\lambda)$: $\Sigma=a(\lambda)(I_K-\mathbf1\mathbf1^\top/K)$
+enters $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ linearly and exactly once, so
+$\Theta=\Theta_{SY}/\sqrt{\Theta_{SS}\Theta_{YY}}$ is homogeneous of degree $0$ in
+$a(\lambda)$ (a ratio of two degree-$1$-homogeneous quantities), hence so is
+$\Corr_K$'s gradient in \eqref{eq:interior-eif} --- $a(\lambda)$ is known geometry
+($a(\lambda)=\lambda^2a_K$ by scaling), not an estimated nuisance, so this is an
+exact cancellation, not an approximation. Equivalently, specializing
+Lemma~\ref{lem:bilinear-eif}'s general EIF \eqref{eq:chi-ab} to the interior-regime
+kernel $C(k,k')=a(\delta_{kk'}-1/K)/(p_0(k)p_0(k'))$ gives the intermediate,
+$a$-dependent bilinear scores
+\begin{equation}\label{eq:interior-chi-ab}
+    \chi_{ab}(O) = a\cdot\frac{(\tau_b(X)-\bar\tau_b)\big(\mathrm{score}_a(O)-\tau_a(X)\big)}{p_0(X)}
+    \;+\; (a\leftrightarrow b),
+\end{equation}
+and composing $\chi_{SS},\chi_{SY},\chi_{YY}$ with $\nabla_{(\Theta_{SS},\Theta_{SY},\Theta_{YY})}\Corr_K$
+reproduces \eqref{eq:interior-eif} with $a$ cancelling in the composition. The same
+limit also follows directly from Theorem~\ref{thm:main}: its $M$-draw influence
+function \eqref{eq:psi-theta-layer1} converges, as $M\to\infty$ in the interior
+regime, to \eqref{eq:interior-eif}, since $\Thetahat_n\to\Corr_K(\hat\tau_S,\hat\tau_Y)$
+there, so the MCMC machinery of Section~\ref{sec:layer1} is unnecessary in this
+regime.
+\end{corollary}
+
+\begin{remark}[Four subtleties in the interior-regime EIF]\label{rem:interior-eif-scope}
+\textbf{Strict inequality (requires $K\ge3$).} $\lambda<\min_kp_0(k)$ is required
+\emph{strictly}, and this kink is a genuine feature only for $K\ge3$: at $K=2$,
+$\Theta=\pm1$ identically for every $\lambda$ and every $p_0$ (both $\Delta_a$ are
+affine in the single free coordinate $q_1=1-q_2$), so $p_0\mapsto\Theta$ is constant
+and trivially differentiable through the boundary. For $K\ge3$, at
+$\lambda=\min_kp_0(k)$ exactly, $\PP_0\mapsto\Theta$ is continuous but not
+differentiable: an active nonnegativity constraint on the argmin cell creates, on
+one side of $\lambda=\min_kp_0(k)$, a $(K-2)$-dimensional feasible cross-section of
+positive volume $\asymp\lambda^{K-2}$ that is absent on the other side, so moving
+the boundary by $\delta$ changes that volume by $\asymp\delta\lambda^{K-2}$ (linear
+in $\delta$): a genuine kink in $\Theta(p_0)$ exactly at the boundary. This is
+consistent with finite-difference slopes of $\Theta(\lambda)$ at fixed $p_0$:
+statistically indistinguishable from $0$ on the interior side of
+$\lambda=\min_kp_0(k)$, statistically distinguishable from $0$ on the
+boundary-binding side. \textbf{Design, not test.} The interior regime should
+be a design choice --- selecting $\lambda$ with margin below $\min_k\hat p_0(k)$ ---
+not a data-driven hypothesis test; testing it introduces an unaccounted pre-test
+affecting coverage. \textbf{Degeneracy is two-sided, not one-sided.}
+\eqref{eq:interior-eif}'s gradient blows up as either across-cell CATE spread
+$s_S,s_Y\to0$ (the $1/(Ks_a)$ prefactor in
+$\partial\Corr_K/\partial\tau_S(k)=\frac1{Ks_S}\big[\frac{\tau_Y(k)-\bar\tau_Y}{s_Y}-\Corr_K\frac{\tau_S(k)-\bar\tau_S}{s_S}\big]$
+is unbounded), addressed by the finite-$K$ specialization of
+Assumption~\ref{ass:nondegeneracy} used in the corollary's hypotheses. The
+\emph{opposite} boundary behaves oppositely: as $|\Corr_K|\to1$, the bracketed term
+above vanishes identically for every $k$ (since $\Corr_K=\pm1$ forces the two
+standardized CATE sequences to coincide up to sign), so the gradient --- and the
+naive-scale asymptotic variance --- \emph{degenerates to zero}, not to infinity;
+this is the familiar boundary degeneracy of a sample correlation coefficient
+(classically, $\Var(r)\approx(1-\rho^2)^2/n\to0$ as $\rho\to\pm1$), and Fisher's
+$z$-transform is the standard remedy for the resulting non-normal, rate-changed
+sampling behavior near that boundary --- it stabilizes variance across the range of
+$\rho$, not an unbounded gradient, since there is none there. \textbf{Scope: coarsened
+target, not the continuum limit.} The interior condition $p_0(k)\ge\lambda$ bounds
+$1/p_0(k)\le1/\lambda$ and $K\le1/\lambda$, buying $\sqrt n$-inference with no
+smoothness elbow --- but only for the estimand $\Theta_K$ at the fixed, coarsened
+$K$-cell partition. If the $K$ cells coarsen a richer or continuous $X$, this
+describes inference for the coarsened target, not the continuum limit
+$\Corr_{\PP_0}(\tau_S,\tau_Y)$ of Proposition~\ref{prop:sieve-limit}; targeting that
+limit requires $K\to\infty$, and the elbow of Assumption~\ref{ass:elbow} returns via
+Section~\ref{sec:rank}. This is the conceptual link between
+Corollary~\ref{cor:interior-eif}, Proposition~\ref{prop:sieve-limit}, and
+Section~\ref{sec:rank}: free $\sqrt n$-inference at fixed, finite $K$ is not free
+$\sqrt n$-inference for the continuum target.
+\end{remark}
+
+\subsection{The saturated regime: the closed form recurs at the other extreme of
+$\lambda$}\label{sec:saturated}
+
+The interior regime is one extreme of $\lambda$ (small enough that no stratum can be
+driven to zero mass); the closed form of Proposition~\ref{prop:interior} recurs,
+by an independent argument, at the \emph{other} extreme, where $\lambda$ is large
+enough that the TV ball covers the entire probability simplex.
+
+\begin{lemma}[Saturation threshold]\label{lem:saturation}
+Suppose $p_0(k)>0$ for all $k=1,\dots,K$ (so every vertex of $\Delta_{K-1}$ is
+reachable under the ambient constraint $\Q\ll\PP_0$). Then
+$U(\PP_0,\lambda;d_{\mathrm{TV}})=\Delta_{K-1}$ (the whole probability simplex on
+$K$ cells) if and only if $\lambda\ge1-\min_kp_0(k)$.
+\end{lemma}
+
+\begin{proof}
+$d_{\mathrm{TV}}(\cdot,\PP_0)$ is convex on $\Delta_{K-1}$ (a norm composed with an
+affine map), so its maximum over the simplex is attained at a vertex $\delta_{k^*}$;
+$d_{\mathrm{TV}}(\delta_{k^*},\PP_0)=\tfrac12\big((1-p_0(k^*))+\sum_{k\ne k^*}p_0(k)\big)=1-p_0(k^*)$,
+maximized over vertices by $k^*=\arg\min_kp_0(k)$. So
+$\max_{\Q\in\Delta_{K-1}}d_{\mathrm{TV}}(\Q,\PP_0)=1-\min_kp_0(k)$, and the ball
+covers the whole simplex exactly when $\lambda$ reaches this value.
+\end{proof}
+
+\begin{proposition}[Saturated-regime closed form]\label{prop:saturated}
+If $\lambda\ge1-\min_kp_0(k)$ (Lemma~\ref{lem:saturation}), then
+$\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$, the same unweighted Pearson
+correlation as Proposition~\ref{prop:interior}'s interior-regime reduction
+\eqref{eq:interior-reduction}, again independent of $\PP_0$'s composition.
+\end{proposition}
+
+\begin{proof}
+Throughout, identify $U(\PP_0,\lambda;d_{\mathrm{TV}})$ with the corresponding
+subset of the covariate simplex $\Delta_{K-1}$: under A0 the reweighting is a
+function of $X$ alone, so $d_{\mathrm{TV}}(\Q,\PP_0)=\tfrac12\sum_k|q_k-p_0(k)|$
+exactly, and \eqref{eq:sigma-def}'s $\Sigma=\Cov_\mu(q_k,q_{k'})$ depends only on
+the law of $Q=(q_1,\dots,q_K)$ under $\mu$. At saturation,
+$\mu=\mathrm{Uniform}(\Delta_{K-1})=\mathrm{Dirichlet}(1,\dots,1)$, which is
+exchangeable under every permutation of $\{1,\dots,K\}$ (permuting the coordinates
+of a symmetric Dirichlet law leaves it unchanged). Exchangeability gives
+$\Cov(\Pi Q)=\Pi\Cov(Q)\Pi^\top=\Cov(Q)$ for every permutation matrix $\Pi$, so
+$\Sigma=\Cov(Q)$ commutes with the full symmetric group's permutation
+representation and hence, by the same commutant argument as the proof of
+Proposition~\ref{prop:interior} (Appendix~\ref{app:proof-interior}), takes the form
+$\Sigma=aI_K+b\mathbf1\mathbf1^\top$ for scalars $a,b$. Since $\sum_kQ_k=1$ a.s.,
+$\Sigma\mathbf1=\Cov(Q,\mathbf1^\top Q)=\Cov(Q,1)=0$, pinning $b=-a/K$ and giving
+$\Sigma=a(I_K-\mathbf1\mathbf1^\top/K)$ for some scalar $a>0$ (positive since $Q$ is
+non-degenerate for $K\ge2$). This argument uses only exchangeability of $Q$ itself
+and the constraint $\mathbf1^\top Q=1$; unlike the interior-regime proof, it makes
+no use of the centered variable $V=Q-\PP_0$ --- indeed $V\stackrel{d}{=}\Pi V$ fails
+in general here, since $\Pi V=\Pi Q-\Pi\PP_0\stackrel{d}{=}Q-\Pi\PP_0$, which equals
+$V$ in distribution only if $\Pi\PP_0=\PP_0$: the feasible set for $V$ at saturation
+is $\Delta_{K-1}-\PP_0$, which is not permutation-invariant unless $\PP_0$ itself is
+uniform. Substituting $\Sigma=a(I_K-\mathbf1\mathbf1^\top/K)$ into
+$\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ and forming the ratio cancels $a$ exactly as in
+the proof of Proposition~\ref{prop:interior}, giving
+$\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$. (The proportionality constant itself
+is a separate computation from Dirichlet$(1,\dots,1)$'s moments---
+$\mathrm{Var}(Q_k)=(K-1)/(K^2(K+1))$, $\mathrm{Cov}(Q_k,Q_{k'})=-1/(K^2(K+1))$ for
+$k\ne k'$, matching $a=1/(K(K+1))$ directly---but is not needed here since $a$
+cancels in the ratio regardless of its value, exactly as $a(\lambda)$ does at the
+interior end.)
+\end{proof}
+
+\begin{remark}[The closed form is not a small-$\lambda$ artifact]\label{rem:saturated-scope}
+Proposition~\ref{prop:saturated} shows the closed form of
+Proposition~\ref{prop:interior} recurs at $\lambda\ge1-\min_kp_0(k)$, so it holds at
+\emph{both} extremes of $\lambda$: the intermediate range
+$\lambda\in(\min_kp_0(k),\,1-\min_kp_0(k))$ is the only range in which $\Theta$ need
+not equal $\Corr_K(\tau_S,\tau_Y)$ and may genuinely depend on $\lambda$ and
+$\PP_0$'s composition (Example~\ref{ex:binding} confirms this range is where the
+paper's validated machinery does genuine work). This intermediate range is empty
+exactly when $\min_kp_0(k)\ge1/2$, i.e.\ at $K=2$ with $p_0=(\tfrac12,\tfrac12)$
+(where $\Theta=\pm1$ deterministically for any $\lambda$, since two numbers are
+always perfectly correlated). Section~\ref{sec:discussion} revises the ``two
+regimes'' framing accordingly, to three: interior, intermediate, and saturated.
+\end{remark}
+
+\subsection{The continuous-$X$ limit: an equal-mass sieve}\label{sec:sieve-limit}
+
+Lemma~\ref{lem:interior-atomic} rules out a direct continuous-$X$ analog of
+Proposition~\ref{prop:interior}. The following gives the intrinsic continuous-$X$
+limit instead, obtained by refining a discretization rather than by relaxing the
+interior-regime definition.
+
+\begin{proposition}[Equal-mass dyadic sieve limit]\label{prop:sieve-limit}
+Let $(\cX,\PP_0)$ be non-atomic and standard Borel, so that
+$(\cX,\PP_0)\cong([0,1],\mathrm{Leb})$ under a measure isomorphism. Pull back the
+dyadic intervals $\{[j2^{-m},(j+1)2^{-m})\}_{j=0}^{2^m-1}$ at level $m$ (so
+$K_m=2^m$) under this isomorphism, giving a sequence of partitions that is (i)
+\emph{nested} across $m$ (each level strictly refines the last), (ii) exactly equal
+$\PP_0$-mass $2^{-m}$ per cell, and (iii) generates the Borel $\sigma$-field mod
+$\PP_0$-null sets as $m\to\infty$ (a standard martingale-theory fact for dyadic
+filtrations under a measure isomorphism to Lebesgue measure; see e.g.\
+\citet{Williams1991}, Ch.\ 14). Suppose $\tau_S,\tau_Y\in L^2(\PP_0)$: this follows
+from $\E[S^2],\E[Y^2]<\infty$ (Assumption~\ref{ass:moments}, stated for the observed
+variables) together with strict positivity $e(x)\in[c,1-c]$
+(Assumption~\ref{ass:causal}), which together give the potential-outcome moments
+$\E[S(a)^2],\E[Y(a)^2]<\infty$ needed, e.g.\
+$\E[S(1)^2]=\E\big[\E[S^2\mathbf1\{A=1\}\mid X]/e(X)\big]\le c^{-1}\E[S^2]<\infty$,
+and $\tau_a=\mu_1^a-\mu_0^a$ is a difference of conditional expectations of such
+variables. \emph{The pushforward $\PP_0^{(m)}$ of $\PP_0$ onto the level-$m$
+partition} --- the discrete law on $\{1,\dots,K_m\}$ with cell probabilities
+$p_0^{(m)}(k)=2^{-m}$ --- is a finite covariate law to which
+Definition~\ref{def:interior} and Proposition~\ref{prop:interior} apply literally
+(unlike $\PP_0$ itself, per Lemma~\ref{lem:interior-atomic}): the interior regime
+holds for $\PP_0^{(m)}$ at any $\lambda\le2^{-m}=:\lambda_m$ (any choice in this
+range gives the same $\Theta_m$, since $\Theta$ is $\lambda$-free throughout the
+interior regime; $\lambda_m\to0$ is recorded only because the range shrinks with
+$m$, not because a specific rate is needed). Setting
+$\Theta_m:=\Theta(\PP_0^{(m)},\lambda_m)=\Corr_{K_m}(\tau_S^{(m)},\tau_Y^{(m)})$
+with $\tau_a^{(m)}(k)=\E[\tau_a(X)\mid\text{cell }k]$ (Proposition~\ref{prop:interior}
+applied to $\PP_0^{(m)}$), and assuming $\Var_{\PP_0}(\tau_S),\Var_{\PP_0}(\tau_Y)>0$
+(the continuous-$X$ reading of Assumption~\ref{ass:nondegeneracy}), then
+\begin{equation}\label{eq:sieve-limit}
+    \Theta_m \;\longrightarrow\; \Corr_{\PP_0}\big(\tau_S(X),\tau_Y(X)\big)
+    \qquad\text{as } m\to\infty,
+\end{equation}
+the ordinary $\PP_0$-weighted correlation of the CATE functions.
+\end{proposition}
+
+\begin{proof}
+Because cells have equal $\PP_0$-mass $2^{-m}$, the unweighted average over $K_m$
+cells in \eqref{eq:interior-reduction} (applied to $\PP_0^{(m)}$) coincides with the
+$\PP_0$-weighted average over the same cells, so
+$\Theta_m=\Corr_{\PP_0}(\tau_S^{(m)},\tau_Y^{(m)})$ exactly at each $m$ (not merely
+approximately). By the martingale convergence theorem (Doob) applied to the nested,
+refining dyadic filtration, $\tau_a^{(m)}\to\tau_a$ in $L^2(\PP_0)$ as $m\to\infty$.
+$\Var_{\PP_0}(\tau_a^{(m)})$ is non-decreasing in $m$ (conditional-variance
+decomposition: coarsening a conditioning set cannot increase the variance of the
+resulting conditional expectation), so since $\Var_{\PP_0}(\tau_a)>0$ in the limit
+(hypothesis), there
+is a finite $m_0$ beyond which $\Var_{\PP_0}(\tau_a^{(m)})$ is bounded away from $0$
+for all $m\ge m_0$ (monotone convergence to a positive limit); this is an
+\emph{eventual}, not universal, non-degeneracy statement, since a coarse partition
+on which $\tau_a$ happens to be constant can have $\Var_{\PP_0}(\tau_a^{(m)})=0$ at
+small $m$. For $m\ge m_0$, continuity of the correlation functional under $L^2$
+convergence of both arguments, given denominators bounded away from $0$, gives
+\eqref{eq:sieve-limit}.
+\end{proof}
+
+\begin{remark}[Scope: canonical grid, and identification at each level]\label{rem:sieve-scope}
+Two caveats delimit Proposition~\ref{prop:sieve-limit}'s scope. \emph{Grid
+dependence (heuristic, backed by numerical evidence rather than a proof here).} The
+limit \eqref{eq:sieve-limit} is intrinsic to the equal-$\PP_0$-mass (dyadic) grid: a
+mismatched, unequal-mass grid (cells not of equal $\PP_0$-mass, though still
+refining, with cell diameters $\to0$ and $\tau_S,\tau_Y$ a.e.\ continuous) is
+expected, on the same mechanism as the proof above, to converge instead to the
+correlation of $\tau_S,\tau_Y$ evaluated against the limiting distribution of cell
+\emph{centers} rather than against $\PP_0$ itself, since Proposition~\ref{prop:interior}'s
+reduction is unweighted over cells regardless of their true $\PP_0$-mass; we do not
+prove this general claim here, but confirm it numerically for a specific
+quantile-transform control grid, with $\tau_S(x)=x,\tau_Y(x)=x^5$ on
+$\mathrm{Unif}[0,1]$: the dyadic grid targets $\sqrt{33}/7$ while the
+quantile-transform grid targets $\sqrt3/2$, matching to within $3\times10^{-4}$ at
+$K=256$. The equal-$\PP_0$-mass grid is the canonical choice
+that makes the limit basis-independent and intrinsic to $\PP_0$; a different
+(non-equal-mass) refining grid is not merely a slower route to the same answer, but
+generally targets a different number entirely. \emph{Identification at each finite
+level.} $\tau_a^{(m)}(k)=\E[\tau_a(X)\mid\text{cell }k]$
+holds for the true CATEs by iterated expectations regardless of identification
+strategy, but \emph{estimating} $\Theta_m$ from data at each level via the per-cell
+AIPW/difference-of-means machinery of Section~\ref{sec:layer1} requires
+unconfoundedness given the \emph{coarsened} covariate (the cell label) --- automatic
+in a randomized trial, but not implied by unconfoundedness given the fine covariate
+$X$ in an observational study, since coarsening a covariate can reintroduce
+confounding. Proposition~\ref{prop:sieve-limit} is a statement about the estimand's
+limit for the true CATEs; consistent estimation at each finite $m$ in an
+observational study requires this additional, level-specific identification
+condition.
+\end{remark}
+
+% ===========================================================================
+\section{Finite-support theory}\label{sec:layer1}
+% ===========================================================================
+
+Fix a finite (or discretized) covariate space $\cX=\{1,\dots,K\}$ with cell
+probabilities $p_0(k)=\PP_0(X=k)$. We observe treatment $A$, surrogate $S$, and
+outcome $Y$; write $\mu_a^S(k)=\E[S\mid A=a,X=k]$, $\mu_a^Y(k)=\E[Y\mid A=a,X=k]$, and
+recall $\tau_S(k)=\mu_1^S(k)-\mu_0^S(k)$, $\tau_Y(k)=\mu_1^Y(k)-\mu_0^Y(k)$ from
+\eqref{eq:cate}. For a future study with cell masses $q=(q_1,\dots,q_K)$,
+\eqref{eq:delta-linear} specializes to
+\begin{equation}\label{eq:delta-discrete}
+    \Delta_S(\Q) = \sum_k q_k\,\tau_S(k), \qquad \Delta_Y(\Q) = \sum_k q_k\,\tau_Y(k),
+\end{equation}
+and \eqref{eq:discrete-quadform} gives the estimand as the quadratic form
+$\Theta_{SY}=\tau_S^\top\Sigma\tau_Y$ normalized by $\sqrt{\Theta_{SS}\Theta_{YY}}$.
+
+\subsection{Estimator}
+
+Given $\Q_1,\dots,\Q_M$ sampled by hit-and-run from $U(\Pn,\lambda;d_{\mathrm{TV}})$
+(Convention~\ref{conv:geometry}), and importance weights $w_i(\Q_m)=q_{m,k}/\hat
+p_0(k)$ for $X_i=k$, the cross-fitted AIPW estimator of $\Delta_S(\Q_m)$ is
+\begin{equation}\label{eq:aipw-estimator}
+    \hat\Delta_S(\Q_m) = \frac1n\sum_{i=1}^n w_i(\Q_m)\left[
+        \frac{A_i(S_i-\hat\mu_1^S(X_i))}{\ehat(X_i)}
+        - \frac{(1-A_i)(S_i-\hat\mu_0^S(X_i))}{1-\ehat(X_i)}
+        + \hat\mu_1^S(X_i)-\hat\mu_0^S(X_i)
+    \right],
+\end{equation}
+with $\hat\Delta_Y(\Q_m)$ defined analogously, and nuisances $\ehat,\hat\mu_a$
+cross-fitted (Assumption~\ref{ass:nuisance}). The plug-in estimator of the estimand is
+the sample Pearson correlation of the $M$ pairs,
+\begin{equation}\label{eq:theta-hat}
+    \Thetahat_n(\lambda) = \Corr\!\big(\{\hat\Delta_S(\Q_m)\}_{m=1}^M,\{\hat\Delta_Y(\Q_m)\}_{m=1}^M\big).
+\end{equation}
+
+\begin{lemma}[Exact cancellation of the ball's empirical center]\label{lem:cancellation}
+Write $\hat p_0(k)=n_k/n$ for the empirical cell frequency, $n_k=\sum_i\mathbf1\{X_i=k\}$.
+Then, for any fixed weight vector $q_m$,
+\begin{equation}\label{eq:cancellation}
+    \hat\Delta_S(\Q_m) = \sum_{k=1}^K q_{m,k}\,\hat\tau_S(k),
+    \qquad
+    \hat\tau_S(k) = \frac1{n_k}\sum_{i:X_i=k}\left[
+        \frac{A_i(S_i-\hat\mu_1^S(X_i))}{\ehat(X_i)}
+        - \frac{(1-A_i)(S_i-\hat\mu_0^S(X_i))}{1-\ehat(X_i)}
+        + \hat\mu_1^S(X_i)-\hat\mu_0^S(X_i)
+    \right],
+\end{equation}
+an identity that holds for every finite sample, independently of $\hat p_0$. In
+particular, using $\Pn$ rather than $\PP_0$ to define the importance weights
+$w_i(\Q_m)=q_{m,k}/\hat p_0(k)$ introduces no error, of any order, into
+$\hat\Delta_S(\Q_m)$ conditional on $\Q_m$; $\hat\tau_S(k)$ is exactly the per-cell
+cross-fitted AIPW estimator of $\tau_S(k)$.
+\end{lemma}
+
+\subsection{Main theorem}
+
+\begin{theorem}[Correlation of treatment effects across studies]\label{thm:main}
+Under Assumptions~\ref{ass:iid}--\ref{ass:geometry}, with $\Thetahat_n(\lambda)$ as in
+\eqref{eq:theta-hat}, there is a mean-zero influence function
+$\psi_\Theta(\cdot;\Qhat)$ with $\E_{\PP_0}[\psi_\Theta(O;\Qhat)^2]=\sigma^2(\Qhat)<\infty$
+such that:
+\begin{enumerate}[label=(\alph*)]
+    \item \textbf{Conditional statement (any $M$).} Conditional on
+    $\{\Q_1,\dots,\Q_M\}$, as $n\to\infty$,
+    \begin{equation}\label{eq:thm-main-conditional}
+        \sqrt n\{\Thetahat_n(\lambda) - \Theta(\Qhat,\lambda)\}
+        \xrightarrow{d} N\big(0,\sigma^2(\Qhat)\big),
+    \end{equation}
+    where $\Theta(\Qhat,\lambda)$ is the correlation functional evaluated at the
+    empirical measure $\Qhat=\frac1M\sum_m\delta_{\Q_m}$ of the sampled studies.
+    \item \textbf{Unconditional statement (if $n=o(M)$).} If additionally $M=M(n)\to\infty$
+    with $n/M\to0$,
+    \begin{equation}\label{eq:thm-main-unconditional}
+        \sqrt n\{\Thetahat_n(\lambda) - \Theta(\PP_0,\lambda)\}
+        \xrightarrow{d} N\big(0,\sigma^2(\mu)\big).
+    \end{equation}
+    (The direction is $n=o(M)$: $M$ must grow \emph{faster} than $n$, not slower.)
+    \item \textbf{Combined statement (any $n,M$).}
+    \begin{equation}\label{eq:thm-main-combined}
+        \Thetahat_n(\lambda) - \Theta(\PP_0,\lambda) = O_P(n^{-1/2}) + O_P(M^{-1/2}),
+    \end{equation}
+    with the two error sources asymptotically independent (the first is a function of
+    $O_1,\dots,O_n$ alone, the second of the Markov chain alone, conditional on which
+    the first is computed); a standard error accounting for both is
+    $\widehat{\mathrm{se}} = \sqrt{\hat\sigma^2(\Qhat)/n + \hat\kappa^2/M}$, with
+    $\hat\kappa^2$ a batch-means or spectral estimate of the Monte Carlo asymptotic
+    variance of Lemma~\ref{lem:mcmc-error}.
+\end{enumerate}
+The influence function is
+\begin{equation}\label{eq:psi-theta-layer1}
+    \psi_\Theta(O;\Qhat) = \frac1M\sum_{m=1}^M \nabla\varphi(\hat m)^\top
+    \begin{pmatrix}\psi_S^{\mathrm{AIPW}}(O;\Q_m)\\ \psi_Y^{\mathrm{AIPW}}(O;\Q_m)\end{pmatrix},
+\end{equation}
+where $\varphi$ is the correlation map applied to the vector of five across-study
+moments $m=(\E_\mu\Delta_S,\E_\mu\Delta_Y,\E_\mu\Delta_S^2,\E_\mu\Delta_Y^2,\E_\mu\Delta_S\Delta_Y)$,
+and, for each fixed $\Q_m$ with weights $w(\cdot;\Q_m)$,
+\begin{equation}\label{eq:psi-aipw}
+    \psi_S^{\mathrm{AIPW}}(O;\Q_m) = w(X;\Q_m)\left[
+        \frac{A(S-\mu_1^S(X))}{e(X)} - \frac{(1-A)(S-\mu_0^S(X))}{1-e(X)}
+        + \mu_1^S(X)-\mu_0^S(X)
+    \right] - \Delta_S(\Q_m),
+\end{equation}
+with $\psi_Y^{\mathrm{AIPW}}$ defined analogously. \emph{The centering is the constant
+$-\Delta_S(\Q_m)$, subtracted outside the importance weight}, not
+$-w(X;\Q_m)\Delta_S(\Q_m)$: only constant centering gives
+$\E_{\PP_0}[\psi_S^{\mathrm{AIPW}}(O;\Q_m)]=0$ (Lemma~\ref{lem:if-meanzero},
+Appendix~\ref{app:proofs}). The whole bracketed AIPW score, including the plug-in
+regression term, is multiplied by $w(X;\Q_m)$: this differs from the textbook
+doubly-robust average-treatment-effect influence function (which has an additional,
+un-reweighted covariate-law augmentation term) because the target
+$\Delta_S(\Q_m)=\E_{\Q_m}[\mu_1^S(X)-\mu_0^S(X)]$ is an expectation under the
+\emph{fixed, external} composition $\Q_m$, not under $\PP_0$, so there is no
+$\PP_0$-covariate-law term to augment.
+\end{theorem}
+
+\begin{remark}[Practical use]\label{rem:practical-use}
+In the four-DGP validation study, $M\approx2100\gg n^{1/2}$ but $n=10{,}000\not=o(M)$
+in the sense of part (b): the study does not drive $M/n\to\infty$, so the
+\emph{conditional} statement (a) is the one the software's reported standard error
+targets ($\Theta(\Qhat,\lambda)$, not $\Theta(\PP_0,\lambda)$), and the appropriate
+label for reported coverage is coverage of $\Theta(\Qhat,\lambda)$. The combined
+statement (c) is what practice should ultimately report; under (a)'s stated regime,
+part (c)'s two terms are of comparable order only when $M\asymp n$, and the
+Monte-Carlo term is, in the validation study's regime, small relative to sampling
+variability but not derived to be asymptotically negligible without invoking (b).
+\end{remark}
+
+% ===========================================================================
+\section{The randomized-trial corollary}\label{sec:rct}
+% ===========================================================================
+
+Theorem~\ref{thm:main} is stated for the cross-fitted AIPW estimator. The
+randomized-trial, importance-weighting estimator used elsewhere in the package
+(\texttt{method = "importance\_weighting"}) is not a separately-derived special case;
+it is the AIPW estimator under two simultaneous degeneracies, and its influence
+function follows by exact algebraic substitution.
+
+\begin{corollary}[Randomized-trial reduction]\label{cor:rct}
+Suppose (i) $A\perp X$ under $\PP_0$ with known constant propensity $e(X)\equiv\pi$
+(randomization), and (ii) the working outcome regressions are taken to be constants
+within arm, $\mu_a^S(X)\equiv m_{S,a}$ (no covariate adjustment). Then $\ehat=\bar
+e_1:=\frac1n\sum_iw_i(\Q_m)A_i$ (the weighted arm-1 proportion), and $\bar e_1+\bar
+e_0=1$ automatically since $\E_{\PP_0}[w]=1$ (there is no separate estimate of
+$\bar e_0$, and no factor of $2$ anywhere unless $w\equiv1,\pi=1/2$). Taking
+$\hat\mu_a^S=\hat m_{S,a}=\sum_iw_i(\Q_m)A_i S_i/\sum_iw_i(\Q_m)A_i$ (so that
+$\sum_iw_i(\Q_m)A_i(S_i-\hat m_{S,1})=0$ identically), the AIPW estimator
+\eqref{eq:aipw-estimator} collapses \emph{exactly} to the Hájek weighted
+difference-in-means,
+\begin{equation}\label{eq:iw-estimator}
+    \hat\Delta_S(\Q_m) = \hat m_{S,1}-\hat m_{S,0}
+    = \frac{\sum_i w_i(\Q_m)A_iS_i}{\sum_i w_i(\Q_m)A_i}
+    - \frac{\sum_i w_i(\Q_m)(1-A_i)S_i}{\sum_i w_i(\Q_m)(1-A_i)},
+\end{equation}
+with influence function
+\begin{equation}\label{eq:psi-iw}
+    \psi_S^{\mathrm{IW}}(O;\Q_m) = w(X;\Q_m)\left[
+        \frac{A(S-m_{S,1})}{\bar e_1} - \frac{(1-A)(S-m_{S,0})}{\bar e_0}
+    \right],
+\end{equation}
+where $\bar e_1=\E[wA]$, $\bar e_0=\E[w(1-A)]$ are the average weights per arm
+(estimated by $\frac1n\sum_iw_iA_i$, $\frac1n\sum_iw_i(1-A_i)$). Theorem~\ref{thm:main}
+applies verbatim with $\psi_S^{\mathrm{IW}}$ in place of $\psi_S^{\mathrm{AIPW}}$.
+\end{corollary}
+
+\begin{remark}[Why this is a genuine special case, not a re-derivation]\label{rem:rct-scope}
+Both degeneracies matter: randomization alone (known constant $e$) does \emph{not}
+collapse AIPW to the weighted difference in means when $\mu_a^S(X)$ is a genuine
+covariate-specific model, because covariate-adjusted estimators are strictly more
+efficient than unadjusted ones even under randomization; only forcing the working
+outcome model to be arm-constant (no adjustment) makes the IPW-residual terms vanish
+identically. This is exactly what the package's \texttt{"importance\_weighting"}
+method implements (no outcome regression step at all), and exactly why
+Theorem~\ref{thm:main}'s AIPW estimator, with a real covariate-adjusted outcome model,
+is a distinct (and more efficient) estimator even in a randomized trial.
+\end{remark}
+
+% ===========================================================================
+\section{General theory: a bilinear-functional estimand}\label{sec:layer2}
+% ===========================================================================
+
+We now drop the finite-support restriction, allowing $X$ to be continuous on
+$\cX\subseteq\R^d$, and generalize the target from the correlation
+\eqref{eq:estimand} to any smooth function of finitely many across-study moments.
+This section is not implemented in the package and not exercised by the simulation
+study (Section~\ref{sec:scope}); it is included because it strictly generalizes
+Section~\ref{sec:layer1}, verified by the recovery corollary of
+Section~\ref{sec:recovery}.
+
+\subsection{The estimand as a smooth function of linear and bilinear CATE functionals}
+
+Let $\Psi:\R^K\to\R$ be smooth, and let
+\begin{equation}\label{eq:general-estimand}
+    \Theta = \Psi(m_1,\dots,m_K), \qquad m_j = \E_{\Q\sim\mu}[\phi_j(\Delta_S(\Q),\Delta_Y(\Q))],
+\end{equation}
+for base moments $\phi_j$. Correlation, $R^2$, mean squared prediction error, and
+concordance are instances, all expressible through the five moments
+$m=(\E_\mu\Delta_S,\E_\mu\Delta_Y,\E_\mu\Delta_S^2,\E_\mu\Delta_Y^2,\E_\mu\Delta_S\Delta_Y)$.
+By \eqref{eq:reduction-linear}--\eqref{eq:reduction-bilinear}, each $m_j$ is built from
+the linear functionals $\E_\mu\Delta_a=\int\bar a\,\tau_a\,d\PP_0$ and the bilinear
+functionals $\Theta_{ab}=\iint C(x,x')\tau_a(x)\tau_b(x')\,d\PP_0(x)\,d\PP_0(x')$,
+$a,b\in\{S,Y\}$ (using $\E_\mu[\Delta_a^2]=\Theta_{aa}+(\E_\mu\Delta_a)^2$ for the raw
+second moments). Estimating $\Theta$ therefore reduces to estimating linear and
+bilinear functionals of the CATE pair $(\tau_S,\tau_Y)$.
+
+\subsection{Assumption ledger, general case}
+
+Assumptions~\ref{ass:iid}--\ref{ass:geometry} carry over verbatim as the general-case
+readings (with $\Psi$ and $C$ in place of the correlation map $\varphi$ and the matrix
+$\Sigma$). We state in full the two assumptions genuinely new relative to
+Section~\ref{sec:layer1}.
+
+Assumption~\ref{ass:A0} (A0, conditional-effect transportability given $X$) is
+unchanged; it is what licenses \eqref{eq:delta-linear} on a continuous $\cX$ exactly
+as on a finite one.
+
+\begin{assumption}[A5: Bilinear-functional $\sqrt n$-estimability]\label{ass:elbow}
+Each bilinear functional $\Theta_{ab}$ admits a $\sqrt n$-consistent, asymptotically
+linear (debiased) estimator. Let $\tau_S,\tau_Y$ lie in H\"older/Sobolev balls of
+smoothness $s_S,s_Y$ on $\cX\subseteq\R^d$, and suppose $C$ is identity-like
+(non-smoothing) rather than finite rank or trace-class with decaying spectrum ---
+Section~\ref{sec:rank} treats the case where $C$ is not identity-like, in which the
+present assumption is not the relevant condition. For the identity (Dirac) kernel,
+the established minimax boundary for $\sqrt n$-estimability of a quadratic/bilinear
+functional applies moment-by-moment: the off-diagonal moment $\Theta_{SY}$ (a
+bilinear functional of two \emph{different} functions) has boundary $s_S+s_Y>d/2$,
+while each diagonal moment $\Theta_{aa}$ (a quadratic functional of a single
+function) has the sharper boundary $s_a>d/4$, both attained by
+higher-order-influence-function or rate-double-robust ("undersmoothed")
+estimators specifically constructed to minimize the \emph{product} of the two CATE
+estimation errors rather than each error's individual mean-squared risk
+\citep{BickelRitov1988,BirgeMassart1995,Robins2008HOIF,Robins2017Minimax,Kennedy2024Minimax}.
+Since $\hat\Theta=\Psi(\hat m)$ requires all three moments to be $\sqrt n$-estimable
+simultaneously, the binding combined condition is
+\begin{equation}\label{eq:elbow}
+    \min(s_S,s_Y) > d/4,
+\end{equation}
+which implies the off-diagonal boundary automatically
+($s_S+s_Y\ge2\min(s_S,s_Y)>d/2$) and so subsumes it; \eqref{eq:elbow} is
+\emph{sufficient} for $\sqrt n$-estimability of $\Theta$ but is not shown here to be
+\emph{necessary} for the ratio $\Theta$ itself (a shared scale factor in the three
+moments can in principle cancel, as $a(\lambda)$ does in
+Proposition~\ref{prop:interior}, so componentwise minimax lower bounds for the three
+moments individually do not automatically transfer to a necessity statement for
+$\Theta$). Below \eqref{eq:elbow}, the minimax rate for the moment(s) that fail it is
+$n^{-4s/(4s+d)}$ ($s=\min(s_S,s_Y)$ in the relevant sense), strictly slower than
+$n^{-1/2}$, and no $\sqrt n$-consistent asymptotically normal estimator of $\Theta$
+exists; under balanced smoothness $s_S=s_Y=s$, \eqref{eq:elbow} reduces to $s>d/4$
+exactly (not merely as a special case of a weaker general statement, since the
+diagonal and off-diagonal boundaries coincide at balance). We adopt \eqref{eq:elbow}
+as the working condition throughout, citing this literature for its attainability;
+Lemma~\ref{lem:elbow-remainder} below proves only a \emph{weaker, naive} sufficient
+condition using the simple one-step estimator with mean-squared-error-optimal CATE
+tuning, and is explicit about not closing the resulting gap
+(Remark~\ref{rem:elbow-gap}).
+\end{assumption}
+
+\begin{remark}[A5 is conservative; automatic on finite $X$]\label{rem:A5-conservative}
+Condition~\eqref{eq:elbow} is the boundary for the Dirac kernel; a genuinely smooth
+kernel $C$ typically \emph{relaxes} it (its integral operator regularizes the
+representer $h_b=\int C\tau_b\,d\PP_0$ below), so \eqref{eq:elbow} is, at worst, a
+conservative sufficient condition for our (bounded, geometry-induced) $C$. On a finite
+$\cX$ every function is arbitrarily smooth and $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ is
+a fixed polynomial of finitely many cell means, so \eqref{eq:elbow} is not the relevant
+condition there --- $d$ is not even defined on a finite $\cX$. Section~\ref{sec:rank}
+identifies the actual mechanism: $\Sigma$ has finite rank, and finite rank (not
+finiteness of $\cX$ per se) is what removes the elbow, which is why
+Section~\ref{sec:layer1} never states Assumption~\ref{ass:elbow}.
+\end{remark}
+
+\subsection{Effective rank of the reweighting-covariance kernel}\label{sec:rank}
+
+Assumption~\ref{ass:elbow}'s elbow is a property of the kernel $C$, not of $\cX$ per
+se; this section makes that precise and identifies the two endpoints between which
+the general theory of this section and the finite-support theory of
+Section~\ref{sec:layer1} sit as special cases of one underlying structure. Write the
+spectral (Mercer) decomposition
+\begin{equation}\label{eq:rank-decomp-kernel}
+    C = \sum_j a_j\,\phi_j\otimes\phi_j
+\end{equation}
+on $L^2(\PP_0)$, i.e.\ $C$ is self-adjoint \emph{with respect to the $L^2(\PP_0)$
+inner product} (on a finite $\cX$ this does not mean $C$'s matrix representation is
+symmetric in the naive sense when $p_0$ is non-uniform, since the inner product
+itself carries the $p_0$-weighting). Then, substituting into
+\eqref{eq:reduction-bilinear},
+\begin{equation}\label{eq:rank-decomp}
+    \Theta_{ab} = \sum_j a_j\,\langle\tau_a,\phi_j\rangle\,\langle\tau_b,\phi_j\rangle.
+\end{equation}
+Two endpoints of \eqref{eq:rank-decomp} delimit the elbow's scope:
+\begin{itemize}
+    \item \textbf{Finite rank.} If $C$ has finite rank $r$ (only finitely many
+    $a_j\ne0$), each $\Theta_{ab}$ is a finite sum of products of \emph{linear}
+    functionals $\langle\tau_a,\phi_j\rangle$; each is estimable at the ordinary
+    double-robust product nuisance rate $\|\hat\pi-\pi\|\cdot\|\hat m-m\|=o_P(n^{-1/2})$
+    with no \emph{information-theoretic} elbow, for any $d$ --- finite rank removes
+    the impossibility region of Assumption~\ref{ass:elbow}, but the ordinary
+    nuisance-rate conditions for estimating each $\langle\tau_a,\phi_j\rangle$ still
+    apply. Proposition~\ref{prop:interior}'s kernel $\Sigma=a(\lambda)(I_K-\mathbf1\mathbf1^\top/K)$
+    is finite rank: $I_K-\mathbf1\mathbf1^\top/K$ is the orthogonal projection onto
+    $\mathbf1^\perp$ (eigenvalue $0$ on $\mathrm{span}\{\mathbf1\}$, eigenvalue $1$
+    with multiplicity $K-1$ on its complement), and viewed as an operator on
+    $L^2(\PP_0)$, $C=a\cdot D^{-1}(I_K-\mathbf1\mathbf1^\top/K)$ with $D=\mathrm{diag}(p_0)$
+    invertible, so the rank is $K-1$ regardless of $p_0$'s composition --- though the
+    eigenbasis itself does depend on $p_0$ when $p_0$ is non-uniform (cell indicators
+    are eigenfunctions of $C$ only when $p_0$ is uniform). It is this rank statement,
+    basis-free, that recovers Proposition~\ref{prop:interior} as this section's
+    finite-rank endpoint; finiteness of $\cX$ was never the operative reason
+    Section~\ref{sec:layer1} needed no elbow.
+    \item \textbf{Full rank / identity-like.} If $C$ has infinitely many nonzero
+    $a_j$ not decaying to $0$ (the Dirac-kernel case Assumption~\ref{ass:elbow}
+    addresses), $\Theta_{ab}$ is a genuinely quadratic/bilinear functional of
+    $\tau_a,\tau_b$ and the elbow of Assumption~\ref{ass:elbow} is unavoidable.
+\end{itemize}
+A growing-truncation sieve at level $J_n$ interpolates the two endpoints, with tail
+bias $\sum_{j>J_n}a_j\langle\tau_a,\phi_j\rangle\langle\tau_b,\phi_j\rangle=o_P(n^{-1/2})$
+required for $\sqrt n$-estimability of $\Theta_{ab}$ (the diagonal tail terms $a=b$
+are $\sum_{j>J_n}a_j\langle\tau_a,\phi_j\rangle^2\ge0$, non-negative with no
+Cauchy--Schwarz relief, consistent with the diagonal moments binding in
+Assumption~\ref{ass:elbow}). This document does not derive the rate at which $J_n$
+must grow relative to $n$ to close this bias against the nuisance rates of
+Section~\ref{sec:layer2}: that derivation, together with a full account of mixed
+discrete/continuous covariates ($C=\Sigma\oplus C_{\mathrm{cont}}$, simultaneously
+finite rank in the discrete directions and elbow-bound in the continuous ones) is
+left to future work; \eqref{eq:rank-decomp} states the two endpoints and the
+mechanism connecting them, not the interpolating rate.
+
+\subsection{CATE asymptotic linearity}
+
+\begin{lemma}[A1: CATE asymptotic linearity]\label{lem:cate-linearity}
+For each $a\in\{S,Y\}$ and each $x\in\cX$, the CATE estimator admits the expansion
+\begin{equation}\label{eq:cate-expansion}
+    \hat\tau_a(x)-\tau_a(x) = \frac1n\sum_{i=1}^n\IF_{\tau_a}(O_i;x) + R_a(x),
+\end{equation}
+with $\E_{\PP_0}[\IF_{\tau_a}(O;x)]=0$ for every $x$ and
+$\|R_a\|_{L^2(\PP_0)}=o_P(n^{-1/4})$. For a randomized trial $\IF_{\tau_a}$ is the
+per-$x$ difference-of-means score; for AIPW/DR-learners it is the pointwise AIPW
+score. On a finite $\cX$, $\IF_{\tau_a}(O;k)$ is exactly the per-cell AIPW score of
+\eqref{eq:aipw-estimator}, integrated against a point mass at $k$: this is the bridge
+to Section~\ref{sec:layer1}.
+\end{lemma}
+
+\begin{remark}[A concrete kernel form of $\IF_{\tau_a}$ on continuous $\cX$]\label{rem:kernel-IF-concrete}
+Lemma~\ref{lem:cate-linearity} asserts that, for AIPW/DR-learners, $\IF_{\tau_a}$ is
+``the pointwise AIPW score'' without specifying an estimator. We make this concrete
+for continuous $\cX\subseteq\R^d$, generalizing the finite-$\cX$ per-cell estimator of
+Lemma~\ref{lem:cancellation} (equation~\eqref{eq:aipw-estimator}), whose per-unit
+bracket is named $\mathrm{score}_S(O)$ in the proof of Theorem~\ref{thm:main}
+(Appendix~\ref{app:proof-main}, eq.~\eqref{eq:main-proof-expansion}). For outcome
+type $a\in\{S,Y\}$ let $\mathrm{score}_a(O)$ denote that same cross-fitted AIPW
+bracket for $\tau_a$ (matching $\mathrm{score}_S(O)$ when $a=S$; defined analogously
+with $\mu_1^Y,\mu_0^Y$ and $Y$ when $a=Y$). Estimate $\tau_a(x)$ by kernel (local
+polynomial) regression of $\mathrm{score}_a(O)$ on $X$, using a kernel $K$ of order
+$\ell\geq\lceil s_a\rceil$ (equivalently, local polynomial degree
+$\geq\lceil s_a\rceil-1$) so that the estimator's bias matches the Hölder-$s_a$
+smoothness of $\tau_a$; rescaled kernel $K_h(u)=h^{-d}K(u/h)$, bandwidth $h=h_n\to0$,
+$nh^d\to\infty$. The pointwise influence function generalizes the
+finite-$\cX$ weight $\mathbf 1\{X{=}k\}/p_0(k)$ of \eqref{eq:main-proof-expansion} to
+a kernel weight:
+\begin{equation}\label{eq:kernel-IF}
+    \IF_{\tau_a}(O_i;x) = \frac{K_h(X_i-x)}{f(x)}\Big[\mathrm{score}_a(O_i)-\tau_a(x)\Big],
+\end{equation}
+where $f$ is the covariate density. Under standard nonparametric regularity---$f$
+bounded away from $0$ and $\infty$ on $\cX$, $\tau_a$ H\"older-$s_a$, and
+$\Var[\mathrm{score}_a(O)\mid X{=}x]$ bounded---the classical bias--variance
+decomposition for kernel/local-linear regression \citep{Stone1980}, specialized to
+CATE estimation in \citet{Kennedy2024Minimax}, gives
+\begin{equation}\label{eq:kernel-bias-variance}
+    \hat\tau_a(x)-\tau_a(x) = \underbrace{\frac1n\sum_{i=1}^n\IF_{\tau_a}(O_i;x)}_{O_P\left((nh^d)^{-1/2}\right)}
+        + \underbrace{O(h^{s_a})}_{\text{bias}}.
+\end{equation}
+The mean-squared-error-optimal bandwidth $h\asymp n^{-1/(2s_a+d)}$ balances both
+terms at rate $n^{-s_a/(2s_a+d)}$, exactly the rate Lemma~\ref{lem:elbow-remainder}
+already assumes for $\|\hat\tau_a-\tau_a\|_{L^2(\PP_0)}$: this construction is what
+makes that rate achievable rather than an unjustified black box.
+
+The same bandwidth choice also settles Lemma~\ref{lem:cate-linearity}'s own remainder
+condition, rather than leaving it as an independent assumption. At
+$h\asymp n^{-1/(2s_a+d)}$, $R_a(x)$ in \eqref{eq:cate-expansion} is exactly the bias
+term of \eqref{eq:kernel-bias-variance}, and
+\[
+    n^{-s_a/(2s_a+d)} = o\big(n^{-1/4}\big)
+    \iff \frac{s_a}{2s_a+d} > \frac14
+    \iff 4s_a>2s_a+d
+    \iff s_a>\frac d2.
+\]
+Under balanced smoothness $s_S=s_Y=s$, $s>d/2$ is exactly $s_S+s_Y>d$: the naive
+elbow of Assumption~\ref{ass:elbow} and Lemma~\ref{lem:elbow-remainder}. So
+$\|R_a\|_{L^2(\PP_0)}=o_P(n^{-1/4})$ is not a separate regularity condition here---it
+holds if and only if the naive elbow condition used everywhere else in this document
+holds, at the MSE-optimal bandwidth.
+
+This construction attains only the naive elbow $s_S+s_Y>d$, not the sharp boundary
+$s_S+s_Y>d/2$ of Assumption~\ref{ass:elbow}: reaching the sharp boundary requires the
+higher-order-influence-function or undersmoothed constructions cited there, which we
+do not construct here (Remark~\ref{rem:elbow-gap}).
+\end{remark}
+
+\subsection{The bilinear-functional efficient influence function}
+
+\begin{lemma}[A3: EIF of a bilinear functional of CATEs]\label{lem:bilinear-eif}
+Fix the kernel $C$ and the covariate law of $\PP_0$ (Convention~\ref{conv:geometry}).
+Suppose $\tau_a,\tau_b$ have influence functions $\IF_{\tau_a},\IF_{\tau_b}$
+(Lemma~\ref{lem:cate-linearity}) and $\E_{\PP_0}[\tau_a^2],\E_{\PP_0}[\tau_b^2]<\infty$.
+Then $\Theta_{ab}=\iint C(x,x')\tau_a(x)\tau_b(x')\,d\PP_0(x)d\PP_0(x')$ is pathwise
+differentiable with mean-zero efficient influence function
+\begin{equation}\label{eq:chi-ab}
+    \chi_{ab}(O) = \int h_b(x)\,\IF_{\tau_a}(O;x)\,d\PP_0(x)
+        + \int h_a(x')\,\IF_{\tau_b}(O;x')\,d\PP_0(x'),
+\end{equation}
+where
+\begin{equation}\label{eq:h-directions}
+    h_b(x)=\int C(x,x')\tau_b(x')\,d\PP_0(x'), \qquad h_a(x')=\int C(x',x)\tau_a(x)\,d\PP_0(x)
+\end{equation}
+are the two \emph{directional representers}. When $a=b$,
+$\chi_{aa}(O)=2\int h_a(x)\IF_{\tau_a}(O;x)\,d\PP_0(x)$ (the factor $2$ reflecting that
+$\Theta_{aa}$ is a pure quadratic). On a finite $\cX$, $h_b(k)=(\Sigma\tau_b)_k/p_0(k)$
+and \eqref{eq:chi-ab} reduces exactly to
+\begin{equation}\label{eq:chi-ab-discrete}
+    \chi_{ab}(O) = (\Sigma\tau_b)^\top\mathbf{IF}_{\tau_a}(O) + (\Sigma\tau_a)^\top\mathbf{IF}_{\tau_b}(O),
+    \qquad \mathbf{IF}_{\tau_a}(O)=(\IF_{\tau_a}(O;1),\dots,\IF_{\tau_a}(O;K))^\top,
+\end{equation}
+verified directly in Section~\ref{sec:recovery}.
+\end{lemma}
+
+The proof (Appendix~\ref{app:proof-bilinear}) computes the pathwise derivative of
+$\Theta_{ab}$ along a one-dimensional submodel by the product rule over the two
+$\tau$-factors (Leibniz, justified by bounded $C$ and square-integrable $\tau$), then
+identifies the Riesz representer of the resulting linear functional of the submodel's
+score; symmetrizing over the two factors gives \eqref{eq:chi-ab}, and specializing the
+integrals to point masses on a finite $\cX$ gives \eqref{eq:chi-ab-discrete}
+(Appendix~\ref{app:proof-recovery} verifies this specialization by direct
+substitution).
+
+\subsection{One-step debiased estimator and the estimability elbow}
+
+\begin{lemma}[A4: debiased cross-fit estimator]\label{lem:onestep}
+With cross-fitted $\hat\tau_a,\hat\tau_b,\hat C$ and
+$\hat h_b(x)=\int\hat C(x,x')\hat\tau_b(x')\,d\PP_0(x')$, the one-step estimator
+\begin{equation}\label{eq:onestep}
+    \hat\Theta_{ab} = \iint \hat C(x,x')\hat\tau_a(x)\hat\tau_b(x')\,d\PP_0(x)d\PP_0(x')
+        + \frac1n\sum_{i=1}^n\hat\chi_{ab}(O_i)
+\end{equation}
+is Neyman-orthogonal in the CATE pair $\beta=(\tau_a,\tau_b)$ (the correction cancels
+the plug-in's first-order bias, by construction of $\chi_{ab}$ as its canonical
+gradient) and, because the representers $h_a,h_b$ are functions of $x$ alone that do
+not depend on the outcome-model nuisances $\eta=(e,\mu_0,\mu_1)$, inherits Neyman
+orthogonality in $\eta$ as well, by the same ``orthogonality survives reweighting''
+argument used for Theorem~\ref{thm:main}'s AIPW score (Appendix~\ref{app:proof-onestep}).
+\end{lemma}
+
+\begin{lemma}[A5: bilinear remainder and the elbow]\label{lem:elbow-remainder}
+The estimator \eqref{eq:onestep} satisfies
+$\hat\Theta_{ab}-\Theta_{ab}=\frac1n\sum_i\chi_{ab}(O_i)+R_n$ up to $o_P(n^{-1/2})$
+nuisance terms, where the bilinear-functional remainder is exactly
+\begin{equation}\label{eq:remainder}
+    R_n = \iint \hat C(x,x')\,(\hat\tau_a-\tau_a)(x)\,(\hat\tau_b-\tau_b)(x')\,d\PP_0(x)d\PP_0(x'),
+\end{equation}
+with no higher-order terms (a bilinear functional's Taylor expansion terminates
+exactly at the product term). By Cauchy--Schwarz and the operator-norm bound
+$\|\hat C\|_{op}\le C_w^2$ (Assumptions~\ref{ass:moments},\ref{ass:geometry}),
+\begin{equation}\label{eq:CS-remainder}
+    |R_n| \le \|\hat C\|_{op}\,\|\hat\tau_a-\tau_a\|_{L^2(\PP_0)}\,\|\hat\tau_b-\tau_b\|_{L^2(\PP_0)},
+\end{equation}
+so $R_n=o_P(n^{-1/2})$ whenever the product of CATE $L^2$-rates is $o_P(n^{-1/2})$.
+Using mean-squared-error-optimal nonparametric CATE estimators, each
+$\|\hat\tau_a-\tau_a\|_{L^2(\PP_0)}=O_P(n^{-s_a/(2s_a+d)})$. For the diagonal moments
+($a=b$) the product is $o_P(n^{-1/2})$ exactly under $s_a>d/2$; for the off-diagonal
+moment ($a\ne b$) exactly under $s_S/(2s_S+d)+s_Y/(2s_Y+d)>1/2$, which reduces to the
+arithmetic condition $s_S+s_Y>d$ only under balanced smoothness $s_S=s_Y$ and is a
+strictly weaker (less restrictive) requirement than $s_S+s_Y>d$ under imbalance.
+The single combined condition
+\begin{equation}\label{eq:elbow-naive}
+    \min(s_S,s_Y) > d/2
+\end{equation}
+(Remark~\ref{rem:elbow-gap}) is sufficient for all three moments simultaneously: it
+delivers the diagonal condition directly, and since $s\mapsto s/(2s+d)$ is
+increasing, $s_a>d/2$ for each $a\in\{S,Y\}$ gives $s_a/(2s_a+d)>1/4$ for each, so
+their sum exceeds $1/2$, delivering the off-diagonal condition as well.
+\eqref{eq:elbow-naive} is exactly twice Assumption~\ref{ass:elbow}'s stated combined
+boundary $\min(s_S,s_Y)>d/4$.
+\end{lemma}
+
+\begin{remark}[The naive bound proved here does not reach the literature's elbow]\label{rem:elbow-gap}
+The Cauchy--Schwarz argument above, using each $\hat\tau_a$ tuned to its own
+mean-squared-error-optimal nonparametric rate, gives $R_n=o_P(n^{-1/2})$ for the
+diagonal moments only under $s_a>d/2$ (each $a$ separately) and for the
+off-diagonal moment only under $s_S/(2s_S+d)+s_Y/(2s_Y+d)>1/2$ --- not the sharper
+diagonal boundary $s_a>d/4$ or off-diagonal boundary $s_S+s_Y>d/2$ stated as
+Assumption~\ref{ass:elbow}. The single condition $\min(s_S,s_Y)>d/2$
+\eqref{eq:elbow-naive} is sufficient for all three simultaneously and is exactly
+twice Assumption~\ref{ass:elbow}'s combined threshold $\min(s_S,s_Y)>d/4$; under
+balanced smoothness $s_S=s_Y=s$ this is the naive threshold $s>d/2$ versus the sharp
+threshold $s>d/4$, matching the single-moment gap already familiar from the
+finite-support special case. Reaching the sharp boundary requires replacing the
+plug-in one-step estimator with a higher-order-influence-function or undersmoothed
+construction that optimizes the \emph{product} $\|\delta_a\|\|\delta_b\|$ directly
+rather than each factor's individual risk --- exactly the machinery of
+\citet{Robins2008HOIF,Robins2017Minimax} cited in Assumption~\ref{ass:elbow}, which
+we do not reproduce here. Consequently, Theorem~\ref{thm:general} as proved in this
+document (via Lemma~\ref{lem:elbow-remainder}'s naive bound) is rigorously
+established for $\min(s_S,s_Y)>d/2$; extending the rigorous range down to the stated
+elbow $\min(s_S,s_Y)>d/4$ is a real, currently unclosed step in this document,
+resolved in the cited literature by a different (higher-order) estimator than the
+one-step construction of Section~\ref{sec:layer2}, and should be read as such rather
+than as fully re-derived here.
+\end{remark}
+
+\subsection{Moment-vector influence function and delta-method composition}
+
+\begin{lemma}[A7: moment-vector EIF]\label{lem:moment-eif}
+Stacking the linear-moment scores
+$\psi_{\E_\mu\Delta_a}(O)=\int\bar a(x)\IF_{\tau_a}(O;x)\,d\PP_0(x)$, the bilinear
+scores $\chi_{SS},\chi_{YY},\chi_{SY}$ of Lemma~\ref{lem:bilinear-eif}, and the
+chain-rule score for raw second moments gives an influence function $\psi_m$ for the
+moment vector $m$, and, by the functional delta method under Hadamard
+differentiability of $\Psi$ with bounded gradient on
+$\{\Var_\mu\Delta_S,\Var_\mu\Delta_Y\ge c_0\}$ (Assumption~\ref{ass:nondegeneracy}),
+\begin{equation}\label{eq:psi-theta-general}
+    \psi_\Theta(O) = \nabla\Psi(m)^\top\psi_m(O).
+\end{equation}
+Because $\chi_{SY}$ pairs $\IF_{\tau_S}$ and $\IF_{\tau_Y}$ evaluated at the
+\emph{same} unit $O$, $\Var(\psi_\Theta)$ is not block-diagonal across $S$ and $Y$.
+\end{lemma}
+
+\subsection{Main result}
+
+\begin{theorem}[General asymptotic normality]\label{thm:general}
+Under A0, A5 (Assumptions~\ref{ass:A0},\ref{ass:elbow}) and the general-case readings
+of Assumptions~\ref{ass:iid}--\ref{ass:geometry}, with one-step cross-fit debiased
+moment estimators (Lemmas~\ref{lem:cate-linearity}--\ref{lem:elbow-remainder}) and
+$\hat\Theta=\Psi(\hat m)$, conditional on the sampled geometry, as $n\to\infty$,
+\begin{equation}\label{eq:thm-general}
+    \sqrt n\big(\hat\Theta-\Theta(\Qhat)\big)
+    = \frac1{\sqrt n}\sum_{i=1}^n\psi_\Theta(O_i;\Qhat) + O_P\big((n/M)^{1/2}\big) + o_P(1)
+    \xrightarrow{d} N\big(0,\E_{\PP_0}[\psi_\Theta^2]\big),
+\end{equation}
+with $\psi_\Theta$ of \eqref{eq:psi-theta-general}. If additionally $n=o(M)$, the
+Monte Carlo term is $o_P(1)$ and unconditionally
+$\sqrt n(\hat\Theta-\Theta(\mu))\xrightarrow{d}N(0,\sigma^2(\mu))$.
+\end{theorem}
+
+The proof (Appendix~\ref{app:proof-general}) combines the moment expansions of
+Lemmas~\ref{lem:cate-linearity} and~\ref{lem:elbow-remainder}, the delta method of
+Lemma~\ref{lem:moment-eif} (with the ratio-type $\Psi$ for correlation closing under a
+bounded Hessian on the non-degenerate region, Assumption~\ref{ass:nondegeneracy}), the
+i.i.d.\ CLT conditional on the geometry, and the Markov-chain CLT for the Monte Carlo
+term (Lemma~\ref{lem:mcmc-error}) --- the same four-step structure as
+Theorem~\ref{thm:main}, generalized from the matrix $\Sigma$ to the operator $C$.
+
+% ===========================================================================
+\section{Recovery: the finite-support theorem as a special case}\label{sec:recovery}
+% ===========================================================================
+
+\begin{corollary}[Recovery of Theorem~\ref{thm:main}]\label{cor:recovery}
+When $\cX=\{1,\dots,K\}$ is finite, $C\to\Sigma$ as in \eqref{eq:sigma-def},
+$\IF_{\tau_a}$ is the per-cell AIPW score of \eqref{eq:aipw-estimator}, and $\Psi$ is
+the correlation map $\varphi$ of Section~\ref{sec:layer1}, Theorem~\ref{thm:general}
+reduces exactly to Theorem~\ref{thm:main}, with the same influence function
+$\psi_\Theta$ and the same $\sigma^2(\Qhat)$.
+\end{corollary}
+
+\begin{proof}[Proof sketch; full derivation in Appendix~\ref{app:proof-recovery}]
+On finite $X$, A5 is automatic (Remark~\ref{rem:A5-conservative}) and
+$\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ by \eqref{eq:discrete-quadform}. Substituting the
+discrete kernel into \eqref{eq:h-directions}, $h_b(k)=(\Sigma\tau_b)_k/p_0(k)$, and
+into \eqref{eq:chi-ab}, using $\int g(x)\IF_{\tau_a}(O;x)\,d\PP_0(x)=\sum_kp_0(k)g(k)\IF_{\tau_a}(O;k)$
+for any bounded $g$, gives exactly \eqref{eq:chi-ab-discrete}
+(Lemma~\ref{lem:recovery-chi}, Appendix~\ref{app:proof-recovery}): the $p_0(k)$
+introduced by the representer's denominator and the $p_0(k)$ from the integral
+measure cancel, leaving the pure matrix expression $(\Sigma\tau_b)^\top\mathbf{IF}_{\tau_a}(O)+(\Sigma\tau_a)^\top\mathbf{IF}_{\tau_b}(O)$.
+Composing with $\varphi$'s gradient (the chain-rule composition of $\nabla\varphi(m(\mu))$
+with the moment derivatives, exactly as used in \eqref{eq:psi-theta-layer1}) and substituting into \eqref{eq:psi-theta-general}
+reproduces \eqref{eq:psi-theta-layer1}. All remainders are those of
+Lemmas~\ref{lem:cate-linearity} and~\ref{lem:elbow-remainder}, specialized to the
+finite case, so the two limit laws coincide.
+\end{proof}
+
+\begin{corollary}[Structural correspondence with the plug-in debiasing correction]\label{cor:onestep-match}
+The plug-in estimator $\hat\Theta_{ab}^{\mathrm{plugin}}=\hat\tau_a^\top\Sigma\hat\tau_b$
+(no correction) has leading bias
+$\E[\hat\Theta_{ab}^{\mathrm{plugin}}-\Theta_{ab}]=\tr(\Sigma V)/n+O(n^{-3/2})$, where
+$V_{kk'}=\E_{\PP_0}[\IF_{\tau_a}(O;k)\IF_{\tau_b}(O;k')]$ is the CATE-score
+covariance (Appendix~\ref{app:proof-recovery}, Lemma~\ref{lem:plugin-bias}). The
+package's optional one-step correction (\texttt{debiased = TRUE} in
+\texttt{tv\_ball\_correlation\_IF\_adaptive()}) estimates $\tr(\Sigma V)/n$ for the
+covariance term $\Theta_{SY}$ and propagates it to the correlation scale via
+$\partial\rho/\partial\Theta_{SY}=1/(\mathrm{sd}_S\,\mathrm{sd}_Y)$, adding the result
+to the plug-in correlation. This targets the same $O(1/n)$ bias term identified by
+Lemma~\ref{lem:plugin-bias} and is the same class of correction as the general
+one-step estimator \eqref{eq:onestep} applied at the finite-support recovery of
+Corollary~\ref{cor:recovery}: both use the bilinear functional's exact second-order
+structure (Lemma~\ref{lem:elbow-remainder}) to target the plug-in's $O(1/n)$ bias
+rather than merely bound it. Remark~\ref{rem:onestep-scope} states what this
+structural correspondence does, and does not, establish.
+\end{corollary}
+
+\begin{remark}[Scope of the structural correspondence]\label{rem:onestep-scope}
+Corollary~\ref{cor:onestep-match} asserts the two corrections are the \emph{same
+structural object}; it does not assert they are numerically identical estimators
+once both are fully specified in finite samples, for two distinct reasons. First,
+\eqref{eq:onestep}'s one-step term $\frac1n\sum_i\hat\chi_{ab}(O_i)$, when specialized
+via Lemma~\ref{lem:recovery-chi} and expanded using the per-cell asymptotic linearity
+of $\hat\tau_a(k)-\tau_a(k)\approx\frac1n\sum_i\IF_{\tau_a}(O_i;k)$
+(Lemma~\ref{lem:cate-linearity}), involves the same $n_k$-vs-$n$ per-cell
+renormalization bookkeeping that produced Lemma~\ref{lem:cancellation}'s exact
+cancellation in Theorem~\ref{thm:main}'s estimator. The two corrections share the
+same leading-order bias \emph{magnitude} ($\tr(\Sigma V)/n$ in both cases,
+Lemma~\ref{lem:plugin-bias}), but a term-for-term match through this renormalization
+is a separate, unclosed step. Second, and more concretely: propagating the
+covariance bias $\tr(\Sigma V)/n$ to the correlation scale via
+$\partial\rho/\partial\Theta_{SY}$ alone does not separately correct the
+denominator moments $\Theta_{SS},\Theta_{YY}$ (each of which has its own
+$\tr(\Sigma V_{aa})/n$ bias by Lemma~\ref{lem:plugin-bias}, applied with $a=b$); a
+full correlation-scale correction would propagate all three moments' biases through
+$\rho=\Theta_{SY}/\sqrt{\Theta_{SS}\Theta_{YY}}$'s gradient, not $\Theta_{SY}$'s bias
+alone. Corollary~\ref{cor:onestep-match} should therefore be read as establishing
+structural correspondence between two constructions that target the same $O(1/n)$
+bias term, not as certifying an exact, fully correlation-scale-propagated
+finite-sample equivalence between them.
+\end{remark}
+
+% ===========================================================================
+\section{Discussion}\label{sec:discussion}
+% ===========================================================================
+
+\paragraph{What the estimand measures, and what it assumes.} $\Theta(\PP_0,\lambda)$
+answers a different question than the proportion of treatment effect (PTE) or
+within-study mediation: it asks whether treatment effects on the surrogate and the
+outcome co-vary across plausible future population compositions, not how much of the
+effect in the current study is mediated through the surrogate. Assumption~\ref{ass:A0}
+scopes this to compositional shifts in measured covariates; under the interpretive
+reading of Remark~\ref{rem:A0-reading}, it is an untestable-from-one-study assumption
+that unmeasured study-level effect modifiers do not exist, and $\lambda$-sensitivity
+analysis (reporting $\hat\Theta_n(\lambda)$ across a grid) is the practical proxy for
+robustness to violations, not a substitute for the assumption itself.
+
+\paragraph{Three regimes, three interpretations of $\lambda$.} Propositions~\ref{prop:interior}
+and~\ref{prop:saturated}, together with Theorem~\ref{thm:main}, answer ``what does
+$\lambda$ do?'' concretely: for $\lambda$ small enough that no covariate stratum can
+be driven to zero mass (\emph{interior}), and again for $\lambda$ large enough that
+the TV ball covers the whole simplex (\emph{saturated}), $\Theta$ is exactly the
+stratum-level meta-analytic correlation, independent of both $\lambda$ and $\PP_0$'s
+composition; only in the \emph{intermediate} range does the simplex boundary make it
+asymmetrically harder to reweight rare strata upward without exhausting common ones,
+so that $\Theta$ need not equal this closed form and may genuinely depend on how the
+observed population is distributed across strata. The paper's validation study
+operates in the intermediate regime (Remark~\ref{rem:interior-scope}), and
+Example~\ref{ex:binding} confirms the general, boundary-aware machinery of
+Theorem~\ref{thm:main} does genuine work there, not merely recovering the closed
+form. For continuous $X$, the interior regime as defined does not exist
+(Lemma~\ref{lem:interior-atomic}), and the saturated-regime closed form
+(Proposition~\ref{prop:saturated}) does not directly generalize either, since it is
+stated and proved only for finite $K$ and the uniform measure $\mu$ needed to state
+a continuous analog is not well-defined on an infinite-dimensional simplex
+(Remark~\ref{rem:no-continuous-interior}); Proposition~\ref{prop:sieve-limit} gives
+the corresponding continuous-$X$ limit via an equal-$\PP_0$-mass sieve instead.
+
+\paragraph{What is conditional, and why.} Every result in this document conditions on
+the sampled geometry (Convention~\ref{conv:geometry}), which subsumes both the
+Monte Carlo approximation (finite $M$) and the use of an estimated center $\Pn$ rather
+than $\PP_0$ (Remark~\ref{rem:geometry-scope}). The unconditional statements
+(Theorem~\ref{thm:main}(b), Theorem~\ref{thm:general}'s closing sentence) require
+$M$ to grow strictly faster than $n$; absent that, reported inference targets the
+$M$-study, $\Pn$-centered correlation, not the population quantity, and should be
+labeled as such (Remark~\ref{rem:practical-use}).
+
+\paragraph{Limitations genuinely left open.} (i) A fully unconditional theory
+differentiating the kernel $C$'s and the geometry's own dependence on $\PP_0$
+(Remarks~\ref{rem:geometry-scope},\ref{rem:kernel-dependence}) is not derived here.
+(ii) The exact finite-sample correspondence of Corollary~\ref{cor:onestep-match} is
+flagged, not closed (Remark~\ref{rem:onestep-scope}). (iii) Below the estimability
+elbow \eqref{eq:elbow}, no $\sqrt n$-consistent estimator of the general estimand
+exists; higher-order influence functions attain the minimax rate but do not restore
+asymptotic normality, and undersmoothed, conservative intervals are the appropriate
+fallback. (iv) Extending the absolute-continuity restriction $\Q\ll\PP_0$ to permit
+genuine extrapolation to unobserved covariate values requires additional modeling
+assumptions not developed here.
+
+% ===========================================================================
+\appendix
+\renewcommand{\thesection}{\Alph{section}}
+\section{Auxiliary results}\label{app:aux}
+% ===========================================================================
+
+\begin{lemma}[Norm equivalence]\label{lem:normequiv}
+Under Assumption~\ref{ass:moments}, $\|w\|_{L^2(\PP_0)}\le C_w$ and, for any bounded
+$g$ with $\|g\|_\infty\le B$, $\|w\cdot g\|_{L^2(\PP_0)}\le C_w B$.
+\end{lemma}
+
+\begin{lemma}[MCMC approximation error]\label{lem:mcmc-error}
+Under Assumption~\ref{ass:geometry}, for any bounded measurable
+$g:\mathrm{supp}(\mu)\to\R$ with $\|g\|_\infty\le1$,
+\[
+    \big|\E_{\Qhat}[g(\Q)]-\E_\mu[g(\Q)]\big| = O_P(M^{-1/2}),
+\]
+via the Markov chain central limit theorem for the geometrically ergodic hit-and-run
+sampler (not the i.i.d.\ CLT, since the $\Q_m$ are dependent draws): the asymptotic
+variance is inflated by the chain's integrated autocorrelation time, but the rate is
+unchanged from the independent case.
+\end{lemma}
+
+\begin{lemma}[Mean-zero AIPW influence function]\label{lem:if-meanzero}
+For fixed $\Q_m$ and $\psi_S^{\mathrm{AIPW}}$ of \eqref{eq:psi-aipw},
+$\E_{\PP_0}[\psi_S^{\mathrm{AIPW}}(O;\Q_m)]=0$ under either correct $e$ or correct
+$(\mu_1^S,\mu_0^S)$ (double robustness), and $\partial_\eta\E_{\PP_0}[\psi_S^{\mathrm{AIPW}}]=0$
+at the truth (Neyman orthogonality), surviving multiplication by the $\eta$-free
+weight $w(X;\Q_m)$.
+\end{lemma}
+
+% ===========================================================================
+\section{Proofs}\label{app:proofs}
+% ===========================================================================
+
+\subsection{Proof of Proposition~\ref{prop:interior}}\label{app:proof-interior}
+
+\begin{proof}
+In the interior regime (Definition~\ref{def:interior}), the feasible set for the
+signed measure $V$ is exactly $\cB=\{V\in\R^K:\mathbf1^\top V=0,\|V\|_1\le2\lambda\}$,
+independent of $\PP_0$; ``uniform on $\cB$'' means uniform with respect to
+$(K{-}1)$-dimensional Lebesgue measure on the hyperplane $\{\mathbf1^\top V=0\}$
+containing $\cB$ (the natural reference measure, since $\cB$ has empty interior, hence
+Lebesgue measure zero, in $\R^K$). This set is invariant under every permutation
+$\pi$ of $\{1,\dots,K\}$: both $\mathbf1^\top V=0$ and $\|V\|_1\le2\lambda$ are
+permutation-symmetric functions of $V$'s coordinates. The uniform measure on any
+permutation-invariant convex body (with respect to the permutation-invariant
+Lebesgue measure on its ambient hyperplane) is itself permutation-invariant (the
+volume element is unchanged by relabeling coordinates), so if $V\sim\mathrm{Uniform}(\cB)$
+then $V\stackrel{d}{=}\Pi V$ for every permutation matrix $\Pi$. In particular
+$\E[V]=\E[\Pi V]=\Pi\E[V]$ for every $\Pi$, and the only vector fixed by every
+coordinate permutation is a multiple of $\mathbf1$; combined with $\mathbf1^\top
+\E[V]=\E[\mathbf1^\top V]=0$, this forces $\E[V]=0$. Let $\Sigma=\Cov(V)=\E[VV^\top]$
+(using $\E[V]=0$). Permutation invariance gives $\Sigma=\Pi\Sigma\Pi^\top$ for every
+permutation matrix $\Pi$; the only matrices commuting with the full symmetric group's
+representation are $\Sigma=aI_K+b\,\mathbf1\mathbf1^\top$ for scalars $a,b$ (Schur's
+lemma for the permutation representation, or direct verification: any $\Sigma$
+satisfying $\Sigma_{kk}=\Sigma_{ll}$ for all $k,l$ and $\Sigma_{kk'}=\Sigma_{ll'}$ for
+all $k\ne k',l\ne l'$ has this form). Since $\mathbf1^\top V=0$ almost surely,
+$\Sigma\mathbf1=\Cov(V,\mathbf1^\top V)=0$, which \emph{determines} $b$ in terms of
+$a$ (rather than eliminating a $b\mathbf1\mathbf1^\top$ term outright): $(a+bK)\mathbf1=0$, i.e.\
+$b=-a/K$. Hence
+\[
+    \Sigma = a\Big(I_K-\tfrac1K\mathbf1\mathbf1^\top\Big)
+\]
+for some scalar $a=a(\lambda)>0$ (positive since $V$ is non-degenerate for
+$\lambda>0$). Substituting into $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$
+\eqref{eq:discrete-quadform},
+\[
+    \Theta_{ab} = a\Big(\tau_a^\top\tau_b - \tfrac1K(\mathbf1^\top\tau_a)(\mathbf1^\top\tau_b)\Big)
+    = aK\Big(\tfrac1K\textstyle\sum_k\tau_a(k)\tau_b(k) - \bar\tau_a\bar\tau_b\Big)
+    = aK\cdot\mathrm{Cov}_K(\tau_a,\tau_b),
+\]
+the scalar $aK$ times the unweighted empirical covariance of the $K$ cell CATEs.
+Forming the ratio $\Theta_{SY}/\sqrt{\Theta_{SS}\Theta_{YY}}$ cancels $aK$ exactly,
+giving \eqref{eq:interior-reduction}; $p_0(k)$ never entered the computation once
+$\Sigma$'s form was fixed by symmetry, so the result does not depend on $\PP_0$'s
+composition (only on the support, since cells with $p_0(k)=0$ carry no CATE and are
+excluded from the geometry entirely).
+\end{proof}
+
+\subsection{Proof of Lemma~\ref{lem:cancellation}}\label{app:proof-cancellation}
+
+\begin{proof}
+Write $\mathrm{score}_i$ for the bracketed AIPW expression in \eqref{eq:aipw-estimator}
+evaluated at observation $i$. Then
+\[
+    \hat\Delta_S(\Q_m) = \frac1n\sum_i w_i(\Q_m)\,\mathrm{score}_i
+    = \frac1n\sum_{k=1}^K \frac{q_{m,k}}{\hat p_0(k)}\sum_{i:X_i=k}\mathrm{score}_i
+    = \sum_{k=1}^K q_{m,k}\cdot\frac{n_k}{n\,\hat p_0(k)}\cdot\frac1{n_k}\sum_{i:X_i=k}\mathrm{score}_i.
+\]
+Since $\hat p_0(k)=n_k/n$ by definition, $n_k/(n\hat p_0(k))=1$ identically, for every
+$k$ with $n_k>0$, regardless of the realized values of $n_k$. Hence
+$\hat\Delta_S(\Q_m)=\sum_kq_{m,k}\hat\tau_S(k)$ with $\hat\tau_S(k)$ exactly the
+displayed per-cell average, an algebraic identity holding for every finite sample --
+the empirical center $\hat p_0$ used to build the importance weight cancels exactly
+against the per-cell sample-size normalization used to average within that cell, with
+no asymptotic approximation involved.
+\end{proof}
+
+\subsection{Proof of Theorem~\ref{thm:main}}\label{app:proof-main}
+
+\begin{proof}
+By Lemma~\ref{lem:cancellation}, $\hat\Delta_S(\Q_m)=\sum_kq_{m,k}\hat\tau_S(k)$ where
+$\hat\tau_S(k)$ is the per-cell cross-fitted AIPW estimator of $\tau_S(k)$, and
+$n_k=\sum_i\mathbf1\{X_i=k\}>0$ for every $k$ with $q_{m,k}>0$ (finitely many cells,
+each with $n_k=\Theta_P(n)\to\infty$, so this holds with probability tending to $1$).
+Standard cross-fitted AIPW theory (verifying the conditions of
+\citealp{chernozhukov2018}, Theorem 3.1: Neyman orthogonality via
+Lemma~\ref{lem:if-meanzero}, product-rate nuisance convergence via
+Assumption~\ref{ass:nuisance}, cross-fitting to eliminate overfitting bias) gives,
+uniformly over $k=1,\dots,K$,
+\[
+    \hat\tau_S(k)-\tau_S(k) = \frac1{n_k}\sum_{i:X_i=k}\mathrm{score}_S(O_i) + o_P(n^{-1/2}),
+    \qquad \mathrm{score}_S(O)=\frac{A(S-\mu_1^S(X))}{e(X)}-\frac{(1-A)(S-\mu_0^S(X))}{1-e(X)}+\mu_1^S(X)-\mu_0^S(X),
+\]
+the per-unit AIPW score restricted to cell $k$. Multiplying by $q_{m,k}$, summing over
+$k$, and using $n_k=n\hat p_0(k)$ together with $w_i(\Q_m)=q_{m,k}/\hat p_0(k)$ for
+$X_i=k$ (so that $q_{m,k}/n_k = w_i(\Q_m)/n$ for every $i$ in cell $k$):
+\begin{align}
+    \hat\Delta_S(\Q_m)-\Delta_S(\Q_m)
+    &= \sum_{k=1}^K q_{m,k}\big[\hat\tau_S(k)-\tau_S(k)\big] + o_P(n^{-1/2})
+    = \sum_{k=1}^K \frac{q_{m,k}}{n_k}\sum_{i:X_i=k}\mathrm{score}_S(O_i) + o_P(n^{-1/2})\notag\\
+    &= \frac1n\sum_{k=1}^K\sum_{i:X_i=k} w_i(\Q_m)\,\mathrm{score}_S(O_i) + o_P(n^{-1/2})
+    = \frac1n\sum_{i=1}^n w_i(\Q_m)\,\mathrm{score}_S(O_i) + o_P(n^{-1/2}).
+    \label{eq:main-proof-expansion}
+\end{align}
+Writing this as $\frac1n\sum_i\psi_S^{\mathrm{AIPW}}(O_i;\Q_m)+o_P(n^{-1/2})$ with
+$\psi_S^{\mathrm{AIPW}}(O;\Q_m):=w(X;\Q_m)\,\mathrm{score}_S(O)-\Delta_S(\Q_m)$
+reproduces \eqref{eq:psi-aipw} exactly, since \eqref{eq:main-proof-expansion}'s
+left-hand side is $\hat\Delta_S(\Q_m)-\Delta_S(\Q_m)$: the constant $\Delta_S(\Q_m)$
+must be subtracted (rather than any other mean-zero-preserving choice) precisely
+because it is what makes $\frac1n\sum_iw_i(\Q_m)\mathrm{score}_S(O_i)$, on the
+left of \eqref{eq:main-proof-expansion} before subtraction, equal
+$\Delta_S(\Q_m)+o_P(n^{-1/2})$ rather than some other constant --- the expansion
+\eqref{eq:main-proof-expansion} is the derivation, not an assertion. (Note that the
+alternative centering $w(X;\Q_m)\Delta_S(\Q_m)$ would \emph{also} be mean-zero in
+expectation, since $\E_{\PP_0}[w]=1$; mean-zero-ness alone does not distinguish the
+two choices. What determines the correct centering is \eqref{eq:main-proof-expansion}
+itself: it produces the constant $\Delta_S(\Q_m)$, not $w(X;\Q_m)\Delta_S(\Q_m)$, so
+using the latter would introduce the additional term $(w(X;\Q_m)-1)\Delta_S(\Q_m)$,
+absent from the true expansion, into the reported influence function.) Direct
+verification of mean-zero-ness (Lemma~\ref{lem:if-meanzero}):
+$\E_{\PP_0}[w(X;\Q_m)\cdot\mathrm{score}_S(O)]=\E_{\PP_0}[w(X;\Q_m)(\mu_1^S(X)-\mu_0^S(X))]=\E_{\PP_0}[w(X;\Q_m)\tau_S(X)]=\Delta_S(\Q_m)$
+by \eqref{eq:delta-linear} and the AIPW residual terms' conditional-mean-zero
+property, confirming $\E_{\PP_0}[\psi_S^{\mathrm{AIPW}}(O;\Q_m)]=0$. The analogous
+statement holds for $\hat\Delta_Y$.
+
+Correlation is a smooth function $\varphi$ of the five across-study moments $m(\mu)$
+(Section~\ref{sec:layer2}'s general statement, specialized), Hadamard differentiable
+with bounded gradient on $\{\Var_\mu\Delta_S,\Var_\mu\Delta_Y\ge c_0\}$
+(Assumption~\ref{ass:nondegeneracy}). Conditional on $\{\Q_1,\dots,\Q_M\}$, the
+functional delta method gives
+\[
+    \sqrt n\{\Thetahat_n(\lambda)-\Theta(\Qhat,\lambda)\}
+    = \frac1{\sqrt n}\sum_{i=1}^n\psi_\Theta(O_i;\Qhat) + o_P(1),
+\]
+with $\psi_\Theta$ as in \eqref{eq:psi-theta-layer1} (chain rule composing $\varphi$'s
+gradient with each per-study score, averaged over $m$). Conditional on the geometry,
+$O_1,\dots,O_n$ are i.i.d.\ and independent of $\{\Q_m\}$; $\E_{\PP_0}[\psi_\Theta]=0$
+(each stacked score is mean-zero, above) and $\E_{\PP_0}[\psi_\Theta^2]<\infty$ under
+bounded weights and bounded gradient (Assumptions~\ref{ass:moments},\ref{ass:nondegeneracy}).
+The Lindeberg--L\'evy CLT gives part (a).
+
+For part (b): by Lemma~\ref{lem:mcmc-error} applied to the bounded functional
+$g=\varphi(m(\cdot))$ of the chain, $\Theta(\Qhat,\lambda)-\Theta(\PP_0,\lambda)=O_P(M^{-1/2})$,
+so $\sqrt n\{\Theta(\Qhat,\lambda)-\Theta(\PP_0,\lambda)\}=O_P((n/M)^{1/2})=o_P(1)$
+exactly when $n=o(M)$; combined with part (a) via the triangle inequality (Slutsky),
+this gives part (b). Part (c) restates the same decomposition without invoking
+$n=o(M)$, retaining both error terms explicitly; the two are asymptotically
+independent because the first is a function of $O_1,\dots,O_n$ conditional on the
+chain, and the second is a function of the chain alone, and the product-of-orders
+$O_P(n^{-1/2})\cdot O_P(M^{-1/2})$ is $o_P$ of either term alone.
+\end{proof}
+
+\subsection{Proof of Corollary~\ref{cor:rct}}\label{app:proof-rct}
+
+\begin{proof}
+Under (i), $\ehat(X)\equiv\pi$ estimated by the weighted arm-1 proportion
+$\bar e_1=\frac1n\sum_iw_i(\Q_m)A_i$; since $\E_{\PP_0}[w(X;\Q_m)]=1$ for any valid
+$\Q_m$ (a probability measure), $\bar e_1+\bar e_0\to\E[w A]+\E[w(1-A)]=\E[w]=1$, so
+$\bar e_0$ is not a separate estimated quantity and no constant factor of $2$ appears
+except in the coincidental case $w\equiv1,\pi=1/2$ where $\bar e_1=\bar e_0=1/2$.
+Under (ii), $\hat\mu_1^S(X)\equiv\hat m_{S,1}=\sum_iw_i(\Q_m)A_iS_i/\sum_iw_i(\Q_m)A_i$
+by definition of the weighted arm mean, so
+$\sum_iw_i(\Q_m)A_i(S_i-\hat m_{S,1})=\sum_iw_i(\Q_m)A_iS_i-\hat m_{S,1}\sum_iw_i(\Q_m)A_i=0$
+identically. Substituting into \eqref{eq:aipw-estimator}, the first (IPW-residual)
+term for arm 1 vanishes identically, likewise for arm 0, leaving
+\[
+    \hat\Delta_S(\Q_m) = \frac1n\sum_iw_i(\Q_m)[\hat m_{S,1}-\hat m_{S,0}] = \hat m_{S,1}-\hat m_{S,0}
+\]
+using $\frac1n\sum_iw_i(\Q_m)=1$ (an identity for any valid weight vector, by
+Lemma~\ref{lem:cancellation}'s argument with $\tau_S\equiv$const), exactly
+\eqref{eq:iw-estimator}: the estimator collapses exactly as claimed.
+
+For the influence function, we derive $\psi_S^{\mathrm{IW}}$ directly from
+\eqref{eq:iw-estimator}'s estimating-equation structure, rather than by substitution
+into \eqref{eq:psi-aipw} (substitution is unsound here: the naive claim that the
+regression term $\hat m_{S,1}-\hat m_{S,0}$ and the centering
+$-(\hat m_{S,1}-\hat m_{S,0})$ are ``equal and opposite'' ignores that
+\eqref{eq:psi-aipw}'s regression term enters multiplied by $w(X;\Q_m)$ while the
+centering does not, and the two cancel only when $w\equiv1$). The estimator
+$\hat m_{S,1}$ solves the $Z$-estimating equation
+$\frac1n\sum_iw_i(\Q_m)A_i(S_i-\hat m_{S,1})=0$; by standard $Z$-estimator theory, if
+$m_0$ solves the corresponding population equation $\E_{\PP_0}[w(X;\Q_m)A(S-m_0)]=0$
+(i.e.\ $m_0=\E[wAS]/\E[wA]$, the population weighted arm-1 mean), then
+\[
+    \sqrt n(\hat m_{S,1}-m_0) = -\Big(\partial_m\E_{\PP_0}[w(X;\Q_m)A(S-m)]\Big|_{m_0}\Big)^{-1}
+    \cdot\frac1{\sqrt n}\sum_iw_i(\Q_m)A_i(S_i-m_0) + o_P(1).
+\]
+Since $\partial_m\E_{\PP_0}[w(X;\Q_m)A(S-m)]=-\E_{\PP_0}[w(X;\Q_m)A]=-\bar e_1$, this
+gives influence function $w(X;\Q_m)A(S-m_0)/\bar e_1$ for $\hat m_{S,1}$; the
+analogous computation for arm $0$ gives $-w(X;\Q_m)(1-A)(S-m_0')/\bar e_0$ for
+$-\hat m_{S,0}$ (sign flipped since $\hat\Delta_S=\hat m_{S,1}-\hat m_{S,0}$).
+Influence functions are additive under subtraction of asymptotically linear
+statistics, so
+\[
+    \psi_S^{\mathrm{IW}}(O;\Q_m) = \frac{w(X;\Q_m)A(S-m_{S,1})}{\bar e_1}
+        - \frac{w(X;\Q_m)(1-A)(S-m_{S,0})}{\bar e_0},
+\]
+exactly \eqref{eq:psi-iw}. This $Z$-estimator argument makes no use of any
+cancellation between $w$-weighted and unweighted terms, and is valid for any
+$w(X;\Q_m)$, not only $w\equiv1$.
+\end{proof}
+
+\subsection{Proof of Lemma~\ref{lem:bilinear-eif}}\label{app:proof-bilinear}
+
+\begin{proof}
+Let $\{\PP_t\}$ be a regular parametric submodel through $\PP_0$ at $t=0$ with score
+$g(O)$, and let $\tau_{a,t},\tau_{b,t}$ denote the CATEs under $\PP_t$ (holding $C$ and
+$d\PP_0$ fixed, per Convention~\ref{conv:geometry}; see
+Remark~\ref{rem:kernel-dependence}). Pathwise differentiability of the CATEs
+(Lemma~\ref{lem:cate-linearity}) gives, for each fixed $x$,
+$\frac{d}{dt}\tau_{a,t}(x)\big|_{t=0}=\E_{\PP_0}[\IF_{\tau_a}(O;x)g(O)]=:\dot\tau_a(x)$,
+and similarly for $\tau_b$. Write
+$\Theta_{ab}(t)=\iint C(x,x')\tau_{a,t}(x)\tau_{b,t}(x')\,d\PP_0(x)d\PP_0(x')$
+(covariate law and $C$ fixed). Differentiating under the integral (Leibniz; justified
+because $C$ is bounded and $\tau_{a,t},\tau_{b,t}$ have square-integrable
+derivatives, with domination by
+$C_w^2(|\dot\tau_a||\tau_b|+|\tau_a||\dot\tau_b|)\in L^1$),
+\begin{align*}
+    \frac{d}{dt}\Theta_{ab}(t)\Big|_{t=0}
+    &= \iint C(x,x')\big[\dot\tau_a(x)\tau_b(x')+\tau_a(x)\dot\tau_b(x')\big]\,d\PP_0(x)d\PP_0(x')\\
+    &= \int\dot\tau_a(x)h_b(x)\,d\PP_0(x) + \int\dot\tau_b(x')h_a(x')\,d\PP_0(x'),
+\end{align*}
+using Fubini to collapse each double integral and defining $h_b,h_a$ as in
+\eqref{eq:h-directions}. Substituting $\dot\tau_a(x)=\E_{\PP_0}[\IF_{\tau_a}(O;x)g(O)]$
+and interchanging the (finite-measure, bounded-integrand) $x$- and $O$-integrals by
+Fubini,
+\[
+    \frac{d}{dt}\Theta_{ab}(t)\Big|_{t=0}
+    = \E_{\PP_0}\!\Big[\Big(\int h_b(x)\IF_{\tau_a}(O;x)\,d\PP_0(x)
+        + \int h_a(x')\IF_{\tau_b}(O;x')\,d\PP_0(x')\Big)g(O)\Big].
+\]
+This exhibits the pathwise derivative as $\E_{\PP_0}[\chi_{ab}(O)g(O)]$ for every
+score $g$, so by the Riesz representation of pathwise derivatives, $\chi_{ab}$ (the
+bracketed term) is the influence function of $\Theta_{ab}$; it is mean-zero since
+$\E_{\PP_0}[\IF_{\tau_a}(O;x)]=0$ for all $x$. Efficiency holds because, in the
+nonparametric model, $\chi_{ab}$ is a $\PP_0$-integral of the efficient CATE influence
+functions and so lies in the (full) tangent space, making it the canonical gradient.
+Setting $a=b$ gives $h_a=h_b$, $\IF_{\tau_a}=\IF_{\tau_b}$, and
+$\chi_{aa}=2\int h_a\IF_{\tau_a}\,d\PP_0$. On finite $X$,
+$h_b(k)=\sum_{k'}C(k,k')\tau_b(k')p_0(k')=(1/p_0(k))\sum_{k'}\Sigma_{kk'}\tau_b(k')=(\Sigma\tau_b)_k/p_0(k)$
+by \eqref{eq:sigma-def}; substituting into $\int h_b\IF_{\tau_a}\,d\PP_0=\sum_kp_0(k)h_b(k)\IF_{\tau_a}(\cdot;k)$
+gives $\sum_k(\Sigma\tau_b)_k\IF_{\tau_a}(\cdot;k)=(\Sigma\tau_b)^\top\mathbf{IF}_{\tau_a}$,
+reproducing \eqref{eq:chi-ab-discrete}.
+\end{proof}
+
+\begin{remark}[Scope: kernel and covariate-law dependence held fixed]\label{rem:kernel-dependence}
+Lemma~\ref{lem:bilinear-eif} differentiates only through $(\tau_a,\tau_b)$, holding
+$C$ and $d\PP_0$ fixed, matching Theorem~\ref{thm:main}'s conditioning on the sampled
+geometry (Convention~\ref{conv:geometry}). An unconditional EIF, which would
+additionally differentiate $C$'s and the covariate law's dependence on $\PP_0$ (the
+same phenomenon as Remark~\ref{rem:geometry-scope}'s ball-recentering issue), is
+deferred to future work.
+\end{remark}
+
+\begin{lemma}[Directional representer identity, discrete case]\label{lem:recovery-chi}
+On finite $\cX=\{1,\dots,K\}$, $h_b(k)=(\Sigma\tau_b)_k/p_0(k)$ and
+$\chi_{ab}(O)=(\Sigma\tau_b)^\top\mathbf{IF}_{\tau_a}(O)+(\Sigma\tau_a)^\top\mathbf{IF}_{\tau_b}(O)$.
+\end{lemma}
+\begin{proof}
+Shown in the proof of Lemma~\ref{lem:bilinear-eif} above, discrete-case paragraph.
+\end{proof}
+
+\subsection{Proof of Lemma~\ref{lem:onestep}}\label{app:proof-onestep}
+
+\begin{proof}
+By Lemma~\ref{lem:bilinear-eif}, $\chi_{ab}$ is the canonical gradient of $\Theta_{ab}$
+in $\beta=(\tau_a,\tau_b)$; adding it to the plug-in cancels the first-order plug-in
+bias by the defining property of the one-step construction. Concretely, the
+directional derivative of the plug-in at $\beta$ along $(\delta_a,\delta_b)$ is
+$\int h_b\delta_a\,d\PP_0+\int h_a\delta_b\,d\PP_0$ (by the product rule computation in
+the proof of Lemma~\ref{lem:bilinear-eif}), while $\E_{\PP_0}[\chi_{ab}]$ has
+directional derivative equal to its negative; the two cancel, giving orthogonality in
+$\beta$. Because $h_b,h_a$ are functions of $x$ that do not depend on the outcome-model
+nuisances $\eta=(e,\mu_0,\mu_1)$ (only on $C$ and $\tau$), the ``orthogonality survives
+reweighting'' argument of Theorem~\ref{thm:main}'s proof (Appendix~\ref{app:proof-main},
+via Lemma~\ref{lem:if-meanzero}) applies verbatim with $h_b$ (resp.\ $h_a$) in the role
+of the importance weight $w(X;\Q)$, giving orthogonality in $\eta$ as well.
+\end{proof}
+
+\subsection{Proof of Lemma~\ref{lem:elbow-remainder}}\label{app:proof-elbow}
+
+\begin{proof}
+The von Mises expansion of \eqref{eq:onestep} has exact second-order remainder
+\eqref{eq:remainder}: the one-step correction removes the first-order term
+(Lemma~\ref{lem:onestep}), and $\Theta_{ab}$ is exactly bilinear in $\beta$, so the
+Taylor expansion terminates at the product term with no higher-order contribution.
+Writing $\delta_a=\hat\tau_a-\tau_a$, $\delta_b=\hat\tau_b-\tau_b$,
+$R_n=\langle\delta_a,\hat C\delta_b\rangle_{L^2(\PP_0)}$ with
+$(\hat C\delta_b)(x)=\int\hat C(x,x')\delta_b(x')\,d\PP_0(x')$; Cauchy--Schwarz and the
+operator-norm bound $\|\hat C\|_{op}\le C_w^2$ give
+$|R_n|\le\|\hat C\|_{op}\|\delta_a\|\|\delta_b\|$, \eqref{eq:CS-remainder}. Under
+H\"older/Sobolev smoothness $s_S,s_Y$ for $\tau_S,\tau_Y$ on $\cX\subseteq\R^d$, the
+achievable mean-squared-error-optimal nonparametric rate for $\|\delta_a\|_{L^2}$ is
+$n^{-s_a/(2s_a+d)}$, so the product $\|\delta_a\|\|\delta_b\|$ is $o_P(n^{-1/2})$
+exactly when $s_a/(2s_a+d)+s_b/(2s_b+d)>1/2$. For $a=b$ (the diagonal moments
+$\Theta_{SS},\Theta_{YY}$) this is exactly $s_a>d/2$; for $a\ne b$ it is
+$s_S/(2s_S+d)+s_Y/(2s_Y+d)>1/2$, which reduces to the arithmetic $s_S+s_Y>d$ only
+under balanced smoothness $s_S=s_Y$. The combined condition $\min(s_S,s_Y)>d/2$
+\eqref{eq:elbow-naive} implies both --- the naive sufficient condition of
+Remark~\ref{rem:elbow-gap}, not Assumption~\ref{ass:elbow}'s stated
+$\min(s_S,s_Y)>d/4$; see that remark for what closing the remaining gap requires.
+\end{proof}
+
+\subsection{Proof of Theorem~\ref{thm:general}}\label{app:proof-general}
+
+\begin{proof}
+\emph{Step 1 (moment expansions).} For the linear moments,
+Lemma~\ref{lem:cate-linearity} integrated against $\bar a$ gives
+$\widehat{\E_\mu\Delta_a}-\E_\mu\Delta_a=\frac1n\sum_i\psi_{\E_\mu\Delta_a}(O_i)+o_P(n^{-1/2})$.
+For the bilinear moments, Lemma~\ref{lem:elbow-remainder} gives
+$\hat\Theta_{ab}-\Theta_{ab}=\frac1n\sum_i\chi_{ab}(O_i)+o_P(n^{-1/2})$ provided
+Assumption~\ref{ass:elbow} holds (its only use). Stacking,
+$\hat m-m=\frac1n\sum_i\psi_m(O_i)+o_P(n^{-1/2})$.
+
+\emph{Step 2 (delta method).} $\Psi$ is Hadamard differentiable with bounded gradient
+on $\{\Var_\mu\Delta_S,\Var_\mu\Delta_Y\ge c_0\}$ (Assumption~\ref{ass:nondegeneracy}),
+so
+$\sqrt n(\hat\Theta-\Theta(\Qhat))=\nabla\Psi(m)^\top\sqrt n(\hat m-m)+o_P(1)
+=\frac1{\sqrt n}\sum_i\psi_\Theta(O_i;\Qhat)+o_P(1)$ by Lemma~\ref{lem:moment-eif}.
+For the ratio-type $\Psi$ (correlation), the second-order delta-method remainder is
+$O_P(\|\hat m-m\|^2)=O_P(n^{-1})=o_P(n^{-1/2})$ since $\nabla^2\Psi$ is bounded on the
+non-degenerate region.
+
+\emph{Step 3 (CLT, conditional on the geometry).} Conditional on the geometry,
+$O_1,\dots,O_n$ are i.i.d.\ and independent of it; $\E_{\PP_0}[\psi_\Theta]=0$ (each
+stacked score is mean-zero, Lemma~\ref{lem:bilinear-eif}) and
+$\E_{\PP_0}[\psi_\Theta^2]<\infty$ under bounded weights, bounded $C$, and bounded
+gradient. The Lindeberg--L\'evy CLT gives
+$\frac1{\sqrt n}\sum_i\psi_\Theta(O_i;\Qhat)\xrightarrow{d}N(0,\E[\psi_\Theta^2])$.
+
+\emph{Step 4 (Monte Carlo term).} $\Theta(\Qhat)-\Theta(\mu)=O_P(M^{-1/2})$ by
+Lemma~\ref{lem:mcmc-error} applied to the bounded functional $g=\Psi(m(\cdot))$ of the
+chain; scaling by $\sqrt n$ gives $O_P((n/M)^{1/2})$, which is $o_P(1)$ iff $n=o(M)$.
+Combining Steps 1--4 gives \eqref{eq:thm-general}.
+\end{proof}
+
+\subsection{Proof of Corollary~\ref{cor:recovery} and Corollary~\ref{cor:onestep-match}}\label{app:proof-recovery}
+
+\begin{proof}[Proof of Corollary~\ref{cor:recovery}]
+On finite $X$, Assumption~\ref{ass:elbow} (A5) holds automatically
+(Remark~\ref{rem:A5-conservative}) and $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ by
+\eqref{eq:discrete-quadform}. Lemma~\ref{lem:recovery-chi} gives
+$\chi_{ab}(O)=(\Sigma\tau_b)^\top\mathbf{IF}_{\tau_a}(O)+(\Sigma\tau_a)^\top\mathbf{IF}_{\tau_b}(O)$
+exactly. The per-cell AIPW score is $\IF_{\tau_a}(\cdot;k)$ of Lemma~\ref{lem:cate-linearity}'s
+discrete specialization, and $\varphi$'s gradient (correlation's chain-rule
+composition through the five moments) is the same object used in
+\eqref{eq:psi-theta-layer1}; substituting into \eqref{eq:psi-theta-general}
+reproduces $\psi_\Theta(O;\Qhat)$ of Theorem~\ref{thm:main} term-for-term. All
+remainders (Lemmas~\ref{lem:cate-linearity},\ref{lem:elbow-remainder}) specialize to
+those of Theorem~\ref{thm:main}'s proof, so the two limit laws coincide.
+\end{proof}
+
+\begin{lemma}[Plug-in bias of a bilinear functional]\label{lem:plugin-bias}
+Suppose, in addition to Lemma~\ref{lem:cate-linearity}'s asymptotic linearity, that
+$\E_{\PP_0}[\delta_a(k)]=O(n^{-1})$ for each $k$ (e.g.\ because $\hat\tau_a(k)$ uses
+known nuisances, so $\delta_a(k)=\frac1{n_k}\sum_{i:X_i=k}\IF_{\tau_a}(O_i;k)$ exactly,
+with $\E_{\PP_0}[\IF_{\tau_a}(O;k)]=0$ exactly and no remainder; for cross-fitted
+nuisances this requires the remainder $R_a(k)$ of Lemma~\ref{lem:cate-linearity} to
+satisfy the stronger condition $\E_{\PP_0}[R_a(k)]=O(n^{-1})$, not merely
+$\|R_a\|_{L^2}=o_P(n^{-1/4})$, which is not implied by
+Assumption~\ref{ass:nuisance} alone and is flagged as an additional working
+condition here). Then
+$\E[\hat\Theta_{ab}^{\mathrm{plugin}}-\Theta_{ab}]=\tr(\Sigma V)/n+O(n^{-3/2})$, with
+$V_{kk'}=\E_{\PP_0}[\IF_{\tau_a}(O;k)\IF_{\tau_b}(O;k')]$.
+\end{lemma}
+\begin{proof}
+Write $\hat\tau_a=\tau_a+\delta_a$; since $\Theta_{ab}(\tau)=\tau_a^\top\Sigma\tau_b$
+is exactly bilinear, $\hat\Theta_{ab}^{\mathrm{plugin}}-\Theta_{ab}=\tau_a^\top\Sigma\delta_b+\delta_a^\top\Sigma\tau_b+\delta_a^\top\Sigma\delta_b$
+exactly, no higher-order terms. Taking expectations, the first two terms are
+$\tau_a^\top\Sigma\,\E[\delta_b]$ and $\E[\delta_a]^\top\Sigma\tau_b$, each $O(n^{-1})$
+under the stated first-moment condition on $\delta_a,\delta_b$ (not merely $o(n^{-1/2})$,
+which would be too weak to be dominated by the $O(n^{-1})$ term below) --- these
+$O(n^{-1})$ contributions are absorbed into the lemma's $O(n^{-3/2})$ remainder only
+if $\E[\delta_a]=O(n^{-1})$ exactly zero-mean-to-that-order; under the oracle-nuisance
+case they vanish identically since $\E[\delta_a(k)]=0$ exactly. The remaining term
+satisfies
+$\E[\delta_a^\top\Sigma\delta_b]=\sum_{k,k'}\Sigma_{kk'}\E[\delta_a(k)\delta_b(k')]=\sum_{k,k'}\Sigma_{kk'}\cdot\frac1nV_{kk'}+o(n^{-1})=\tr(\Sigma V)/n+O(n^{-3/2})$,
+using $\Cov(\delta_a(k),\delta_b(k'))=\frac1n\E[\IF_{\tau_a}(O;k)\IF_{\tau_b}(O;k')]+o(n^{-1})$
+from Lemma~\ref{lem:cate-linearity}'s asymptotic linearity and $\Sigma$ symmetric.
+\end{proof}
+
+\begin{proof}[Proof of Corollary~\ref{cor:onestep-match} (structural part only; see Remark~\ref{rem:onestep-scope})]
+Lemma~\ref{lem:plugin-bias} establishes the plug-in bias $\tr(\Sigma V)/n$ directly.
+The one-step estimator \eqref{eq:onestep}'s correction term
+$\frac1n\sum_i\hat\chi_{ab}(O_i)$, by Lemma~\ref{lem:onestep}, is constructed
+precisely to be the canonical gradient that Neyman-orthogonalizes the plug-in against
+first-order perturbations in $(\tau_a,\tau_b)$; since the plug-in's leading bias
+$\tr(\Sigma V)/n$ arises exactly from the second-order (product-of-errors) term of the
+same bilinear expansion used in Lemma~\ref{lem:plugin-bias}'s proof, and the one-step
+correction's defining property (Lemma~\ref{lem:onestep}) is to cancel first-order and
+leave only this same second-order remainder (Lemma~\ref{lem:elbow-remainder}), both
+corrections target the identical bias term. This establishes the structural
+correspondence claimed in Corollary~\ref{cor:onestep-match}; it does not by itself
+verify that the package's coded $\tr(\hat\Sigma\hat V)/n$ correction and
+\eqref{eq:onestep}'s $n$-vs-$n_k$ renormalized correction agree exactly in finite
+samples, which is the point left open in Remark~\ref{rem:onestep-scope}.
+\end{proof}
+
+% ===========================================================================
+\section{Counterexamples}\label{app:counterex}
+% ===========================================================================
+
+\begin{example}[Homogeneous CATE: $\Theta$ undefined]\label{ex:homogeneous}
+If $\tau_S(x)$ is constant in $x$ (no effect modification by $X$), then
+$\Delta_S(\Q)=\bar\tau_S$ for every $\Q$, so $\Var_\mu\{\Delta_S(\Q)\}=0$ and $\Theta$
+is $0/0$, violating Assumption~\ref{ass:nondegeneracy}. This is not pathological: it
+is the common scientific case of no heterogeneity in the surrogate's effect and
+deserves an explicit diagnostic (report $\Var_\mu\{\Delta_S(\Q)\}$ alongside
+$\hat\Theta_n$), not silent failure.
+\end{example}
+
+\begin{example}[High PTE, zero $\Theta$]\label{ex:pte-high-theta-zero}
+Take $K=3$ equally-weighted cells and CATEs $\tau_S=(1,0,-1)$, $\tau_Y=(1,-2,1)$ (both
+non-constant, so neither $\Corr_K$ nor PTE is degenerate). Direct computation gives
+$\bar\tau_S=\bar\tau_Y=0$ and $\frac13\sum_k\tau_S(k)\tau_Y(k)=\frac13(1\cdot1+0\cdot(-2)+(-1)\cdot1)=0$,
+so $\Corr_K(\tau_S,\tau_Y)=0$ exactly (Proposition~\ref{prop:interior}, interior
+regime), with both marginal variances strictly positive
+($\frac13\sum_k\tau_S(k)^2=\frac23$, $\frac13\sum_k\tau_Y(k)^2=2$): the correlation is
+well-defined, not $0/0$. Meanwhile PTE at $\PP_0$ is a property of a single
+(population-weighted) point on the two CATE curves --- the overall mediated share of
+the \emph{average} effect --- and can be made close to its maximum by choosing the
+direct-effect coefficients so that $S$ carries most of $\PP_0$'s average outcome
+effect, independent of how $\tau_S,\tau_Y$ co-vary across strata. A surrogate that
+mediates most of the effect in the observed study can therefore be estimated to have
+zero across-study transportability: PTE summarizes the effect's decomposition at one
+population; $\Theta$ summarizes how the two effects move together across populations,
+which depends on the whole shape of $\tau_S,\tau_Y$, not their average level. This
+confirms $\Theta$ and PTE answer different questions (Section~\ref{sec:discussion}).
+\end{example}
+
+\begin{example}[Binding nonnegativity restores $\lambda$- and $\PP_0$-dependence]\label{ex:binding}
+The four canonical DGPs (main text, Table~1) all have $\min_kp_0(k)=0.05$ and use
+$\lambda=0.3\gg0.05=\min_kp_0(k)$, so Definition~\ref{def:interior}'s sufficient
+condition fails; direct computation (verified numerically against the DGP
+specifications) confirms the reported true $\Theta$ values differ from both the
+unweighted reduction \eqref{eq:interior-reduction} and the $p_0$-weighted covariance
+correlation by amounts well outside numerical precision (e.g.\ DGP1:
+$\Theta=0.6907$ vs.\ unweighted $0.6455$ vs.\ $p_0$-weighted $0.6411$), confirming the
+general, boundary-aware machinery of Theorem~\ref{thm:main} is doing genuine work in
+the validated regime, not merely recovering the closed form.
+\end{example}
+
+\begin{example}[Below the elbow: no $\sqrt n$-normal estimator]\label{ex:below-elbow}
+Take $\cX=[0,1]^d$ with $d=10$ and $\tau_S,\tau_Y$ each Lipschitz ($s_S=s_Y=1$) but no
+smoother. Then $\min(s_S,s_Y)=1<d/4=2.5$: Assumption~\ref{ass:elbow} fails (the
+balanced case, where diagonal and off-diagonal boundaries coincide), the minimax
+rate for $\Theta_{SS}$ (or $\Theta_{YY}$) is $n^{-4/14}$, strictly slower than
+$n^{-1/2}$, and no $\sqrt n$-consistent, asymptotically normal estimator of $\Theta$
+exists regardless of estimator choice \citep{BickelRitov1988,Robins2008HOIF};
+discretizing $X$ into a coarser grid (reducing effective $d$, or moving toward the
+finite-rank endpoint of Section~\ref{sec:rank}) is the practical remedy, at the cost
+of the information lost to discretization.
+
+The diagonal condition binds independently of the off-diagonal one: take $d=8$,
+$s_S=0.9$, $s_Y=3.2$. Then $s_S+s_Y=4.1>4=d/2$ (the off-diagonal boundary holds),
+but $s_S=0.9<2=d/4$ (the diagonal boundary for $\Theta_{SS}$ fails), so
+$\min(s_S,s_Y)=0.9<d/4$: Assumption~\ref{ass:elbow} still fails, driven entirely by
+$\Theta_{SS}$'s minimax rate $n^{-4(0.9)/(4(0.9)+8)}=n^{-3.6/11.6}$, even though the
+cross-term $\Theta_{SY}$ alone would already be $\sqrt n$-estimable at these
+smoothness values. This is why the combined condition is $\min(s_S,s_Y)>d/4$ and not
+the (weaker, insufficient) off-diagonal condition $s_S+s_Y>d/2$ alone.
+\end{example}
+
+\begin{thebibliography}{9}
+\bibitem[Bickel \& Ritov(1988)]{BickelRitov1988} Bickel, P. J. and Ritov, Y. (1988).
+  Estimating integrated squared density derivatives: sharp best order of convergence
+  estimates. \emph{Sankhy\={a} A} 50, 381--393.
+\bibitem[Birg\'e \& Massart(1995)]{BirgeMassart1995} Birg\'e, L. and Massart, P.
+  (1995). Estimation of integral functionals of a density. \emph{Annals of
+  Statistics} 23, 11--29.
+\bibitem[Chernozhukov et al.(2018)]{chernozhukov2018} Chernozhukov, V., Chetverikov,
+  D., Demirer, M., Duflo, E., Hansen, C., Newey, W. and Robins, J. (2018).
+  Double/debiased machine learning for treatment and structural parameters.
+  \emph{The Econometrics Journal} 21, C1--C68.
+\bibitem[Kennedy et al.(2024)]{Kennedy2024Minimax} Kennedy, E. H., Balakrishnan, S.,
+  Robins, J. M. and Wasserman, L. (2024). Minimax rates for heterogeneous causal
+  effect estimation. \emph{Annals of Statistics} 52, 793--816.
+\bibitem[Robins et al.(2008)]{Robins2008HOIF} Robins, J., Li, L., Tchetgen, E. and van
+  der Vaart, A. (2008). Higher order influence functions and minimax estimation of
+  nonlinear functionals. \emph{Probability and Statistics: Essays in Honor of David
+  A. Freedman} 2, 335--421.
+\bibitem[Robins et al.(2017)]{Robins2017Minimax} Robins, J. M., Li, L., Mukherjee, R.,
+  Tchetgen Tchetgen, E. and van der Vaart, A. (2017). Minimax estimation of a
+  functional on a structured high-dimensional model. \emph{Annals of Statistics} 45,
+  1951--1987.
+\bibitem[Stone(1980)]{Stone1980} Stone, C. J. (1980). Optimal rates of convergence
+  for nonparametric estimators. \emph{Annals of Statistics} 8, 1348--1360.
+\bibitem[Williams(1991)]{Williams1991} Williams, D. (1991). \emph{Probability with
+  Martingales}. Cambridge Mathematical Textbooks. Cambridge University Press.
+\end{thebibliography}
+
+\end{document}
