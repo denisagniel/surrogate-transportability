@@ -538,7 +538,13 @@ differentiable: an active nonnegativity constraint on the argmin cell creates, o
 one side of $\lambda=\min_kp_0(k)$, a $(K-2)$-dimensional feasible cross-section of
 positive volume $\asymp\lambda^{K-2}$ that is absent on the other side, so moving
 the boundary by $\delta$ changes that volume by $\asymp\delta\lambda^{K-2}$ (linear
-in $\delta$): a genuine kink in $\Theta(p_0)$ exactly at the boundary. This is
+in $\delta$): a genuine kink in $\Theta(p_0)$ exactly at the boundary. This is the
+same combinatorial event --- the argmin cell's nonnegativity facet becoming active
+--- that drives $\Theta$'s kink in $\lambda$ at \emph{fixed} $\PP_0$
+(Proposition~\ref{prop:exit-interior}, Section~\ref{sec:exit-interior}): the two are
+kinks along different partial directions through one geometric mechanism (here,
+varying $\PP_0$ at fixed $\lambda=\min_kp_0(k)$; there, varying $\lambda$ at fixed
+$\PP_0$), not two independent phenomena. This is
 consistent with finite-difference slopes of $\Theta(\lambda)$ at fixed $p_0$:
 statistically indistinguishable from $0$ on the interior side of
 $\lambda=\min_kp_0(k)$, statistically distinguishable from $0$ on the
@@ -579,7 +585,50 @@ $\lambda$}\label{sec:saturated}
 The interior regime is one extreme of $\lambda$ (small enough that no stratum can be
 driven to zero mass); the closed form of Proposition~\ref{prop:interior} recurs,
 by an independent argument, at the \emph{other} extreme, where $\lambda$ is large
-enough that the TV ball covers the entire probability simplex.
+enough that the local geometry covers the entire probability simplex. The
+mechanism generating this recurrence does not in fact depend on which distance $d$
+defined the geometry --- only on the fact that, at this radius, the geometry
+\emph{equals} the whole simplex --- so we state it once, generally, before
+specializing to total variation.
+
+\begin{lemma}[Saturation is distance-free]\label{lem:saturation-general}
+Fix any distance $d$ and any $\lambda$ such that $U(\PP_0,\lambda;d)=\Delta_{K-1}$
+(identifying $U(\PP_0,\lambda;d)\subseteq\cM_1(\cO)$ with its image in the
+covariate-marginal simplex under Assumption~\ref{ass:A0}, exactly as in the proof
+below). Then $\mu_\lambda=\mathrm{Uniform}(\Delta_{K-1})=\mathrm{Dirichlet}(1,\dots,1)$,
+identically for every $d$ attaining this at $\lambda$; consequently
+$\Cov_{\mu_\lambda}(Q)=\frac1{K(K+1)}\big(I_K-\frac1K\mathbf1\mathbf1^\top\big)$ and
+$\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$.
+\end{lemma}
+
+\begin{proof}
+$\mu_\lambda$ is defined as the measure uniform with respect to Lebesgue measure on
+the ambient hyperplane, restricted to $U(\PP_0,\lambda;d)$: it depends on $d$ only
+through this set. By hypothesis the set equals $\Delta_{K-1}$ regardless of which
+$d$ produced it, so $\mu_\lambda$ is identically
+$\mathrm{Uniform}(\Delta_{K-1})=\mathrm{Dir}(1,\dots,1)$ for every such $d$, which is
+exchangeable under every permutation of $\{1,\dots,K\}$ (permuting the coordinates
+of a symmetric Dirichlet law leaves it unchanged). Exchangeability gives
+$\Cov(\Pi Q)=\Pi\Cov(Q)\Pi^\top=\Cov(Q)$ for every permutation matrix $\Pi$, so
+$\Sigma=\Cov(Q)$ commutes with the full symmetric group's permutation
+representation and hence, by the same commutant argument as the proof of
+Proposition~\ref{prop:interior} (Appendix~\ref{app:proof-interior}), takes the form
+$\Sigma=aI_K+b\mathbf1\mathbf1^\top$ for scalars $a,b$; this step uses only
+exchangeability of $Q$ itself, not the centered variable $V=Q-\PP_0$ (indeed
+$V\stackrel d=\Pi V$ can fail here, since the feasible set for $V$ at saturation,
+$\Delta_{K-1}-\PP_0$, need not be permutation-invariant unless $\PP_0$ itself is
+uniform). Since $\sum_kQ_k=1$ a.s., $\Sigma\mathbf1=\Cov(Q,\mathbf1^\top Q)=\Cov(Q,1)=0$,
+which \emph{pins the form} to $b=-a/K$, giving
+$\Sigma=a(I_K-\mathbf1\mathbf1^\top/K)$ for some scalar $a$; the \emph{value} of $a$
+follows separately from Dirichlet$(1,\dots,1)$'s known moments,
+$\mathrm{Var}(Q_k)=(K-1)/(K^2(K+1))$, $\mathrm{Cov}(Q_k,Q_{k'})=-1/(K^2(K+1))$ for
+$k\ne k'$, giving $a=1/(K(K+1))>0$ (positive since $Q$ is non-degenerate for
+$K\ge2$) --- though the value is not needed for the closed form, since $a$ cancels
+exactly in the ratio $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$,
+$\Theta=\Theta_{SY}/\sqrt{\Theta_{SS}\Theta_{YY}}$, by the same
+degree-zero-homogeneity cancellation as $a(\lambda)$ in
+Proposition~\ref{prop:interior}.
+\end{proof}
 
 \begin{lemma}[Saturation threshold]\label{lem:saturation}
 Suppose $p_0(k)>0$ for all $k=1,\dots,K$ (so every vertex of $\Delta_{K-1}$ is
@@ -605,36 +654,12 @@ correlation as Proposition~\ref{prop:interior}'s interior-regime reduction
 \end{proposition}
 
 \begin{proof}
-Throughout, identify $U(\PP_0,\lambda;d_{\mathrm{TV}})$ with the corresponding
-subset of the covariate simplex $\Delta_{K-1}$: under A0 the reweighting is a
-function of $X$ alone, so $d_{\mathrm{TV}}(\Q,\PP_0)=\tfrac12\sum_k|q_k-p_0(k)|$
-exactly, and \eqref{eq:sigma-def}'s $\Sigma=\Cov_\mu(q_k,q_{k'})$ depends only on
-the law of $Q=(q_1,\dots,q_K)$ under $\mu$. At saturation,
-$\mu=\mathrm{Uniform}(\Delta_{K-1})=\mathrm{Dirichlet}(1,\dots,1)$, which is
-exchangeable under every permutation of $\{1,\dots,K\}$ (permuting the coordinates
-of a symmetric Dirichlet law leaves it unchanged). Exchangeability gives
-$\Cov(\Pi Q)=\Pi\Cov(Q)\Pi^\top=\Cov(Q)$ for every permutation matrix $\Pi$, so
-$\Sigma=\Cov(Q)$ commutes with the full symmetric group's permutation
-representation and hence, by the same commutant argument as the proof of
-Proposition~\ref{prop:interior} (Appendix~\ref{app:proof-interior}), takes the form
-$\Sigma=aI_K+b\mathbf1\mathbf1^\top$ for scalars $a,b$. Since $\sum_kQ_k=1$ a.s.,
-$\Sigma\mathbf1=\Cov(Q,\mathbf1^\top Q)=\Cov(Q,1)=0$, pinning $b=-a/K$ and giving
-$\Sigma=a(I_K-\mathbf1\mathbf1^\top/K)$ for some scalar $a>0$ (positive since $Q$ is
-non-degenerate for $K\ge2$). This argument uses only exchangeability of $Q$ itself
-and the constraint $\mathbf1^\top Q=1$; unlike the interior-regime proof, it makes
-no use of the centered variable $V=Q-\PP_0$ --- indeed $V\stackrel{d}{=}\Pi V$ fails
-in general here, since $\Pi V=\Pi Q-\Pi\PP_0\stackrel{d}{=}Q-\Pi\PP_0$, which equals
-$V$ in distribution only if $\Pi\PP_0=\PP_0$: the feasible set for $V$ at saturation
-is $\Delta_{K-1}-\PP_0$, which is not permutation-invariant unless $\PP_0$ itself is
-uniform. Substituting $\Sigma=a(I_K-\mathbf1\mathbf1^\top/K)$ into
-$\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ and forming the ratio cancels $a$ exactly as in
-the proof of Proposition~\ref{prop:interior}, giving
-$\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$. (The proportionality constant itself
-is a separate computation from Dirichlet$(1,\dots,1)$'s moments---
-$\mathrm{Var}(Q_k)=(K-1)/(K^2(K+1))$, $\mathrm{Cov}(Q_k,Q_{k'})=-1/(K^2(K+1))$ for
-$k\ne k'$, matching $a=1/(K(K+1))$ directly---but is not needed here since $a$
-cancels in the ratio regardless of its value, exactly as $a(\lambda)$ does at the
-interior end.)
+The TV instance of Lemma~\ref{lem:saturation-general}: by Lemma~\ref{lem:saturation},
+$\lambda\ge1-\min_kp_0(k)$ gives $U(\PP_0,\lambda;d_{\mathrm{TV}})=\Delta_{K-1}$
+(identifying $U(\PP_0,\lambda;d_{\mathrm{TV}})$ with the corresponding subset of the
+covariate simplex $\Delta_{K-1}$, under Assumption~\ref{ass:A0}, exactly as
+Lemma~\ref{lem:saturation-general} requires), and Lemma~\ref{lem:saturation-general}
+then gives $\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$ directly.
 \end{proof}
 
 \begin{remark}[The closed form is not a small-$\lambda$ artifact]\label{rem:saturated-scope}
@@ -902,6 +927,239 @@ endpoints of Propositions~\ref{prop:interior} and~\ref{prop:saturated},
 $p_{\min}=\min_kp_0(k)$ and $1-p_{\min}=\max_{S\subsetneq[K]}p_0(S)$, are exactly the
 two extreme subset sums; Proposition~\ref{prop:exit-interior} characterizes only the
 first such event, at $\lambda=p_{\min}$.
+\end{remark}
+
+
+% ===========================================================================
+\section{An alternative geometry: $\chi^2$ balls}\label{sec:chisq}
+% ===========================================================================
+
+Sections~\ref{sec:interior}--\ref{sec:exit-interior} develop the theory for
+$d=d_{\mathrm{TV}}$, the paper's primary instantiation of the generic local
+geometry $U(\PP_0,\lambda;d)$ of Section~\ref{sec:setup}. This section shows that
+TV is not \emph{uniquely required} for an exact, $\lambda$-free interior-regime
+closed form to exist: $\chi^2$ divergence,
+\begin{equation}\label{eq:chisq-def}
+    \chi^2(\Q,\PP_0) := \sum_{k=1}^Kp_0(k)\Big(\frac{q_k}{p_0(k)}-1\Big)^2
+    = \sum_{k=1}^K\frac{(q_k-p_0(k))^2}{p_0(k)} = \big\|\tfrac{d\Q}{d\PP_0}-1\big\|_{L^2(\PP_0)}^2,
+\end{equation}
+admits its own such closed form --- but the closed form it yields is specific to
+$\chi^2$, not the one TV yields: the two geometries' interior-regime values
+\emph{differ} ($\Corr_{\PP_0}$ versus $\Corr_K$), even though their saturated-regime
+values coincide, via a mechanism (Section~\ref{sec:saturated}) that turns out to be
+distance-free. Throughout this section, $\PP_0$ has full support ($p_0(k)>0$ for
+every $k=1,\dots,K$ --- needed for $D:=\mathrm{diag}(p_0)$ to be invertible, and
+already the standing convention of Section~\ref{sec:setup}, where cells with
+$p_0(k)=0$ are excluded from the geometry entirely) and
+$\Var_{\PP_0}(\tau_S),\Var_{\PP_0}(\tau_Y)>0$ (Assumption~\ref{ass:nondegeneracy})
+as before. $\mu_\lambda$ continues to denote the measure uniform with respect to
+Lebesgue measure on the zero-sum hyperplane $H$, restricted to $U(\PP_0,\lambda;d)$:
+this reference-measure convention, held fixed across $d$, is what makes the
+comparison below a theorem about $(d,\mu)$ pairs rather than an artifact of also
+changing what ``uniform'' means.
+
+\subsection{The $\chi^2$-ball interior closed form}
+
+\begin{definition}[$\chi^2$ interior regime]\label{def:interior-chisq}
+The $\chi^2$-ball $U(\PP_0,\lambda;\chi^2)$ is in the \emph{interior regime} if the
+nonnegativity constraint does not bind: $\{V\in H:V^\top D^{-1}V\le\lambda\}\subseteq
+\{V:\PP_0+V\ge0\}$, paralleling Definition~\ref{def:interior} for TV.
+\end{definition}
+
+\begin{proposition}[$\chi^2$ interior-regime closed form]\label{prop:interior-chisq}
+For any $\lambda>0$ in the interior regime of Definition~\ref{def:interior-chisq},
+\begin{equation}\label{eq:interior-chisq}
+    \Theta(\PP_0,\lambda) = \Corr_{\PP_0}(\tau_S,\tau_Y)
+    := \frac{\Cov_{\PP_0}(\tau_S,\tau_Y)}{\sqrt{\Var_{\PP_0}(\tau_S)\Var_{\PP_0}(\tau_Y)}},
+\end{equation}
+the ordinary $\PP_0$-weighted correlation of the CATEs --- the same object
+Proposition~\ref{prop:sieve-limit} identifies as a continuous-$X$ \emph{limit} on an
+equal-$\PP_0$-mass dyadic grid, but here exact on \emph{any} finite $\cX$, at
+\emph{every} $\lambda$ in the interior regime, and with no equal-mass grid
+requirement: it removes, for $\chi^2$, the grid-dependence caveat
+Remark~\ref{rem:sieve-scope} documents for TV's continuous-$X$ limit. In particular
+$\Theta(\PP_0,\lambda)$ does not depend on $\lambda$.
+\end{proposition}
+
+\begin{proof}
+Substitute $G=D^{-1/2}V$, i.e.\ $V=D^{1/2}G$ ($D$ is positive definite by the
+standing full-support assumption). Since this is a linear bijection between the
+$(K-1)$-dimensional subspaces $H$ and $H':=\{G:\langle\nu,G\rangle=0\}$,
+$\nu:=D^{1/2}\mathbf1=(\sqrt{p_0(k)})_k$ (using
+$\mathbf1^\top V=\mathbf1^\top D^{1/2}G=\langle\nu,G\rangle$), it scales
+$(K-1)$-dimensional Hausdorff measure by a constant Jacobian factor (computed in
+orthonormal bases of $H$ and $H'$), hence carries the uniform law on any body in
+$H$ to the uniform law on its image in $H'$; $\nu$ is a \emph{unit} vector, since
+$\|\nu\|^2=\sum_kp_0(k)=1$. The quadratic constraint becomes
+$V^\top D^{-1}V=G^\top D^{1/2}D^{-1}D^{1/2}G=\|G\|_2^2\le\lambda$: in the interior
+regime the feasible body for $G$ is exactly the Euclidean ball
+$\{G\in H':\|G\|_2\le\sqrt\lambda\}$, invariant under the stabilizer of $\nu$ in
+$O(K)$, which acts on $H'$ as the full orthogonal group $O(K-1)$. By this
+invariance, $\Cov(G)$ restricted to $H'$ is a scalar multiple of the identity there,
+$\Cov(G)=c(I_K-\nu\nu^\top)$; the standard fact that uniform measure on a
+$d$-dimensional ball of radius $r$ has covariance $\frac{r^2}{d+2}I_d$ (here
+$d=K-1$, $r=\sqrt\lambda$) gives $c=\lambda/(K+1)$, so
+$\Cov(G)=\frac\lambda{K+1}(I_K-\nu\nu^\top)$ as a $K\times K$ matrix. Un-whitening with $D^{1/2}\nu=D\mathbf1=p_0$ (the vector of cell
+probabilities),
+\[
+    \Sigma=\Cov(V)=D^{1/2}\Cov(G)D^{1/2}
+    =\frac\lambda{K+1}\big(D-(D^{1/2}\nu)(D^{1/2}\nu)^\top\big)
+    =\frac\lambda{K+1}\big(D-p_0p_0^\top\big).
+\]
+Substituting into $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$,
+$\Theta_{ab}=\frac\lambda{K+1}\big(\tau_a^\top D\tau_b-(\tau_a^\top p_0)(\tau_b^\top
+p_0)\big)=\frac\lambda{K+1}\Cov_{\PP_0}(\tau_a,\tau_b)$; forming the ratio
+$\Theta_{SY}/\sqrt{\Theta_{SS}\Theta_{YY}}$ cancels $\lambda/(K+1)$ exactly, giving
+\eqref{eq:interior-chisq} --- the same degree-zero-homogeneity cancellation as
+Proposition~\ref{prop:interior}'s $a(\lambda)$.
+\end{proof}
+
+\begin{lemma}[Sharp $\chi^2$ interior threshold]\label{lem:interior-chisq-threshold}
+The $\chi^2$-ball's interior regime (Definition~\ref{def:interior-chisq}) holds for
+$\lambda\le p_{\min}/(1-p_{\min})$, $p_{\min}:=\min_kp_0(k)$, and this threshold is
+sharp. On a continuous or countably-infinite-atom $\cX$ (even with full support in
+the sense that every open neighborhood has positive $\PP_0$-mass), the interior
+regime is empty at every $\lambda>0$, by the same mechanism as
+Lemma~\ref{lem:interior-atomic}: bounding $\chi^2(\Q,\PP_0)$ controls
+$\|d\Q/d\PP_0-1\|_{L^2(\PP_0)}$, not $\|d\Q/d\PP_0-1\|_{L^\infty(\PP_0)}$, so a
+small-mass event can still be driven arbitrarily close to zero probability at
+arbitrarily small $\chi^2$ cost.
+\end{lemma}
+
+\begin{proof}[Proof sketch]
+For fixed $k$, minimizing $V^\top D^{-1}V=\sum_jV_j^2/p_0(j)$ subject to
+$V_k=-p_0(k)$ and $\sum_jV_j=0$ (i.e.\ $\sum_{j\ne k}V_j=p_0(k)$) is, by Lagrange
+multipliers, solved by $V_j=p_0(j)p_0(k)/(1-p_0(k))$ for $j\ne k$ (proportional
+redistribution minimizes a $D$-weighted sum of squares under a linear constraint),
+giving minimum cost $\sum_{j\ne k}V_j^2/p_0(j)+V_k^2/p_0(k)=p_0(k)^2/(1-p_0(k))+p_0(k)
+=p_0(k)/(1-p_0(k))$: cell $k$'s odds. Since $x\mapsto x/(1-x)$ is increasing on
+$[0,1)$, the overall threshold --- the smallest cost at which \emph{any} cell's
+constraint first binds --- is $\min_kp_0(k)/(1-p_0(k))=p_{\min}/(1-p_{\min})$, and
+this is exactly attained (not merely a bound), by the same argument
+Lemma~\ref{lem:interior-atomic} uses for TV. For the continuous-$X$ failure, mirror
+Lemma~\ref{lem:interior-atomic}'s ($\Rightarrow$) direction exactly: for any
+$\lambda>0$, choose $A$ with $0<\PP_0(A)=\varepsilon$ small enough that
+$\varepsilon/(1-\varepsilon)<\lambda$ (possible since the left side $\to0$ as
+$\varepsilon\to0$). The perturbation $v=-\mathbf1_A+\frac\varepsilon{1-\varepsilon}\mathbf1_{A^c}$
+drives the density to exactly $0$ on $A$ at $\chi^2$ cost
+$\varepsilon^2/\varepsilon+\big(\frac\varepsilon{1-\varepsilon}\big)^2(1-\varepsilon)=\varepsilon+\varepsilon^2/(1-\varepsilon)
+=\varepsilon/(1-\varepsilon)$, strictly inside the budget $\lambda$; rescaling $v$ by a factor
+$1+\delta$ for small enough $\delta>0$ (remaining feasible, since the $\chi^2$ cost
+scales as $(1+\delta)^2\varepsilon/(1-\varepsilon)$, still $<\lambda$ for
+$\delta<\sqrt{\lambda(1-\varepsilon)/\varepsilon}-1>0$) drives the density \emph{strictly
+negative} on $A$, violating nonnegativity within the $\chi^2$ budget $\lambda$. So
+no $\lambda>0$ excludes every such $A$ once $\PP_0$ has a non-atomic component or
+infinitely many atoms.
+\end{proof}
+
+
+\subsection{The $\chi^2$ instance of saturation}
+
+Lemma~\ref{lem:saturation-general} (Section~\ref{sec:saturated}) already settles
+saturation for \emph{any} distance, including $\chi^2$; what remains is to compute
+the $\chi^2$-specific radius at which $U(\PP_0,\lambda;\chi^2)$ reaches the whole
+simplex.
+
+\begin{corollary}[$\chi^2$ instance of Lemma~\ref{lem:saturation-general}]\label{cor:saturation-chisq}
+Suppose $p_0(k)>0$ for all $k$ (full support). Then $\chi^2(\cdot,\PP_0)$ is a
+positive-definite quadratic form in $\Q-\PP_0$ (from \eqref{eq:chisq-def},
+$D^{-1}\succ0$), hence strictly convex in $\Q$, so its maximum over $\Delta_{K-1}$
+is attained at a vertex $\delta_{k^*}$:
+$\chi^2(\delta_{k^*},\PP_0)=\frac{(1-p_0(k^*))^2}{p_0(k^*)}+(1-p_0(k^*))
+=\frac{1-p_0(k^*)}{p_0(k^*)}$, maximized (since $(1-x)/x$ is decreasing) at
+$k^*=\arg\min_kp_0(k)$: $U(\PP_0,\lambda;\chi^2)=\Delta_{K-1}$ for
+$\lambda\ge(1-p_{\min})/p_{\min}$, the exact reciprocal of
+Lemma~\ref{lem:interior-chisq-threshold}'s interior threshold. By
+Lemma~\ref{lem:saturation-general}, $\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$
+there --- the same value Corollary~\ref{cor:saturation-tv} below gives for TV, even
+though the two geometries' \emph{interior} values differ
+(Remark~\ref{rem:tv-chisq-comparison}). If $\PP_0$ has any cell with $p_0(k)=0$,
+$\chi^2(\delta_k,\PP_0)=\infty$ for that $k$ and the $\chi^2$ ball never saturates ---
+unlike TV, which always saturates by Lemma~\ref{lem:saturation} regardless of
+$\PP_0$'s support. (The reverse convention $\sum_k(p_0(k)-q_k)^2/q_k$ is likewise
+$+\infty$ at every vertex and never saturates; \eqref{eq:chisq-def}'s convention,
+with $\PP_0$ in the denominator, is the one used throughout.)
+\end{corollary}
+
+\begin{corollary}[TV instance, restated]\label{cor:saturation-tv}
+Lemma~\ref{lem:saturation} and Proposition~\ref{prop:saturated} are the
+$d=d_{\mathrm{TV}}$ instance of Lemma~\ref{lem:saturation-general}: saturation at
+$\lambda\ge1-p_{\min}$, with $\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$ there.
+\end{corollary}
+
+\begin{remark}[Two geometries, compared]\label{rem:tv-chisq-comparison}
+\begin{center}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+& interior threshold $\lambda^*$ & $\Theta$ at $\lambda\le\lambda^*$
+  & saturation $\lambda_{\mathrm{sat}}$ & $\Theta$ at $\lambda\ge\lambda_{\mathrm{sat}}$ \\
+\midrule
+TV & $p_{\min}$ & $\Corr_K(\tau_S,\tau_Y)$ & $1-p_{\min}$ & $\Corr_K(\tau_S,\tau_Y)$ \\
+$\chi^2$ & $p_{\min}/(1-p_{\min})$ & $\Corr_{\PP_0}(\tau_S,\tau_Y)$
+  & $(1-p_{\min})/p_{\min}$ & $\Corr_K(\tau_S,\tau_Y)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+(The $\lambda^*,\lambda_{\mathrm{sat}}$ columns are not on a common numeric scale
+across rows; see the Cauchy--Schwarz calibration below before comparing them.)
+Under TV, $\lambda^*+\lambda_{\mathrm{sat}}=1$ (complementary \emph{probabilities});
+under $\chi^2$, $\lambda^*\cdot\lambda_{\mathrm{sat}}=1$ (reciprocal \emph{odds}) ---
+two computations specific to each geometry, not instances of one general identity.
+Both endpoints coincide for TV, so the TV radius carries no information about which
+of two named estimands is being approached; under $\chi^2$, by contrast, $\lambda$
+genuinely interpolates between two distinct, recognizable quantities
+($\Corr_{\PP_0}\to\Corr_K$) --- a $\chi^2$-specific advantage for interpreting what
+widening the ball means, at the cost of $\chi^2$ never saturating unless $\PP_0$ has
+full support. The two $\lambda$-scales are not on the same numeric footing: by
+Cauchy--Schwarz,
+\[
+    2d_{\mathrm{TV}}(\Q,\PP_0)=\sum_k\sqrt{p_0(k)}\cdot\frac{|q_k-p_0(k)|}{\sqrt{p_0(k)}}
+    \le\sqrt{\textstyle\sum_kp_0(k)}\cdot\sqrt{\chi^2(\Q,\PP_0)}=\sqrt{\chi^2(\Q,\PP_0)},
+\]
+so a $\chi^2$-ball of radius $\lambda_{\chi^2}$ is \emph{contained} in the TV ball of
+radius $\tfrac12\sqrt{\lambda_{\chi^2}}$: this is a one-directional containment,
+not a tight numerical equivalence (e.g.\ at $\lambda_{\chi^2}=\lambda^*_{\chi^2}=
+p_{\min}/(1-p_{\min})=0.0526$ for DGP1's $p_{\min}=0.05$, the bound gives a TV
+radius of $0.115$, larger than TV's own interior threshold $p_{\min}=0.05$ --- a
+loose bound, not a contradiction), and the table's $\lambda_{\chi^2}$ column should
+not be read on the same scale as $\lambda_{\mathrm{TV}}$ without it. Finally: the
+intermediate-regime numbers already reported in Example~\ref{ex:binding} --- the
+unweighted $\Corr_K=0.6455$ and the ``$p_0$-weighted $0.6411$'' --- are two
+\emph{different geometries'} interior (and, for the first, also saturated) closed
+forms, both evaluated at DGP1's $\tau_S,\tau_Y,\PP_0$: $0.6455$ is the TV
+geometry's closed form \eqref{eq:interior-reduction}, and $0.6411$ is exactly the
+$\chi^2$-ball's interior closed form $\Corr_{\PP_0}(\tau_S,\tau_Y)$ of
+\eqref{eq:interior-chisq}, which this section identifies as such for the first
+time. Neither is $\Theta_{\chi^2}$ or $\Theta_{\mathrm{TV}}$ evaluated at DGP1's
+validated $\lambda=0.3$, which lies well outside \emph{both} geometries' interior
+regimes ($\lambda^*_{\chi^2}=0.05/0.95\approx0.053$, $\lambda^*_{\mathrm{TV}}=0.05$);
+\eqref{eq:interior-chisq} identifies what the $0.6411$ \emph{is}, not a new
+computation at $\lambda=0.3$.
+\end{remark}
+
+\begin{remark}[Scope: an exact result for two geometries, an asymptotic one for the
+rest]\label{rem:chisq-general}
+The mechanism generating Proposition~\ref{prop:interior-chisq} is not unique to
+$\chi^2$ among divergences from $\PP_0$: for any $f$-divergence
+$D_f(\Q\|\PP_0)=\sum_kp_0(k)f(q_k/p_0(k))$ with $f(1)=0$ and $f$ twice
+differentiable at $1$ with $f''(1)\in(0,\infty)$, the linear term in $V$ vanishes on
+$H$ (since $\sum_kV_k=0$), giving $D_f=\tfrac12f''(1)\chi^2(\Q,\PP_0)+o(\|V\|^2)$,
+the remainder uniform in $k$ (hence summable against the finitely many, boundedly
+away from $0$, cell probabilities $p_0(k)$) since $K$ is finite and $p_0$ has full
+support: to second order near $\PP_0$, every such $D_f$-ball is the same $\chi^2$
+ellipsoid up to an overall scale, which cancels in $\Theta$'s ratio exactly as
+$a(\lambda)$ and $\lambda/(K+1)$ do above. This suggests
+$\Theta_f(\lambda)\to\Corr_{\PP_0}(\tau_S,\tau_Y)$
+as $\lambda\downarrow0$ for KL divergence, squared Hellinger distance, and other
+common choices sharing this local quadratic structure --- with total variation the
+one common exception, since $f(t)=\tfrac12|t-1|$ has a kink at $t=1$ rather than a
+well-defined second derivative there, which is exactly why its interior geometry is
+the polytope of Lemma~\ref{lem:root-polytope} rather than an ellipsoid. This is a
+weaker, asymptotic ($\lambda\downarrow0$ only) claim than
+Proposition~\ref{prop:interior-chisq}'s exact, $\lambda$-free statement for
+$\chi^2$ itself --- $D_f$ does not equal $\chi^2$ exactly for $\lambda$ bounded away
+from $0$, so its interior regime need not be $\lambda$-free the way $\chi^2$'s and
+TV's are --- and is left as a direction for future work rather than developed here.
 \end{remark}
 
 
