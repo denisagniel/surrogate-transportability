@@ -97,7 +97,14 @@ $\lambda$- and $\PP_0$-dependent. Both closed forms require a finite (or countab
 atomic, mass-bounded-below) covariate space; for continuous $X$ the corresponding
 limit is obtained instead via an equal-mass discretization that is refined without
 bound (Supplementary Material, Proposition on the equal-mass sieve limit), converging
-to the ordinary $\PP_0$-weighted correlation of the CATE functions.
+to the ordinary $\PP_0$-weighted correlation of the CATE functions. A companion
+result characterizes, in closed form, the rate and direction at which $\Theta$ first
+departs from the interior-regime value as $\lambda$ grows past $\min_kp_0(k)$: to
+first order, exactly the classical influence function of the Pearson correlation,
+evaluated at the smallest covariate stratum's standardized treatment effects
+(Supplementary Material, Proposition on the first-order exit from the interior
+regime) --- a diagnostic computable directly from $(\PP_0,\tau_S,\tau_Y)$, before
+any Monte Carlo sampling.
 
 % \subsubsection{Choosing the innovation distribution $\mu$}
 %
@@ -549,14 +556,25 @@ This section provides implementation details and computational considerations sp
 For the TV-ball $U(\PP_0, \lambda; d_{\mathrm{TV}})$, the hit-and-run MCMC algorithm proceeds as follows. Given current state $\Q_t \in U(\PP_0, \lambda; d_{\mathrm{TV}})$:
 
 \begin{enumerate}
-    \item \textbf{Draw random direction:} Sample $\bv \sim N(0, I_k)$ on the probability simplex
-    \item \textbf{Compute line segment:} Find the interval $[\alpha_{\min}, \alpha_{\max}]$ such that $\Q_t + \alpha \bv \in U(\PP_0, \lambda; d_{\mathrm{TV}})$ for all $\alpha \in [\alpha_{\min}, \alpha_{\max}]$. This requires solving:
+    \item \textbf{Draw random direction:} Sample $\bv \sim N(0, I_k)$, then project onto the
+    simplex tangent space by subtracting its mean (so $\mathbf{1}^\top \bv = 0$) and normalize
+    to unit length.
+    \item \textbf{Compute line segment:} Find the interval $[\alpha_{\min}, \alpha_{\max}]$ such
+    that $\Q_t + \alpha \bv \in U(\PP_0, \lambda; d_{\mathrm{TV}})$ for all
+    $\alpha \in [\alpha_{\min}, \alpha_{\max}]$, i.e., $\Q_t + \alpha \bv$ satisfies both the TV
+    constraint and nonnegativity. The TV constraint is solved exactly rather than by grid search:
+    $d_{\mathrm{TV}}(\Q_t + \alpha \bv, \PP_0)$ is convex and piecewise-linear in $\alpha$, so its
+    at-most-two roots at $\lambda$ are found analytically from
     \begin{align*}
         d_{\mathrm{TV}}(\Q_t + \alpha \bv, \PP_0) &\leq \lambda\\
-        \sum_{i=1}^k |q_{t,i} + \alpha v_i - p_{0,i}| / 2 &\leq \lambda
+        \sum_{i=1}^k |q_{t,i} + \alpha v_i - p_{0,i}| / 2 &\leq \lambda,
     \end{align*}
-    \item \textbf{Sample along line:} Draw $\alpha \sim \text{Uniform}([\alpha_{\min}, \alpha_{\max}])$ and set $\Q_{t+1} = \Q_t + \alpha \bv$
-    \item \textbf{Project to simplex:} If $\Q_{t+1}$ violates simplex constraints (negative entries or doesn't sum to 1), project back
+    and intersected with the (also exact, linear) nonnegativity interval
+    $\{\alpha : q_{t,i} + \alpha v_i \geq 0 \text{ for all } i\}$.
+    \item \textbf{Sample along line:} Draw $\alpha \sim \text{Uniform}([\alpha_{\min}, \alpha_{\max}])$
+    and set $\Q_{t+1} = \Q_t + \alpha \bv$. Because $[\alpha_{\min}, \alpha_{\max}]$ is the exact
+    feasible interval from the previous step, $\Q_{t+1}$ is guaranteed to satisfy both
+    constraints exactly---no projection step is needed or performed.
 \end{enumerate}
 
 After a burn-in period (typically $B = 100$ iterations), the chain converges to the uniform distribution on $U(\PP_0, \lambda; d_{\mathrm{TV}})$. For implementation details and convergence diagnostics, see the R package documentation.
@@ -713,8 +731,14 @@ The radius $\lambda$ encodes how far future studies may plausibly deviate from
 $\PP_0$ in total variation. Rather than commit to a single value, we recommend
 reporting $\hat{\Theta}_n(\lambda)$ across a grid: a flat profile indicates
 transportability that is robust to substantial distributional shift, while a
-declining profile flags fragility. Data-driven or decision-theoretic choices of
-$\lambda$ are a natural direction for future work.
+declining profile flags fragility. One concrete, MCMC-free diagnostic is already
+available for the direction such a profile will move in near the interior edge:
+whether widening the ball helps or hurts $\Theta$ is determined, to first order, by
+whether the smallest covariate stratum is a net concordant or discordant
+contributor to the baseline correlation $\Corr_K(\tau_S,\tau_Y)$ (Supplementary
+Material, Proposition on the first-order exit from the interior regime), computable
+before running any hit-and-run sampling. Fully data-driven or decision-theoretic
+choices of $\lambda$ remain a natural direction for future work.
 
 \paragraph{Limitations.}
 The absolute-continuity restriction $\Q \ll \PP_0$ avoids extrapolation but

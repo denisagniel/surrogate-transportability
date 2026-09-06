@@ -38,6 +38,7 @@
 \newcommand{\cM}{\mathcal{M}}
 \newcommand{\cQ}{\mathcal{Q}}
 \newcommand{\cB}{\mathcal{B}}
+\newcommand{\cK}{\mathcal{K}}
 \newcommand{\Q}{\mathcal{Q}}
 \newcommand{\Qhat}{\widehat{\mu}_M}
 \newcommand{\ez}{e_0}
@@ -743,6 +744,166 @@ limit for the true CATEs; consistent estimation at each finite $m$ in an
 observational study requires this additional, level-specific identification
 condition.
 \end{remark}
+
+\subsection{Exiting the interior regime: a first-order account}\label{sec:exit-interior}
+
+Propositions~\ref{prop:interior} and~\ref{prop:saturated} pin $\Theta(\PP_0,\lambda)$
+down exactly at both edges of the $\lambda$-range; the intermediate range is where the
+two closed forms need not hold (Remark~\ref{rem:saturated-scope}). This section
+characterizes, in closed form, what happens \emph{just past} the interior edge
+$\lambda=p_{\min}:=\min_kp_0(k)$: the sign and relative magnitude at which $\Theta$
+first departs from $\Corr_K(\tau_S,\tau_Y)$ turn out to be governed by (a scalar
+multiple of) the classical influence function of the Pearson correlation
+coefficient, evaluated at the smallest covariate stratum's standardized CATEs --- an
+MCMC-free determination of the \emph{sign} of that departure, computable directly
+from $(\PP_0,\tau_S,\tau_Y)$, before any hit-and-run sampling.
+
+\subsubsection{The interior body as a root polytope}
+
+Write $H=\{V\in\R^K:\mathbf1^\top V=0\}$ for the zero-sum hyperplane,
+$P_H:=I_K-\frac1K\mathbf1\mathbf1^\top$ for the orthogonal projection onto $H$ ---
+the matrix already appearing, unnamed, as the factor of $a(\lambda)$ in
+Proposition~\ref{prop:interior}'s proof (Appendix~\ref{app:proof-interior}) --- and
+$\cB_\lambda:=\{V\in H:\|V\|_1\le2\lambda\}$ for the feasible set of
+Section~\ref{sec:setup} before imposing nonnegativity. The actual feasible region is
+$F_\lambda=\cB_\lambda\cap\{V:\PP_0+V\ge0\}$, equal to $\cB_\lambda$ exactly in the
+interior regime ($\lambda\le p_{\min}$, Definition~\ref{def:interior}).
+
+\begin{lemma}[Vertices and facets of $\cB_\lambda$]\label{lem:root-polytope}
+For every $K\ge2$ and $\lambda>0$:
+\begin{enumerate}[label=(\alph*)]
+    \item $\cB_\lambda=\{V\in H:\sum_{k\in S}V_k\le\lambda\ \forall\,\emptyset\ne
+    S\subsetneq[K]\}$ ($2^K-2$ facet inequalities, pairing $S$ with its complement
+    $S^c$ to bound $|\sum_{k\in S}V_k|\le\lambda$ --- the standard
+    $d_{\mathrm{TV}}=\sup_A|\Q(A)-\PP_0(A)|$ representation).
+    \item $\cB_\lambda=\mathrm{conv}\{\lambda(e_i-e_j):1\le i\ne j\le K\}$, a polytope
+    with exactly $K(K-1)$ vertices: the type-$A_{K-1}$ root polytope, scaled by
+    $\lambda$ \citep[see][for the general theory of such
+    bodies]{Postnikov2009}.
+    \item For each cell $k$, the facet $\{V\in\cB_\lambda:V_k=-\lambda\}$ is itself
+    the $(K-2)$-simplex $\lambda\cdot\mathrm{conv}\{e_i-e_k:i\ne k\}$; every other
+    vertex has $k$-th coordinate $0$ or $+\lambda$.
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}[Proof sketch; full derivation in Appendix~\ref{app:proof-exit-interior}]
+For $V\ne0$, (a) follows from the identity
+\[
+    \|V\|_1=2\max_{S\subseteq[K]}\sum_{k\in S}V_k, \qquad \text{valid whenever } \mathbf1^\top V=0
+\]
+(the maximizer is $S=\{k:V_k\ge0\}$, which by the zero-sum constraint carries
+exactly half of $\|V\|_1$; $V=0$ is the midpoint of any antipodal vertex pair, so
+needs no separate argument). (b) is a transportation argument: any $V\in\cB_\lambda$
+decomposes as a nonnegative combination of the $K(K-1)$ two-cell moves
+$\lambda(e_i-e_j)$, with coefficients summing to at most $1$ (feasibility of the
+bipartite transportation problem matching $V$'s positive part to its negative
+part), and each such point is extreme (an equality case of the triangle inequality
+for $\|\cdot\|_1$). (c) follows because the $k$-th coordinate of a vertex
+$\lambda(e_i-e_j)$ equals $-\lambda$ when $j=k$ and is otherwise $0$ (when
+$i,j\ne k$) or $+\lambda$ (when $i=k$): $-\lambda$ is the unique minimum of the
+linear functional $V\mapsto V_k$ over $\cB_\lambda$'s vertex set, so any convex
+combination attaining it must place all its mass on the $K-1$ vertices
+$\{\lambda(e_i-e_k)\}_{i\ne k}$ that themselves attain it.
+\end{proof}
+
+\begin{lemma}[Exact global constancy under a uniform $\PP_0$]\label{lem:uniform-global}
+Suppose $\Var_{\PP_0}(\tau_S),\Var_{\PP_0}(\tau_Y)>0$
+(Assumption~\ref{ass:nondegeneracy}'s finite-$K$ specialization). If
+$p_0(k)=1/K$ for every $k=1,\dots,K$, then $\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$
+for \emph{every} $\lambda\in(0,1)$, not merely in the interior and saturated
+regimes.
+\end{lemma}
+
+\begin{proof}
+The nonnegativity region $\{V\in H:V_k\ge-1/K\ \forall k\}$ is invariant under every
+permutation of $\{1,\dots,K\}$, for every $\lambda$: unlike the general case, this
+does not depend on which cells are large or small, since every cell carries the same
+mass. Hence $F_\lambda=\cB_\lambda\cap\{V:V_k\ge-1/K\ \forall k\}$ is
+permutation-invariant at every $\lambda$, not only for $\lambda\le p_{\min}=1/K$, and
+the permutation-symmetry argument of Proposition~\ref{prop:interior}'s proof ---
+uniform measure on a permutation-invariant body forces $\Sigma=a(\lambda)P_H$, which
+cancels exactly in the ratio $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ --- applies
+verbatim for every $\lambda\in(0,1)$, not only for $\lambda\le p_{\min}$.
+\end{proof}
+
+\subsubsection{The first-order slope, and its influence-function identity}
+
+\begin{proposition}[First-order exit from the interior regime]\label{prop:exit-interior}
+Suppose $\Var_{\PP_0}(\tau_S),\Var_{\PP_0}(\tau_Y)>0$. Let $\cK^*=\arg\min_kp_0(k)$
+and $p_{\min}=p_0(k)$ for $k\in\cK^*$. Write $r_K=\Corr_K(\tau_S,\tau_Y)$,
+$c_a(k)=\tau_a(k)-\bar\tau_a$, and $z_a(k)=c_a(k)/\|c_a\|_2$ (the standardized,
+centered CATE vectors already used in Proposition~\ref{prop:interior}'s proof). Then
+$\Theta(\PP_0,\cdot)$ is right-differentiable at $\lambda=p_{\min}$, with
+\begin{equation}\label{eq:exit-slope}
+    \partial_\lambda^+\Theta(\PP_0,\lambda)\Big|_{\lambda=p_{\min}}
+    = \frac{C_K}{p_{\min}}\sum_{k\in\cK^*}\varpi(k),
+    \qquad
+    \varpi(k) := \frac{r_K}2\big(z_S(k)^2+z_Y(k)^2\big) - z_S(k)z_Y(k),
+\end{equation}
+for a constant $C_K>0$ depending only on $K$
+(Appendix~\ref{app:proof-exit-interior} expresses $C_K$ in terms of the root
+polytope's facet-volume ratio, not evaluated in closed form here). Equivalently,
+\begin{equation}\label{eq:exit-psi-alt}
+    \varpi(k) = \frac{1+r_K}4\big(z_S(k)-z_Y(k)\big)^2 - \frac{1-r_K}4\big(z_S(k)+z_Y(k)\big)^2,
+\end{equation}
+proportional to the negative of the classical influence function of the Pearson
+correlation coefficient \citep{DevlinGnanadesikanKettenring1975}, evaluated at cell
+$k$'s standardized CATEs $(z_S(k),z_Y(k))$. Consequently, whenever
+$\sum_{k\in\cK^*}\varpi(k)\ne0$, widening the ball past the interior regime raises
+$\Theta$ above $\Corr_K$ if the smallest covariate strata are, in aggregate, a net
+\emph{discordant} contributor to the baseline correlation, and lowers $\Theta$ if
+they are, in aggregate, a net \emph{concordant} contributor; because $C_K$ is never
+evaluated here, only the \emph{sign} of $\sum_{k\in\cK^*}\varpi(k)$ --- and ratios of
+this quantity across designs or cells --- are available without further
+calibration. Because a correlation's influence function integrates to zero over the
+population, $\sum_{k=1}^K\varpi(k)=0$; when every cell ties at the minimum
+($p_0(1)=\dots=p_0(K)=1/K$), \eqref{eq:exit-slope}'s right-hand side vanishes
+identically, consistent with (though not, by itself, a proof of)
+Lemma~\ref{lem:uniform-global}'s stronger, independently-established claim that
+$\Theta\equiv\Corr_K$ throughout $(0,1)$ in that case.
+\end{proposition}
+
+\begin{remark}[Scope: a local result, not a global trajectory]\label{rem:exit-scope}
+Proposition~\ref{prop:exit-interior} characterizes the one-sided derivative exactly
+at $\lambda=p_{\min}$; by itself it says nothing about $\Theta$'s trajectory deeper
+in the intermediate regime $(p_{\min},1-p_{\min})$, where later combinatorial events
+(Remark~\ref{rem:kink-subset-sums}), not captured by this first-order term,
+generally take over. The sign prediction requires no calibration of $C_K$ and is
+validated numerically across four designs (one with a unique minimizer and
+comfortably large $p_{\min}=0.10$; two with a unique minimizer and
+$p_{\min}\approx0.04$--$0.05$ constructed to produce opposite signs; and the
+paper's own canonical DGP~1, whose minimizer is tied by symmetry and whose
+predicted effect is the smallest of the four): a hit-and-run simulation with common
+random numbers across $\lambda$, resolving $\lambda\in(p_{\min},1.3p_{\min})$
+specifically to stay inside the window where the first-order approximation should
+dominate, confirms the predicted sign in every case, including DGP~1's small,
+tied-minimizer effect. Fitting a single positive constant $\hat C_K$ to the four
+measured initial slopes against $\sum_{k\in\cK^*}\varpi(k)/p_{\min}$ (itself a
+further validation, since a negative or inconsistent fit would refute the
+proposition rather than merely fail to calibrate it) gives $\hat C_K>0$ with the
+four implied values of $C_K$ agreeing to within $30\%$ of each other despite the
+designs' very different $p_{\min}$, tie structure, and CATE patterns. Deeper in the
+band --- e.g.\ near the peak $\lambda\approx0.25$ observed for DGP~1 in the
+validation study (Example~\ref{ex:binding}), several subset-sum thresholds past
+$p_{\min}$, where the sign of the trajectory need not match this local prediction
+--- this proposition does not apply, and the trajectory is genuinely empirical, not
+a corollary of this local result.
+\end{remark}
+
+\begin{remark}[The kink structure is governed by subset sums, not individual cell
+masses]\label{rem:kink-subset-sums}
+Cell $k$'s box constraint $V_k\ge-p_0(k)$ first binds at $\lambda=p_0(k)$, but once
+several cells' constraints are simultaneously active, a \emph{pair} $\{i,j\}$ can be
+jointly driven toward zero only once $\lambda\ge p_0(i)+p_0(j)$, and analogously for
+larger subsets: the combinatorial type of $F_\lambda$ changes exactly at the values
+$\lambda\in\{p_0(S):\emptyset\ne S\subsetneq[K]\}$, the \emph{subset sums} of
+$\PP_0$'s cell probabilities (up to $2^K-2$ distinct values, not $K$). The two band
+endpoints of Propositions~\ref{prop:interior} and~\ref{prop:saturated},
+$p_{\min}=\min_kp_0(k)$ and $1-p_{\min}=\max_{S\subsetneq[K]}p_0(S)$, are exactly the
+two extreme subset sums; Proposition~\ref{prop:exit-interior} characterizes only the
+first such event, at $\lambda=p_{\min}$.
+\end{remark}
+
 
 % ===========================================================================
 \section{Finite-support theory}\label{sec:layer1}
@@ -1502,7 +1663,224 @@ composition (only on the support, since cells with $p_0(k)=0$ carry no CATE and 
 excluded from the geometry entirely).
 \end{proof}
 
+\subsection{Proofs of Lemma~\ref{lem:root-polytope} and
+Proposition~\ref{prop:exit-interior}}\label{app:proof-exit-interior}
+
+\begin{proof}[Proof of Lemma~\ref{lem:root-polytope}]
+\emph{(a).} For $V\ne0$ in $H$ (so $\mathbf1^\top V=0$; $V=0$ satisfies every facet
+inequality trivially and is the midpoint of any antipodal vertex pair), let
+$S^+=\{k:V_k\ge0\}$, a proper nonempty subset since $V\ne0$ and $\sum_kV_k=0$ rule
+out $S^+\in\{\emptyset,[K]\}$. Since $\sum_kV_k=0$, $\sum_{k\in
+S^+}V_k=-\sum_{k\notin S^+}V_k=\sum_{k\notin S^+}(-V_k)$, and both sides equal
+$\frac12\|V\|_1$ because $\|V\|_1=\sum_{k\in S^+}V_k+\sum_{k\notin S^+}(-V_k)$. For
+any other $\emptyset\ne S\subsetneq[K]$, $\sum_{k\in S}V_k\le\sum_{k\in S^+}V_k$:
+adding an index with $V_k<0$ or removing one with $V_k\ge0$ only decreases the sum.
+Hence $\max_S\sum_{k\in S}V_k=\frac12\|V\|_1$, and $\|V\|_1\le2\lambda\iff\sum_{k\in
+S}V_k\le\lambda$ for every proper nonempty $S$.
+
+\emph{(b).} \emph{Spanning.} Fix $V\in\cB_\lambda$, $V\ne0$, and let
+$T=\frac12\|V\|_1\in(0,\lambda]$. The vectors $(V_k^+)_{k\in P}$ and
+$(V_k^-)_{k\in N}$, $P=\{k:V_k>0\}$, $N=\{k:V_k<0\}$, are two nonempty collections
+of positive numbers with equal total mass $T$ (by the computation in (a)); the
+independence coupling $\pi_{ij}=V_i^+V_j^-/T\ge0$ ($i\in P,j\in N$) satisfies
+$\sum_j\pi_{ij}=V_i^+$, $\sum_i\pi_{ij}=V_j^-$, and
+$V=\sum_{i\in P,j\in N}\pi_{ij}(e_i-e_j)=\lambda\sum_{i,j}(\pi_{ij}/\lambda)(e_i-e_j)$
+with $\sum_{i,j}\pi_{ij}/\lambda=T/\lambda\le1$; padding the deficiency
+$1-T/\lambda$ with any antipodal pair $\{\lambda(e_i-e_j),\lambda(e_j-e_i)\}$ in
+equal weight (contributing $0$, since $\frac12[\lambda(e_i-e_j)+\lambda(e_j-e_i)]=0$)
+exhibits $V$ as a convex combination of the $K(K-1)$ points
+$\{\lambda(e_i-e_j)\}$; $V=0$ is itself such a combination. \emph{Extremality.}
+Suppose $\lambda(e_i-e_j)=\frac12(u+w)$ for $u,w\in\cB_\lambda$. Since
+$u,w\in\cB_\lambda$, $\|u\|_1\le2\lambda$ and $\|w\|_1\le2\lambda$, so
+$\|u\|_1+\|w\|_1\le4\lambda$; since also $u+w=2\lambda(e_i-e_j)$, the triangle
+inequality gives $\|u\|_1+\|w\|_1\ge\|u+w\|_1=2\lambda\|e_i-e_j\|_1=4\lambda$. Both
+bounds force $\|u\|_1+\|w\|_1=4\lambda=\|u+w\|_1$: equality in the triangle
+inequality, which for $\|\cdot\|_1$ holds coordinatewise
+($|u_k|+|w_k|=|u_k+w_k|$ for every $k$) and forces $\|u\|_1=\|w\|_1=2\lambda$. For
+$k\notin\{i,j\}$, $u_k+w_k=0$ together with $|u_k|+|w_k|=|u_k+w_k|=0$ gives
+$u_k=w_k=0$; the zero-sum constraint then forces $u=(u_i,-u_i)$, $w=(w_i,-w_i)$ on
+$\{i,j\}$ (listing only the two nonzero coordinates), so $\|u\|_1=2|u_i|=2\lambda$
+and likewise $\|w\|_1=2|w_i|=2\lambda$ give $u_i,w_i\in\{-\lambda,+\lambda\}$, and
+$u_i+w_i=2\lambda$ (the $i$-th coordinate of $u+w=2\lambda(e_i-e_j)$) forces
+$u_i=w_i=\lambda$, the only sign choice compatible with the sum: $u=w=\lambda(e_i-e_j)$.
+By the spanning claim these $K(K-1)$ points are all the extreme points of
+$\cB_\lambda$.
+
+\emph{(c).} Among the vertices $\{\lambda(e_i-e_j)\}_{i\ne j}$, the $k$-th
+coordinate equals $-\lambda$ when $j=k$ (the $K-1$ vertices $\lambda(e_i-e_k)$,
+$i\ne k$), $+\lambda$ when $i=k$, and $0$ otherwise; $-\lambda$ is therefore the
+unique minimum of the linear functional $V\mapsto V_k$ over $\cB_\lambda$'s vertex
+set, hence over $\cB_\lambda$ itself. Any $V\in\cB_\lambda$ attaining this minimum
+is, by (b), a convex combination of vertices; since every vertex other than
+$\{\lambda(e_i-e_k)\}_{i\ne k}$ has $V_k\in\{0,+\lambda\}>-\lambda$, attaining the
+minimum $-\lambda$ forces all weight onto $\{\lambda(e_i-e_k)\}_{i\ne k}$. Hence
+$\{V\in\cB_\lambda:V_k=-\lambda\}=\mathrm{conv}\{\lambda(e_i-e_k):i\ne
+k\}=\lambda\cdot\mathrm{conv}\{e_i-e_k:i\ne k\}$, the image under $u\mapsto u-e_k$
+of the standard $(K-2)$-simplex on the $K-1$ coordinates $\ne k$: a
+$(K-2)$-simplex.
+\end{proof}
+
+\begin{proof}[Proof of Proposition~\ref{prop:exit-interior}]
+
+\emph{Step 1 (rescaling, and which cells' constraints bind).} Write $W=V/\lambda$,
+so $W$ is uniform on $\hat F_\lambda:=\hat\cB\cap\{W:W_k\ge-p_0(k)/\lambda\ \forall
+k\}$, where $\hat\cB:=\{W\in H:\|W\|_1\le2\}$ is the $\lambda=1$ body of
+Lemma~\ref{lem:root-polytope} and does not depend on $\lambda$. Since
+$\Sigma(\lambda)=\mathrm{Cov}(V)=\lambda^2\hat\Sigma(\lambda)$ with
+$\hat\Sigma(\lambda):=\mathrm{Cov}(W)$, and $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$
+enters $\Theta$ only through the scale-invariant ratio
+$\Theta_{SY}/\sqrt{\Theta_{SS}\Theta_{YY}}$, $\Theta(\PP_0,\lambda)$ depends on
+$\lambda$ only through the \emph{shape} $\hat\Sigma(\lambda)$, not through
+$\lambda^2$ itself. For cell $k$, the box constraint on $\hat\cB$ is vacuous
+(since $\hat\cB$'s own extent already respects $W_k\ge-1$, by
+Lemma~\ref{lem:root-polytope}(a) applied with $S=[K]\setminus\{k\}$, which gives
+$\sum_{j\ne k}W_j\le1$, i.e.\ $-W_k\le1$) exactly when $p_0(k)/\lambda\ge1$, i.e.\
+$\lambda\le p_0(k)$: this recovers the interior regime's per-cell threshold. At
+$\lambda=p_{\min}+\epsilon$ for $\epsilon>0$ small, \emph{every} $k\in\cK^*$
+(sharing $p_0(k)=p_{\min}$) has its constraint active at the same depth
+$\delta:=1-p_{\min}/\lambda=1-p_{\min}/(p_{\min}+\epsilon)=\epsilon/p_{\min}+O(\epsilon^2)$,
+while every $k\notin\cK^*$ has $p_0(k)>p_{\min}$ and so remains strictly interior
+($\lambda<p_0(k)$ for $\epsilon$ small enough) with no constraint yet binding.
+Fix one $k^*\in\cK^*$ for Steps 2--5 below; Step 6 aggregates over all of $\cK^*$.
+
+\emph{Step 2 (removed volume, to leading order in $\delta$).} By
+Lemma~\ref{lem:root-polytope}(c), $\{W\in\hat\cB:W_{k^*}=-1\}$ is the
+$(K-2)$-simplex $\mathrm{conv}\{e_i-e_{k^*}:i\ne k^*\}$, a facet of $\hat\cB$ with
+positive $(K-2)$-dimensional relative volume. Removing
+$R_\delta:=\{W\in\hat\cB:W_{k^*}<-1+\delta\}$ removes a slab adjacent to this
+facet, of thickness $\delta$ in the functional $W_{k^*}$ (equivalently, Euclidean
+thickness $\delta/\sqrt{1-1/K}$ in the direction $P_He_{k^*}$ normal to the facet
+within $H$); writing $A(s):=\mathrm{vol}_{K-2}(\{W\in\hat\cB:W_{k^*}=-1+s\})$ for the
+cross-sectional area at level $s$, the coarea formula gives
+$\mathrm{vol}(R_\delta)=\int_0^\delta A(s)\,ds$, and since $\hat\cB$ is a polytope,
+$A(\cdot)$ is piecewise polynomial and in particular continuous at $s=0$ with
+$A(0)>0$ (the facet's own volume); hence
+$\rho:=\mathrm{vol}(R_\delta)/\mathrm{vol}(\hat\cB)=\kappa_{\mathrm{vol}}\delta+o(\delta)$
+for the constant $\kappa_{\mathrm{vol}}=\kappa_{\mathrm{vol},K}:=A(0)/\mathrm{vol}(\hat\cB)>0$,
+which by the $S_K$-symmetry argument of Step 6 does not depend on which cell
+$k^*$ is removed.
+
+\emph{Step 3 (second moment on the removed slab).} As $\delta\to0$, the removed
+slab's conditional law converges to $\mathrm{Unif}$ on the limiting facet. Writing
+$W=u-e_{k^*}$ for $u$ supported on the $K-1$ coordinates $\ne k^*$ summing to $1$,
+uniform on the facet means $u$ restricted to those coordinates is
+$\mathrm{Dir}(\mathbf1_{K-1})$, with the standard symmetric-Dirichlet second moment
+$\E[uu^\top]=\frac1{K(K-1)}(I_{-k^*}+\mathbf1'\mathbf1'^\top)$, where
+$I_{-k^*}:=I_K-e_{k^*}e_{k^*}^\top$ and $\mathbf1':=\mathbf1-e_{k^*}$ (both
+restricted to, and zero outside, the $K-1$ coordinates $\ne k^*$). Since
+$\E[u]=\frac1{K-1}\mathbf1'$,
+\begin{equation}\label{eq:Mkstar}
+    M_{k^*}:=\lim_{\delta\to0}\E[WW^\top\mid W\in R_\delta]
+    = \frac{I_{-k^*}+\mathbf1'\mathbf1'^\top}{K(K-1)}
+    -\frac{\mathbf1'e_{k^*}^\top+e_{k^*}\mathbf1'^\top}{K-1}+e_{k^*}e_{k^*}^\top,
+\end{equation}
+which satisfies $M_{k^*}\mathbf1=0$: $W\in H$ always, so $W^\top\mathbf1=0$
+identically, and hence $\E[WW^\top]\mathbf1=\E[W(W^\top\mathbf1)]=0$ on the slab
+as well as on all of $\hat\cB$.
+
+\emph{Step 4 (covariance update).} Let $Z\sim\mathrm{Unif}(\hat\cB)$. Since
+$V\mapsto-V$ maps $H$ to itself and preserves $\|\cdot\|_1$, it maps $\hat\cB$ to
+itself, so $Z\stackrel d=-Z$ and $\E[Z]=0$; by Proposition~\ref{prop:interior}'s
+proof, applied directly to $\hat\cB$ (which is $S_K$-invariant for every
+$\lambda$, independently of any interior-regime condition, unlike $F_\lambda$
+itself), $\Sigma_0:=\mathrm{Cov}(Z)=\E[ZZ^\top]=a_0P_H$ for a fixed constant
+$a_0>0$ depending only on $K$. Conditioning $Z$ to avoid $R_\delta$ (probability
+mass $\rho$) gives $\E[\hat WW^\top]=\frac{\Sigma_0-\rho M_R}{1-\rho}$, with
+$M_R\to M_{k^*}$ as $\delta\to0$; expanding $(1-\rho)^{-1}=1+\rho+O(\rho^2)$,
+\[
+    \E[\hat W\hat W^\top] = \Sigma_0+\rho(\Sigma_0-M_{k^*})+o(\rho).
+\]
+The truncated mean $\E[\hat W]=\frac{-\rho\,\E[Z\mid Z\in
+R_\delta]}{1-\rho}=O(\rho)$ (bounded by compactness of $\hat\cB$, though not zero:
+the removed slab's own centroid need not vanish even though $\E[Z]=0$), so its
+contribution to $\hat\Sigma(\lambda)=\E[\hat W\hat
+W^\top]-\E[\hat W]\E[\hat W]^\top$ is $O(\rho^2)=o(\rho)$ and does not affect the
+following to the order retained:
+\begin{equation}\label{eq:sigma-update}
+    \hat\Sigma(\lambda)-\Sigma_0=\rho(\Sigma_0-M_{k^*})+o(\rho)
+    =\kappa_{\mathrm{vol}}\delta(\Sigma_0-M_{k^*})+o(\delta)
+    =\frac{\kappa_{\mathrm{vol}}}{p_{\min}}(\Sigma_0-M_{k^*})\,\epsilon+o(\epsilon).
+\end{equation}
+
+\emph{Step 5 (from $\Sigma$ to $\Theta$: a directional derivative of a ratio).}
+Write $\Theta(\Sigma)=N(\Sigma)/\sqrt{D_S(\Sigma)D_Y(\Sigma)}$,
+$N=\tau_S^\top\Sigma\tau_Y$, $D_a=\tau_a^\top\Sigma\tau_a$; since $A_S,A_Y>0$
+(Assumption~\ref{ass:nondegeneracy}'s finite-$K$ form) and $\Theta(\cdot)$ is
+continuously differentiable at $\Sigma_0$, \eqref{eq:sigma-update}'s $o(\epsilon)$
+remainder in $\hat\Sigma(\lambda)$ propagates to an $o(\epsilon)$ remainder in
+$\Theta(\hat\Sigma(\lambda))$, so it suffices to differentiate along the exact
+direction $D:=\Sigma_0-M_{k^*}$: writing $\Sigma_0+tD$, $t:=\kappa_{\mathrm{vol}}\epsilon/p_{\min}$,
+$A_N=\tau_S^\top\Sigma_0\tau_Y$, $B_N=\tau_S^\top D\tau_Y$ (similarly
+$A_S,B_S,A_Y,B_Y$), the same delta-method computation as in the proof of
+Theorem~\ref{thm:main} (differentiating $N(t)/\sqrt{D_S(t)D_Y(t)}$ at $t=0$) gives
+\begin{equation}\label{eq:gprime}
+    \left.\frac{d}{dt}\Theta(\Sigma_0+tD)\right|_{t=0}
+    =\frac{B_N}{\sqrt{A_SA_Y}}-\frac{r_K}2\left(\frac{B_S}{A_S}+\frac{B_Y}{A_Y}\right),
+    \qquad r_K=\frac{A_N}{\sqrt{A_SA_Y}}=\Corr_K(\tau_S,\tau_Y).
+\end{equation}
+Because $\Sigma_0\mathbf1=0=M_{k^*}\mathbf1$ (Step 3), $A_N,B_N,A_S,B_S,A_Y,B_Y$
+(all six) are unchanged if $\tau_a$ is replaced by its centering
+$c_a=\tau_a-\bar\tau_a\mathbf1$; using $P_Hc_a=c_a$, $A_S=a_0\|c_S\|^2$,
+$A_N=a_0\langle c_S,c_Y\rangle$, and, from \eqref{eq:Mkstar} together with
+$\sum_kc_a(k)=0$ (so $c_a^\top\mathbf1'=-c_a(k^*)$, $c_a^\top e_{k^*}=c_a(k^*)$),
+\begin{equation}\label{eq:Mkstar-quad}
+    c_S^\top M_{k^*}c_Y=\frac{\langle c_S,c_Y\rangle}{K(K-1)}+\frac{K+1}{K-1}\,c_S(k^*)c_Y(k^*),
+\end{equation}
+(and likewise for $(S,S)$, $(Y,Y)$). Hence
+$B_N=A_N-c_S^\top M_{k^*}c_Y=\beta A_N-\frac{K+1}{K-1}c_S(k^*)c_Y(k^*)$ for the
+\emph{same} scalar $\beta=1-\frac1{a_0K(K-1)}$ appearing in
+$B_S=\beta A_S-\frac{K+1}{K-1}c_S(k^*)^2$ and the analogous $B_Y$. Substituting into
+\eqref{eq:gprime}, the $\beta$-proportional terms cancel exactly
+($\beta r_K-\frac{r_K}2(\beta+\beta)=0$, the same degree-zero-homogeneity
+cancellation by which $a(\lambda)$ disappears from \eqref{eq:interior-reduction}),
+leaving
+\[
+    \left.\frac{d}{dt}\Theta(\Sigma_0+tD)\right|_{t=0}
+    =-\frac{K+1}{K-1}\left[\frac{c_S(k^*)c_Y(k^*)}{\sqrt{A_SA_Y}}
+    -\frac{r_K}2\left(\frac{c_S(k^*)^2}{A_S}+\frac{c_Y(k^*)^2}{A_Y}\right)\right]
+    =\frac{K+1}{a_0(K-1)}\,\varpi(k^*),
+\]
+using $A_S=a_0\|c_S\|^2$ and $z_a(k^*)=c_a(k^*)/\|c_a\|$ to rewrite the bracket as
+\[
+    -\Big[z_S(k^*)z_Y(k^*)-\tfrac{r_K}2\big(z_S(k^*)^2+z_Y(k^*)^2\big)\Big]/a_0=\varpi(k^*)/a_0.
+\]
+The algebraic equivalence of $\varpi(k)$'s two forms
+\eqref{eq:exit-slope}--\eqref{eq:exit-psi-alt} is a direct expansion of
+$\tfrac{1+r_K}4(z_S-z_Y)^2-\tfrac{1-r_K}4(z_S+z_Y)^2$ into
+$\tfrac{r_K}2(z_S^2+z_Y^2)-z_Sz_Y$, collecting the $z_S^2,z_Y^2,z_Sz_Y$
+coefficients. Combining with \eqref{eq:sigma-update}
+($t=\kappa_{\mathrm{vol}}\epsilon/p_{\min}$) gives \eqref{eq:exit-slope} for cell
+$k^*$ alone, with $C_K:=\kappa_{\mathrm{vol}}(K+1)/(a_0(K-1))>0$.
+
+\emph{Step 6 (tied minimizers: exact additivity).} If $|\cK^*|>1$, the removed
+regions $R_\delta^{(k)}:=\{W\in\hat\cB:W_k<-1+\delta\}$, $k\in\cK^*$, are exactly
+disjoint for $\delta<1/2$: on $\hat\cB$, $\sum_{j\ne k}W_j\le1$ for every $k$
+(Lemma~\ref{lem:root-polytope}(a) with $S=[K]\setminus\{k\}$), so in particular
+$W_k+W_{k'}\ge-1$ for any $k\ne k'$; but $W\in
+R_\delta^{(k)}\cap R_\delta^{(k')}$ would require $W_k,W_{k'}<-1+\delta$, giving
+$W_k+W_{k'}<-2+2\delta<-1$ once $\delta<1/2$, a contradiction. Volumes and
+second-moment integrals over $\bigcup_{k\in\cK^*}R_\delta^{(k)}$ are therefore
+\emph{exactly} additive (no inclusion--exclusion correction is needed), so
+$\hat\Sigma(\lambda)-\Sigma_0=\sum_{k\in\cK^*}\rho_k(\Sigma_0-M_k)+o(\delta)$ with
+$\rho_k=\kappa_{\mathrm{vol}}\delta+o(\delta)$ for every $k\in\cK^*$: the constant
+$\kappa_{\mathrm{vol}}$ does not depend on which cell is removed, since $\hat\cB$
+is invariant under every permutation $\Pi$ of $\{1,\dots,K\}$
+(Lemma~\ref{lem:root-polytope}), and $\Pi$ (an orthogonal, volume-preserving map of
+$H$) carries $R_\delta^{(k)}$ isometrically onto $R_\delta^{(\Pi(k))}$ and
+$M_k$ to $\Pi M_{\Pi(k)}\Pi^\top$. Step 5's computation, being linear in
+$D=\Sigma_0-M_k$, applies to each summand separately and adds:
+$\partial_\lambda^+\Theta|_{p_{\min}}=\frac{C_K}{p_{\min}}\sum_{k\in\cK^*}\varpi(k)$,
+\eqref{eq:exit-slope} as stated. Finally, $\sum_{k=1}^K\varpi(k)=0$: since
+$\sum_kz_a(k)^2=\|c_a\|^2/\|c_a\|^2=1$ and
+$\sum_kz_S(k)z_Y(k)=\langle c_S,c_Y\rangle/(\|c_S\|\|c_Y\|)=r_K$,
+\eqref{eq:exit-slope}'s definition of $\varpi$ gives
+$\sum_k\varpi(k)=\frac{r_K}2(1+1)-r_K=0$ directly; when $\cK^*=\{1,\dots,K\}$ (the
+uniform-$\PP_0$ case), the right-hand side of \eqref{eq:exit-slope} is exactly this
+vanishing sum, consistent with Lemma~\ref{lem:uniform-global}.
+\end{proof}
+
 \subsection{Proof of Lemma~\ref{lem:cancellation}}\label{app:proof-cancellation}
+
 
 \begin{proof}
 Write $\mathrm{score}_i$ for the bracketed AIPW expression in \eqref{eq:aipw-estimator}
@@ -1918,9 +2296,15 @@ the (weaker, insufficient) off-diagonal condition $s_S+s_Y>d/2$ alone.
   D., Demirer, M., Duflo, E., Hansen, C., Newey, W. and Robins, J. (2018).
   Double/debiased machine learning for treatment and structural parameters.
   \emph{The Econometrics Journal} 21, C1--C68.
+\bibitem[Devlin et al.(1975)]{DevlinGnanadesikanKettenring1975} Devlin, S. J.,
+  Gnanadesikan, R. and Kettenring, J. R. (1975). Robust estimation and outlier
+  detection with correlation coefficients. \emph{Biometrika} 62, 531--545.
 \bibitem[Kennedy et al.(2024)]{Kennedy2024Minimax} Kennedy, E. H., Balakrishnan, S.,
   Robins, J. M. and Wasserman, L. (2024). Minimax rates for heterogeneous causal
   effect estimation. \emph{Annals of Statistics} 52, 793--816.
+\bibitem[Postnikov(2009)]{Postnikov2009} Postnikov, A. (2009). Permutohedra,
+  associahedra, and beyond. \emph{International Mathematics Research Notices} 2009,
+  1026--1106.
 \bibitem[Robins et al.(2008)]{Robins2008HOIF} Robins, J., Li, L., Tchetgen, E. and van
   der Vaart, A. (2008). Higher order influence functions and minimax estimation of
   nonlinear functionals. \emph{Probability and Statistics: Essays in Honor of David
