@@ -72,3 +72,7 @@ MEMORY.md
 .claude/settings.local.json
 
 
+
+# agent framework: local backups and runtime state (not shared)
+.claude/local/
+.omo/run-continuation/

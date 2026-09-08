@@ -14,6 +14,8 @@ paths:
 
 # Quality Rubrics
 
+> **Quality docs map:** `quality-philosophy.md` = *why* (the principle). This file = *what* good looks like per work type (concrete checklists). `quality-gates.md` = *scoring* (deductions, enforcement).
+
 **Purpose:** Concrete criteria for 80/90/95 thresholds by work type
 
 ---
@@ -200,6 +202,319 @@ calculate_summary <- function(data, var, ...) {
 
 ---
 
+## Grant Proposals
+
+**Note:** Grant thresholds are HIGHER than code. 80/100 = commit (good enough to save), but 90/100 = submission-ready (not 80).
+
+### 80/100 (Commit Threshold - Per Section)
+
+**Minimum requirements to commit a section:**
+
+- [ ] **Follows outline** - Content matches outline structure and boundaries
+- [ ] **Covers required points** - All outline points addressed
+- [ ] **No major gaps** - No obvious missing content
+- [ ] **Compiles/renders** - LaTeX compiles or document renders
+- [ ] **Basic flow** - Paragraphs connect logically within section
+
+**NOT required at 80:**
+- Cross-section coherence (checked later with `/coherence-check`)
+- Citation completeness (added during revision)
+- Style match (improved during editing)
+- External review quality
+
+**Acceptable at 80:**
+- Some repetition across sections (will catch with coherence check)
+- Placeholder citations ([CITE])
+- Generic phrasing (will match voice during editing)
+- Rough transitions
+
+**Example 80/100 (Significance section):**
+```
+✅ Establishes health burden with statistics [even if needs citation]
+✅ Identifies knowledge gap [even if not eloquently stated]
+✅ Presents preliminary data [even if formatting rough]
+✅ States impact [even if generic phrasing]
+❌ May repeat burden statement from Aims (acceptable, will catch later)
+❌ May lack some citations (acceptable, will add during revision)
+```
+
+---
+
+### 85/100 (Internal Review Ready)
+
+**All of 80, plus:**
+
+- [ ] **No significant redundancy** - Coherence check passed, major repetition eliminated
+- [ ] **Terminology consistent** - Key terms used consistently across sections
+- [ ] **Cross-references valid** - References to other sections are accurate
+- [ ] **Content in right sections** - No major boundary violations (methods in Approach, not Significance)
+
+**NOT required at 85:**
+- Perfect voice match
+- All citations validated
+- External-review-ready polish
+
+**Example 85/100 (after coherence check):**
+```
+✅ Burden statement in Significance, referenced (not repeated) in Innovation
+✅ Uses "acute decompensation" consistently (not switching to "worsening")
+✅ Cross-reference "Significance, Fig. 2" actually points to existing figure
+✅ Preliminary data in Significance section, referenced in Approach
+❌ May still have generic phrasing (acceptable, will fix during editing)
+❌ May have citation gaps (acceptable, will add before external review)
+```
+
+---
+
+### 90/100 (Submission Ready)
+
+**All of 85, plus:**
+
+- [ ] **Matches user's voice** - Style review passed, sounds like user wrote it
+- [ ] **Citations complete and accurate** - All claims cited, citations validated
+- [ ] **No TODO markers** - All placeholders resolved
+- [ ] **Meets quality standards** - Clear, professional, ready for reviewers
+- [ ] **Page limits met** - Within funder requirements
+
+**This is submission threshold for grants** (higher than code's 80/100)
+
+**NOT required at 90:**
+- Perfection
+- Zero typos (acceptable if rare and minor)
+- Guaranteed funding (no one can guarantee that)
+
+**Example 90/100 (submission-ready):**
+```
+✅ Sounds like user's natural voice (not generic AI)
+✅ All burden/gap statements cited with authoritative sources
+✅ No [CITE] or [TODO] markers
+✅ Professional quality throughout
+✅ Specific Aims: 1 page, Approach: 12 pages (within NIH limits)
+❌ Might have minor typo on page 8 (acceptable if caught in final proofread)
+```
+
+---
+
+### 95/100 (Excellence)
+
+**All of 90, plus:**
+
+- [ ] **Exemplary clarity** - Every paragraph is crisp and clear
+- [ ] **Compelling narrative** - Reviewers will be engaged, not just informed
+- [ ] **Strategic alignment** - Perfectly matches funder priorities
+- [ ] **Zero errors** - Proofread, polished, perfect
+- [ ] **Would show as exemplar** - This is how grants should be written
+
+**This is aspirational, not required**
+
+**Example 95/100 (exemplary):**
+```
+✅ Opening paragraph immediately engages reviewer
+✅ Every sentence serves clear purpose
+✅ Innovation section compellingly argues novelty
+✅ Approach is detailed but readable
+✅ Zero typos, zero formatting inconsistencies
+✅ Would share with colleagues as model proposal
+```
+
+---
+
+### Grant Quality by Section
+
+**Different sections, different standards:**
+
+#### Specific Aims (1 page)
+
+**80/100:**
+- Three aims stated
+- Problem and gap mentioned
+- Innovation and impact mentioned
+- Compiles, fits on 1 page
+
+**90/100:** All of 80, plus:
+- Aims sharply stated (active verbs, clear outcomes)
+- Logical flow between aims
+- Impact compelling
+- Matches user's confident aims-page voice
+- Within 1 page (not 1.1 pages)
+
+**95/100:** All of 90, plus:
+- Opening immediately hooks reviewer
+- Every word counts (no wasted space)
+- Aims build perfectly on each other
+- Closing is inspiring
+
+#### Significance (2-3 pages)
+
+**80/100:**
+- Burden established
+- Gap identified
+- Preliminary data presented
+- Impact stated
+
+**90/100:** All of 80, plus:
+- Burden cited with authoritative sources
+- Gap argued convincingly with evidence
+- Preliminary data appropriately detailed (not too much, not too little)
+- Impact specific and measurable
+- No repetition with Aims or Innovation
+
+**95/100:** All of 90, plus:
+- Reviewers will remember the gap (compellingly stated)
+- Preliminary data creates confidence in team
+- Impact is transformative, not incremental
+
+#### Innovation (1-2 pages)
+
+**80/100:**
+- States what's innovative
+- Mentions advantages over existing
+- References gap from Significance
+
+**90/100:** All of 80, plus:
+- Innovation is specific and credible (not overstated)
+- Advantages clearly argued
+- Doesn't repeat Significance (references and builds on it)
+- Paradigm shift potential is clear
+
+**95/100:** All of 90, plus:
+- Reviewers will be excited about novelty
+- Addresses "why hasn't this been done before" preemptively
+- Innovation is transformative but achievable
+
+#### Approach (12 pages for R01)
+
+**80/100:**
+- Methods described for each aim
+- Rationale provided
+- Expected outcomes stated
+- Potential problems mentioned
+
+**90/100:** All of 80, plus:
+- Methods detailed enough to evaluate feasibility
+- Sample sizes justified with power calculations
+- Potential problems have credible solutions
+- Timeline is realistic
+- No methods details in Significance/Innovation (proper boundaries)
+- References preliminary data appropriately (not re-presenting)
+
+**95/100:** All of 90, plus:
+- Methods inspire confidence (detailed but readable)
+- Reviewers can't identify feasibility concerns
+- Potential problems section shows sophisticated thinking
+- Timeline has appropriate go/no-go decision points
+
+---
+
+### Grant Quality Checklist (All Sections Complete)
+
+**Before submission, verify:**
+
+#### Content (90/100 required)
+- [ ] All outline points covered
+- [ ] No significant redundancy (coherence check passed)
+- [ ] Terminology consistent across sections
+- [ ] All cross-references valid
+- [ ] Content in correct sections (boundary check passed)
+- [ ] All claims cited with authoritative sources
+- [ ] Citations validated (accurate)
+- [ ] No TODO or [CITE] markers
+
+#### Voice and Style (90/100 required)
+- [ ] Matches user's style guide (if exists)
+- [ ] Sentence length appropriate
+- [ ] Active/passive voice balance appropriate
+- [ ] Professional but accessible tone
+- [ ] Section-specific styles used (aims more confident than significance)
+
+#### Format (90/100 required)
+- [ ] Compiles/renders without errors or warnings
+- [ ] Page limits met (Aims: 1 page, Approach: typically 12 pages for R01)
+- [ ] Formatting consistent (citations, headings, lists)
+- [ ] Figures and tables properly captioned
+- [ ] Bibliography complete and formatted correctly
+
+#### Funder Requirements (90/100 required)
+- [ ] Addresses all review criteria explicitly
+- [ ] Aligns with funder priorities
+- [ ] Includes required sections (varies by funder)
+- [ ] Budget consistent with scope
+- [ ] Timeline realistic
+
+**If any item fails, not at 90/100 (not submission-ready)**
+
+---
+
+### Common Grant Quality Issues
+
+#### Issue: Repetition not caught
+
+**Symptom:** Same burden/gap/innovation statements in multiple sections
+
+**Quality impact:** Reduces score from 85 to <80
+
+**Fix:** Run `/coherence-check` after drafting 2-3 sections
+
+**Prevention:** Use `/grant-outline` to assign content to specific sections
+
+---
+
+#### Issue: Style doesn't match user
+
+**Symptom:** Generic AI prose, sentences too long/short, wrong voice
+
+**Quality impact:** Reduces score from 90 to 80-85
+
+**Fix:** Run `style-reviewer` and edit with `/edit-with-context`
+
+**Prevention:** Create style guide with `/grant-style-guide` before drafting
+
+---
+
+#### Issue: Missing citations
+
+**Symptom:** Factual claims without sources, [CITE] markers
+
+**Quality impact:** Reduces score from 90 to 80-85
+
+**Fix:** Run `/citation-manager` gap-check and add missing citations
+
+**Prevention:** Add citations during drafting, not just at end
+
+---
+
+#### Issue: Cross-reference broken
+
+**Symptom:** "See Significance, Fig. 2" but figure doesn't exist
+
+**Quality impact:** Reduces score from 85 to <80
+
+**Fix:** Run `/coherence-check` which validates cross-references
+
+**Prevention:** Create figures as you write, reference immediately
+
+---
+
+### Grant vs. Code Quality Thresholds
+
+**Key difference: Grants need 90/100 for submission, code only needs 80/100**
+
+| Work Type | Commit (Save) | Share/Submit | Excellence |
+|-----------|---------------|--------------|------------|
+| Code | 80 | 80-85 | 90-95 |
+| Grants | 80 (per section) | 90 (full proposal) | 95 |
+
+**Why grants are higher:**
+- High stakes (funding, career impact)
+- One-shot opportunity (can't patch after submission)
+- Competitive (reviewers compare proposals)
+- Reputation matters (your name on it)
+- External reviewers (not just internal team)
+
+**Implication:** Don't submit grant at 80-85, keep working to 90+
+
+---
+
 ## Python Code
 
 ### 80/100 (Commit Threshold)
@@ -353,11 +668,14 @@ calculate_summary <- function(data, var, ...) {
 
 | Work Type | 80/100 | 90/100 | 95/100 |
 |-----------|--------|--------|--------|
+| **Grant Proposals** | Follows outline + covers points | + coherent + cited + voice match | + compelling + zero errors |
 | **R Code** | Runs + basic docs | + edge cases + tests | + defensive + optimized |
 | **Python Code** | Runs + type hints + docs | + edge cases + tests | + comprehensive tests + examples |
 | **LaTeX Papers** | Compiles + accurate | + no TODOs + clear prose | + polished + publication-ready |
 | **Quarto Docs** | Renders + runs | + clean output + formatting | + reproducible + accessible |
 | **Analysis Scripts** | Runs + outputs | + handles data issues + documented | + reproducible + robust + validated |
+
+**Note:** Grants require 90/100 for submission (higher than code's 80/100 threshold)
 
 ---
 
@@ -480,10 +798,12 @@ trials in similar populations \citep{smith2023, jones2024}.
 - `.claude/rules/quality-philosophy.md` - Principles behind thresholds
 - `.claude/rules/quality-gates.md` - Scoring system
 - `CLAUDE.md` - Core principles section (80/90/95 table)
-- `meta-spec/RESEARCH_CONSTITUTION.md` - §9 Quality invariants
+- `meta-spec/RESEARCH_CONSTITUTION.md` - the twelve numbered workflow invariants
+- Domain invariants by lane: `.claude/rules/r-code-conventions.md` §2–§3 (software), `.claude/rules/proof-protocol.md` (proofs), `.claude/rules/paper-protocol.md` (writing), `.claude/skills/simulations/SKILL.md` (simulations)
 
 ---
 
 ## Version History
 
+- **2026-04-22**: Add grant proposals rubrics (Phase 5 of grant infrastructure) - 80/85/90/95 thresholds with section-specific criteria
 - **2026-04-02**: Initial version - concrete rubrics for R, Python, LaTeX, Quarto, analysis

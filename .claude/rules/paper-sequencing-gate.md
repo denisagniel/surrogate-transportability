@@ -1,0 +1,1 @@
+/Users/dagniel/RAND/tools/agent-assisted-research-meta/.claude/rules/paper-sequencing-gate.md
