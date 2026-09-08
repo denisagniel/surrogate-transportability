@@ -103,14 +103,45 @@ which one you used**:
 | Applied statistics, Applied (medical/subject) | **applied** |
 | R package + paper | inherit from the paper's target |
 
+> **One `**Type:**` line, two consumers with different vocabularies — a value must satisfy
+> both.** The table above is a **venue class** taxonomy (`methods-theory` / `applied`) and
+> selects which *writing* rules apply. `scripts/validate-structure.sh`'s `detect_project_type`
+> reads the same line for a **project layout** taxonomy and selects which *canonical path*
+> checks run — and it matches only `Type.*R package`, `Type.*Applied|Type.*paper`,
+> `Type.*Grant`, `Type.*Multi-package`, falling through to `unknown` otherwise.
+>
+> So the exact string `Methods / causal inference` — this table's own vocabulary — satisfies
+> step 1 here and is **invisible** to the script this section names as the consumer. Verified
+> empirically 2026-09-08: it resolves to `unknown`, and the script still warns "Add 'Type:
+> [...]'". Writing a value that satisfies one reader and silently fails the other is a
+> Constitution #1 fallback, so **check both** when you add or edit the line: grep the value
+> against `detect_project_type`'s patterns, do not assume the table alone is enough.
+>
+> Practical form: include the venue-class words *and* a layout keyword. cantor-taylor now
+> declares `Methods / causal inference paper (multi-paper monorepo: ...)`, which yields
+> `methods-theory` here and `paper` there.
+>
+> **Open, not decided:** that repo holds three sibling paper trees with no root R package, which
+> is not cleanly any of the four documented layouts — `Multi-package` reads as multiple *R
+> packages*, not multiple papers. `paper` is the closest fit and is what the value selects; a
+> `multi-paper` layout may be worth adding to the script rather than continuing to approximate.
+
 **Why a chain and not just step 1.** Step 1 alone was the original instruction, and it
 failed on the first manuscript it was used against: `cantor-taylor_correcting-moud/CLAUDE.md`
-has `**Project:**` and `**Branch:**` but no `**Type:**` line. Two reviewers run on that file
-independently improvised different fallbacks — one used prose at `CLAUDE.md:129`, the other a
-requirements spec — and reached the same class by luck rather than by rule. Both flagged the
+had `**Project:**` and `**Branch:**` but no `**Type:**` line. Reviewers run on that file
+independently improvised different fallbacks — one used prose at `CLAUDE.md:129`, another a
+requirements spec — and reached the same class by luck rather than by rule. Each flagged the
 gap, which is the behaviour this chain now specifies instead of leaving to invention. A
 health-services paper could as easily have been improvised into `applied`, which would have
 suppressed the assumption-environment rule that legitimately applies to it.
+
+**That specific gap was closed 2026-09-08** — the file now declares
+`**Type:** Methods / causal inference`, which is what the chain's step 1 reads. The chain
+stays, for two reasons. It took **three** reviewers across two sessions to close a one-line
+governance defect, each one flagging it and none able to fix it (all reviewers are read-only),
+which is the cost of relying on step 1 alone. And the class of failure is not project-specific:
+any project whose governance file predates this convention has the same gap, so the fallback
+order is what keeps a reviewer from inventing a class silently.
 
 **Class conditioning is not a universal fix, and assuming it is would repeat the pooling
 error one level up.** Measured on 206 papers, class explains the spread for *some*
@@ -170,10 +201,29 @@ cited instance.** When this section named only `M:44`, both reviewers correctly 
 second identical defect at `M:334` that no framework document had recorded. That
 generalization is the expected behaviour.
 
-- **`\label` must be inside the equation environment.** `\end{align}\label{theta}` puts
-  the label outside, so `\eqref{theta}` silently resolves to the wrong number.
-  (`M:44`; the same defect recurs at `M:334`, breaking `\ref{thetahat}` at `M:387` and
-  `M:426`.)
+- **`\label` must be inside the equation environment.** `\end{align}\label{theta}` puts the
+  label outside, so `\eqref{theta}` silently resolves to the wrong number.
+  **Both cited instances were fixed 2026-09-08 and `M` is now clean** (`grep -E
+  '\\end\{align\}[[:space:]]*\\label'` returns nothing); the pattern stays here because it
+  recurs, and because the two things learned fixing it are what make it findable:
+
+  - **The mechanism.** `\end{align}` restores `\@currentlabel` to its pre-environment value —
+    the enclosing *section* number — while hyperref's anchor keeps the stepped equation
+    counter. So the printed cross-reference shows the section number and the hyperlink points
+    at the right equation. At `M:334` that rendered **(5)** for equation **(20)** in four
+    body references including a table caption.
+  - **"It renders fine" is not evidence the pattern is absent.** The `M:44` instance had the
+    identical defect and looked correct for years because it sits in Section 1 and *is*
+    equation 1 — both "1". A masked instance is still a latent break: it fires the moment the
+    section or equation number moves.
+
+  **Diagnose it without compiling.** Read `main.aux`, whose entries have the form
+  `\newlabel{NAME}{{printed}{page}{section}{anchor}}`, and compare `printed` against the
+  number inside `anchor`. A mismatch — `{{5}{12}{Estimation and Inference}{equation.20}}` — is
+  the defect, stated by the compiler itself. This is the check to run before reporting the
+  pattern as present or absent, and it is why a read-only reviewer *can* settle it: the
+  question had sat "flagged-not-confirmed" across several sessions on the belief that only a
+  compile could answer it.
 - **One appendix mechanism per document.** A `\section{Appendix}` used as a body heading
   *before* the real `\appendix` produces two different things both called "appendix",
   numbered on different schemes — the body one takes an ordinary section number, the real
