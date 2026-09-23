@@ -43,9 +43,9 @@ module load R/4.4.2 2>/dev/null || module load R; \
 Rscript '${STUDY_DIR}/slurm/prep_seeds.R' --study-dir '${STUDY_DIR}' --scan '${SCAN}' --per-bin ${PER_BIN}; \
 N=\$(cat '${STUDY_DIR}/config/prep_ntasks.txt'); \
 echo \"seeds done; N=\${N} configs -> submitting truth array\"; \
-AID=\$(sbatch --parsable --array=1-\${N} \
+AID=\$(STUDY_DIR='${STUDY_DIR}' M_REF='${M_REF}' sbatch --parsable --array=1-\${N} \
   --output='${LOG_DIR}/truth_%A_%a.out' --error='${LOG_DIR}/truth_%A_%a.err' \
-  --export=ALL,STUDY_DIR='${STUDY_DIR}',M_REF='${M_REF}' \
+  --export=ALL \
   '${SLURM_DIR}/prep_truth_array.slurm'); \
 echo \"truth array = \${AID}\"; \
 sbatch --parsable --dependency=afterok:\${AID} \
