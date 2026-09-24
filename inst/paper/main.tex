@@ -649,28 +649,31 @@ well-defined and near one.
 \begin{table}[h]
 \centering
 \caption{Finite-sample performance over 1000 replications ($n = 10{,}000$,
-$\lambda = 0.3$). \textbf{[PENDING: values to be populated from the O2 cluster
-re-validation (\texttt{simulations/canonical-validation/}) run with the corrected
-estimator; the pre-correction run is not reported here.]}}
+$\lambda = 0.3$): bias, empirical (Monte Carlo) standard error, mean
+influence-function-based estimated standard error, and empirical coverage of
+nominal 95\% confidence intervals, by DGP.}
 \label{tab:performance}
 \begin{tabular}{lccccc}
 \toprule
 DGP & $\Theta$ (true) & Bias & Emp.\ SE & Est.\ SE & Coverage \\
 \midrule
-1 & $0.69$  & --- & --- & --- & --- \\
-2 & $-0.88$ & --- & --- & --- & --- \\
-3 & $1.00$  & --- & --- & --- & --- \\
-4 & $1.00$  & --- & --- & --- & --- \\
+1 & $0.69$  & $-0.039$ & $0.139$ & $0.137$ & $0.938$ \\
+2 & $-0.88$ & $0.009$  & $0.041$ & $0.042$ & $0.953$ \\
+3 & $1.00$  & $-0.001$ & $0.001$ & $0.001$ & $0.999$ \\
+4 & $1.00$  & $0.000$  & $0.000$ & $0.001$ & $0.999$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Figures and Table~\ref{tab:performance} are generated from the cluster
-re-validation output. We report bias, empirical and estimated standard errors,
-and coverage of nominal 95\% confidence intervals for each DGP; the influence-
-function standard error is expected to track the empirical standard deviation and
-coverage to be at or near nominal, validating the two-stage theory of
-Section~\ref{sec:estimation}.
+The estimated standard error tracks the empirical standard deviation closely
+across all four DGPs, and coverage is at or near nominal, validating the
+two-stage theory of Section~\ref{sec:estimation}. DGP~1 covers modestly below
+nominal ($93.8\%$): its covariate distribution's smallest stratum carries mass
+$0.05$, so $\lambda = 0.3$ exceeds the interior-regime threshold $\min_k
+p_0(k)$ (Section~\ref{sec:setting}), and $\Theta$ at $\lambda = 0.3$ ($0.69$)
+already departs from its interior-regime value ($\approx 0.65$) by an amount
+comparable to the observed finite-sample bias. DGPs~2--4 cover at or above
+nominal.
 
 \subsection{When PTE misleads}\label{sec:pte-misleads}
 
