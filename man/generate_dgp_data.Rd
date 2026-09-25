@@ -4,7 +4,14 @@
 \alias{generate_dgp_data}
 \title{Generate Data from the Canonical Surrogate-Transportability DGP}
 \usage{
-generate_dgp_data(n, params, p_X, X_levels = c(-2, -1, 0, 1, 2))
+generate_dgp_data(
+  n,
+  params,
+  p_X,
+  X_levels = c(-2, -1, 0, 1, 2),
+  e_int = NULL,
+  e_coef = NULL
+)
 }
 \arguments{
 \item{n}{Integer. Sample size.}
@@ -17,6 +24,13 @@ same length as `X_levels`.}
 
 \item{X_levels}{Numeric vector of covariate values
 (default `c(-2, -1, 0, 1, 2)`).}
+
+\item{e_int, e_coef}{Optional propensity intercept and covariate coefficient.
+If either is supplied the other defaults to `0` and treatment is assigned
+from `plogis(e_int + e_coef * X)`; if both are `NULL` (default) treatment is
+randomized with probability `0.5`. A propensity that leaves any covariate
+cell below `0.02` or above `0.98` triggers a positivity warning, because the
+AIPW path clips estimated propensities at `0.01`/`0.99`.}
 }
 \value{
 A data frame with columns `X`, `A`, `S`, `Y` and `n` rows.
@@ -34,8 +48,19 @@ The DGP is
       \epsilon_S \sim N(0, \sigma_S^2),}
 \deqn{Y = (\beta_A + \beta_{AX} X) A + \beta_S S + \beta_{SX} (S X) + \epsilon_Y,
       \quad \epsilon_Y \sim N(0, \sigma_Y^2),}
-with `A ~ Bernoulli(0.5)` (a balanced randomized trial) and
-`X` takes values in `X_levels`, drawn with probabilities `p_X`.
+with `X` taking values in `X_levels`, drawn with probabilities `p_X`.
+
+**Treatment assignment.** By default `A ~ Bernoulli(0.5)`, a balanced
+randomized trial, for which the importance-weighting path of
+[tv_ball_correlation_IF_adaptive()] is valid. Supplying `e_int` and/or
+`e_coef` switches to a **confounded** (observational) assignment,
+\deqn{A \mid X \sim \mathrm{Bernoulli}(\mathrm{expit}(e_{int} + e_{coef} X)),}
+under which treated and control groups differ in `X` and the
+importance-weighting path becomes biased while the cross-fitted AIPW path
+remains consistent. The outcome and surrogate mean structure — and hence the
+cell CATEs and the estimand `Theta` — are untouched by `e_int`/`e_coef`; only
+the assignment mechanism changes. See [confounded_dgp_params()] for the
+confounded specifications used in the validation studies.
 
 This is the single package implementation of the DGP; simulation scripts,
 figure generators, and cluster jobs should call it rather than defining their
@@ -47,7 +72,14 @@ spec <- canonical_dgp_params("dgp1")
 d <- generate_dgp_data(1000, spec$params, spec$p_X, spec$X_levels)
 head(d)
 
+# confounded version of the same mean structure
+cspec <- confounded_dgp_params("conf1")
+dc <- generate_dgp_data(1000, cspec$params, cspec$p_X, cspec$X_levels,
+                        e_int = cspec$e_int, e_coef = cspec$e_coef)
+tapply(dc$A, dc$X, mean)
+
 }
 \seealso{
-[canonical_dgp_params()] for the four paper DGP specifications.
+[canonical_dgp_params()] for the four paper DGP specifications;
+  [confounded_dgp_params()] for the confounded (observational) ones.
 }

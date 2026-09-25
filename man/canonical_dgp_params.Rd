@@ -30,7 +30,27 @@ recorded in each spec's `slide_label`.
 Each spec's `rho_true` is the across-study correlation
 `cor_mu(Delta_S(Q), Delta_Y(Q))` over `Q` uniform on the TV ball of radius
 `lambda` around the reference `p_X` (the estimand of
-[tv_ball_correlation_IF_adaptive()]), verified analytically. `pte_P0` is the
+[tv_ball_correlation_IF_adaptive()]). **Correction (2026-08-21):** these
+values are Monte Carlo estimates from long-run hit-and-run sampling of the
+TV ball, using the DGP's *analytic* cell CATEs (so no per-observation `S`,
+`Y` data is simulated) — they are not closed-form/exactly analytic despite
+earlier documentation claiming so. Reported precision is limited by Monte
+Carlo error in the `Q`-draws, not sampling error in a dataset: at
+`M_ref` in the 5,000-30,000 range with `thin = 20`, run-to-run variation is
+on the order of 0.001-0.005 in `rho_true` (verified directly: dgp1/dgp2
+recomputed at `M_ref = 30000` with a fresh seed differ from the stored
+values by -0.0012/+0.0009; dgp4/dgp5, both near the +1 boundary, are
+unaffected to displayed precision). This does not change any 2-decimal
+value reported in the paper's tables, but the 4-decimal-precision value
+quoted in `inst/paper/theory.tex` (`$\Theta=0.6907$`) overstates the
+precision an MC estimate at this `M_ref` can honestly support and should be
+revisited when Table 2/figures are finalized from the cluster
+re-validation. A higher-`M_ref`, package-level exact-truth utility
+(`true_rho()`, prototyped in
+`explorations/2026-07-13_generality-pilot/R/true_rho.R`) is planned for
+that finalization pass; see
+`quality_reports/plans/2026-07-13_bias-coverage-expansion-study.md`.
+`pte_P0` is the
 proportion of treatment effect at the reference distribution
 (`NaN`/undefined for `dgp5`, where `Delta_Y(P0) ~ 0` by symmetry).
 }
