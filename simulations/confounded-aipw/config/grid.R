@@ -3,7 +3,7 @@
 # =============================================================================
 # GOAL: validate the OBSERVATIONAL (cross-fitted AIPW) path of
 # tv_ball_correlation_IF_adaptive() against the randomized (importance-weighting,
-# "IW") path. Three blocks, in increasing order of what they claim:
+# "IW") path. Four blocks, in increasing order of what they claim:
 #
 #   1. AGREEMENT -- the 4 canonical (RANDOMIZED) DGPs, each estimated BOTH ways.
 #      Both paths are consistent here, so this is a smoke test: AIPW must
@@ -18,6 +18,16 @@
 #      than a promise. n = 250 is a STRESS regime: the plug-in correlation is
 #      strongly attenuated at this sample size and this block is expected to
 #      show that, not to hide it.
+#   4. NGRID -- the SAME two anchor DGPs as SMALLN (dgp1 canonical, conf1
+#      confounded), both paths, at n in {500, 2000, 40000}. Combined with
+#      SMALLN's n=250 cell and AGREEMENT/CONFOUNDED's n=10000 cells for these
+#      same two DGPs, this completes the 5-point finite-sample grid
+#      n in {250, 500, 2000, 10000, 40000} promised in
+#      inst/paper/main.tex (\label{sec:sim-future}) -- for these two DGPs only,
+#      not the full 6-DGP grid, to keep the added compute bounded (n=40000 is
+#      ~4x n=10000's per-unit cost). A separate block rather than folding into
+#      SMALLN because SMALLN's name is specifically about the n=250 stress
+#      regime; NGRID is about n-scaling and reuses the anchors, not the label.
 #
 # `conf2` is additionally a POSITIVITY stress regime (e(X) down to 0.039 in the
 # rarest covariate cell), so AIPW is expected to degrade there relative to
@@ -49,12 +59,26 @@ LAMBDA  <- 0.3
 N_LARGE <- 10000L   # the regime where both paths' asymptotics are readable
 N_SMALL <- 250L     # the manuscript's small-n cell (stress)
 
+# The three additional n-grid cells (with N_SMALL and N_LARGE, completes the
+# 5-point grid n in {250, 500, 2000, 10000, 40000} for the NGRID block's two
+# anchor DGPs). N_XLARGE gets its own cost stratum below: at ~4x N_LARGE's per
+# n*M cost, sizing it together with N_LARGE would either time out the n=40000
+# cells or waste wall time on the n=10000 ones.
+N_MID_LOW  <- 500L
+N_MID_HIGH <- 2000L
+N_XLARGE   <- 40000L
+
 # Adaptive-M ceiling. The estimator's cost is O(n * M) in interpreted loops and
 # it allocates two n x M_final influence-function matrices, so M_max is the main
-# cost/memory knob. The adaptive rule needs n_stable + 1 = 4 successive rho values
-# before it can declare convergence, so M_max must admit at least four increments
-# (300, 600, 900, 1200) or `converged` is FALSE by construction rather than by
-# evidence. 1500 admits five, and keeps an n = 10000 unit near 32 s / 250 MB.
+# cost/memory knob. Since v0.4.1 the adaptive rule stops on a direct Monte Carlo
+# precision test (se_mc = (1 - rho^2) / sqrt(M) < mc_tolerance, default 0.02;
+# see NEWS.md) rather than a difference-window test, and se_mc does not depend
+# on n -- only on rho and M -- so M_max does NOT need to scale with n across
+# this study's n-grid. Required M for se_mc < 0.02 at this study's least
+# favorable observed rho (~0.69, tau = 1-rho^2 ~ 0.52) is
+# (tau / 0.02)^2 ~ 676, comfortably under 1500 at every n, including N_XLARGE.
+# 1500 keeps an n = 10000 unit near 32 s / 250 MB (on-cluster smoke estimate;
+# the confounded block's harder cells ran slower in practice -- see MANIFEST.md).
 M_START     <- 300L
 M_INCREMENT <- 300L
 M_MAX       <- 1500L
@@ -62,10 +86,14 @@ M_MAX       <- 1500L
 # Replications per block. Chosen so the Monte Carlo standard error of each
 # reported mean is small relative to the effect being demonstrated: the
 # confounded block's IW-vs-AIPW gap is ~0.6-1.2, far above the MC error of a
-# mean over 80 replications.
+# mean over 80 replications. NGRID matches SMALLN's rep count so all 5 points
+# of the shared n-grid have the same Monte Carlo precision, making the
+# across-n comparison itself apples-to-apples rather than confounding
+# precision differences with the n-attenuation being measured.
 REPS_AGREEMENT <- 40L
 REPS_CONFOUND  <- 80L
 REPS_SMALLN    <- 120L
+REPS_NGRID     <- 120L
 
 # -----------------------------------------------------------------------------
 # build_grid() -- the three blocks, rbind'd.
@@ -96,7 +124,15 @@ build_grid <- function() {
       mk("confounded", "conf1", N_SMALL, mm, REPS_SMALLN, "smalln")))
   )
 
-  grid <- rbind(b1, b2, b3)
+  b4 <- do.call(rbind, lapply(c(N_MID_LOW, N_MID_HIGH, N_XLARGE), function(nn)
+    rbind(
+      do.call(rbind, lapply(both, function(mm)
+        mk("canonical", "dgp1", nn, mm, REPS_NGRID, "ngrid"))),
+      do.call(rbind, lapply(both, function(mm)
+        mk("confounded", "conf1", nn, mm, REPS_NGRID, "ngrid")))
+    )))
+
+  grid <- rbind(b1, b2, b3, b4)
   grid$config_id <- seq_len(nrow(grid))
   grid
 }
@@ -105,12 +141,15 @@ GRID <- build_grid()
 
 # -----------------------------------------------------------------------------
 # stratum_of() -- cost strata, for when this study is handed to the O2 scaffold.
-# Per-unit cost here is dominated by n (two orders of magnitude between the
-# n = 250 and n = 10000 blocks), so sizing them together would either time out
-# the large cells or waste an hour of wall time on the small ones.
+# Per-unit cost here is dominated by n (more than two orders of magnitude
+# between the n = 250 and n = 40000 cells), so sizing them together would
+# either time out the large cells or waste wall time on the small ones. Three
+# strata: small_n (< 5000: n=250, 500, 2000), large_n (n=10000), xlarge_n
+# (n=40000, ~4x large_n's per-unit n*M cost).
 # -----------------------------------------------------------------------------
 stratum_of <- function(grid = GRID) {
-  ifelse(grid$n >= 5000L, "large_n", "small_n")
+  ifelse(grid$n >= 20000L, "xlarge_n",
+         ifelse(grid$n >= 5000L, "large_n", "small_n"))
 }
 
 # -----------------------------------------------------------------------------

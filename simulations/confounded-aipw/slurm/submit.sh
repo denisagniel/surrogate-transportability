@@ -5,13 +5,16 @@
 # Run ON O2 (a login node is fine -- sbatch only queues). Mirrors
 # simulations/lambda-sweep/slurm/submit.sh, plus:
 #
-#   * PER-STRATUM ARRAYS. config/grid.R defines stratum_of() splitting
-#     n = 10,000 units ("large_n", the `agreement` + `confounded` blocks) from
-#     n = 250 units ("small_n", the `smalln` block). Per-unit cost differs by
-#     ~2 orders of magnitude, so ONE global reps_per_job would either time out
-#     large_n or waste an hour of wall clock per small_n task. Each stratum gets
-#     its own array with its own REPS_PER_JOB/--time/--mem, read from
-#     config/sizing.tsv. Global task ids stay contiguous across strata so
+#   * PER-STRATUM ARRAYS. config/grid.R's stratum_of() splits the grid by n into
+#     small_n (n=250/500/2000; the `smalln` block plus most of `ngrid`),
+#     large_n (n=10000; `agreement` + `confounded`), and xlarge_n (n=40000; the
+#     rest of `ngrid`). Per-unit cost differs by ~4 orders of magnitude
+#     top-to-bottom, so ONE global reps_per_job would either time out the
+#     large/xlarge cells or waste wall clock per small_n task. Each stratum
+#     gets its own array with its own REPS_PER_JOB/--time/--mem, read from
+#     config/sizing.tsv. Strata are read from the grid at runtime (never
+#     hardcoded here), so a future stratum_of() change does not require
+#     editing this script. Global task ids stay contiguous across strata so
 #     task_NNNNNN.rds cannot collide in the shared scratch dir.
 #
 #   * --smoke. Submits a REAL sbatch array per stratum, one unit per task,
@@ -144,25 +147,38 @@ if (( SMOKE == 1 )); then
   # the numbers sizing is computed from. One unit per task, generous wall time and
   # memory so an UNSIZED probe cannot die of either.
   #
-  # --mem: 8G for large_n is deliberately loose, not a sizing claim. The estimator
-  # allocates two n x M_final influence-function matrices (2 * 10000 * 1500 * 8 B
-  # = 240 MB at the M_MAX in config/grid.R) and the AIPW arm additionally holds
-  # ranger forests, so the real figure is unknown until measured -- which is what
-  # run_replication.R's VmHWM read does.
-  for s in large_n small_n; do
+  # Strata are discovered from the grid, not hardcoded, so a stratum_of() change
+  # (like adding xlarge_n for this study's n=40000 cells) is picked up here
+  # automatically instead of silently smoke-probing nothing for it.
+  #
+  # --mem/--time defaults below are deliberately loose, not a sizing claim, per
+  # stratum. large_n: the estimator allocates several n x M_final
+  # influence-function matrices (2 * 10000 * 1500 * 8 B = 240 MB at the M_MAX in
+  # config/grid.R for just two of them) and the AIPW arm additionally holds
+  # ranger forests, so the real figure is unknown until measured -- which is
+  # what run_replication.R's VmHWM read does. xlarge_n (n=40000, this study's
+  # largest cell) scales those same matrices ~4x by n; small_n and any other
+  # stratum get a smaller, cheaper default.
+  STRATA_LIST=$(Rscript -e "
+    suppressPackageStartupMessages(library(surrogateTransportability))
+    source('${STUDY_DIR}/R/dgp.R'); source('${STUDY_DIR}/config/grid.R')
+    cat(unique(stratum_of(GRID)), sep=' ')") \
+    || preflight_fail "could not enumerate strata from config/grid.R"
+  for s in ${STRATA_LIST}; do
     [[ -n "${ONLY_STRATUM}" && "${s}" != "${ONLY_STRATUM}" ]] && continue
     rows=$(Rscript "${SLURM_DIR}/smoke_rows.R" "${STUDY_DIR}" "${s}") \
       || preflight_fail "could not compute smoke probe rows for stratum ${s}"
     n=$(awk -F, '{print NF}' <<< "${rows}")
     PS_NAME+=("${s}"); PS_UNITS+=("${n}"); PS_RPJ+=(1); PS_TASKS+=("${n}")
     PS_ROWS+=("${rows}")
-    if [[ "${s}" == "large_n" ]]; then
-      PS_TIME+=("0-02:00:00"); PS_MEM+=(8)
-    else
-      PS_TIME+=("0-00:45:00"); PS_MEM+=(4)
-    fi
+    case "${s}" in
+      large_n)  PS_TIME+=("0-02:00:00"); PS_MEM+=(8) ;;
+      xlarge_n) PS_TIME+=("0-06:00:00"); PS_MEM+=(16) ;;
+      *)        PS_TIME+=("0-00:45:00"); PS_MEM+=(4) ;;
+    esac
     echo "Smoke probe stratum ${s}: ${n} unit(s), rows ${rows}"
   done
+  (( ${#PS_NAME[@]} > 0 )) || preflight_fail "no strata matched (check --stratum against config/grid.R's stratum_of())"
 else
   [[ -f "${SIZING_TSV}" ]] || preflight_fail "${SIZING_TSV} not found. Size from a REAL O2 smoke run first:
     bash slurm/submit.sh --smoke

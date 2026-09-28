@@ -47,18 +47,22 @@ t <- t[order(t$unit), , drop = FALSE]
 if (!nrow(t)) stop(sprintf("stratum '%s' has no units", stratum))
 t$row <- seq_len(nrow(t))
 
-# One probe per (dgp, method) cell present in this stratum, at rep 1. Every dgp in
-# the stratum is included rather than a subset: there are only 4 large_n dgps and
-# 2 small_n dgps, so full coverage of the cost axes costs 8 and 4 units.
-cells <- unique(t[, c("dgp", "method")])
-cells <- cells[order(cells$dgp, cells$method), , drop = FALSE]
+# One probe per (dgp, method, n) cell present in this stratum, at rep 1. `n` is
+# part of the cell key -- not just (dgp, method) -- because since the ngrid
+# block was added, a single stratum can span multiple n (small_n now covers
+# n in {250, 500, 2000}): sizing reps_per_job from an n=250-only sample would
+# silently under-cost the n=2000 units sharing that stratum's array. Every dgp
+# and every n within the stratum is included rather than a subset.
+cells <- unique(t[, c("dgp", "method", "n")])
+cells <- cells[order(cells$dgp, cells$method, cells$n), , drop = FALSE]
 
 idx <- integer(0)
 for (i in seq_len(nrow(cells))) {
-  hit <- t$row[t$dgp == cells$dgp[i] & t$method == cells$method[i] & t$rep_id == 1L]
+  hit <- t$row[t$dgp == cells$dgp[i] & t$method == cells$method[i] &
+                 t$n == cells$n[i] & t$rep_id == 1L]
   if (!length(hit)) {
-    stop(sprintf("no rep-1 row for dgp %s method %s in stratum %s",
-                 cells$dgp[i], cells$method[i], stratum))
+    stop(sprintf("no rep-1 row for dgp %s method %s n %s in stratum %s",
+                 cells$dgp[i], cells$method[i], cells$n[i], stratum))
   }
   idx <- c(idx, hit[1])
 }

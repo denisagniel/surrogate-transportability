@@ -120,8 +120,9 @@ slice_stratum <- function(stratum, reps_per_job, task_base) {
 }
 
 rpj_grid <- list(
-  large_n = c(1L, 3L, 7L, 16L, 20L, 33L, 64L, 213L, 640L),
-  small_n = c(1L, 3L, 7L, 16L, 31L, 120L, 160L, 480L)
+  large_n  = c(1L, 3L, 7L, 16L, 20L, 33L, 64L, 213L, 640L),
+  small_n  = c(1L, 3L, 7L, 16L, 31L, 120L, 160L, 480L),
+  xlarge_n = c(1L, 3L, 7L, 16L, 31L, 120L, 160L, 480L)
 )
 for (s in strata) {
   want <- sort(ut$unit[ut$stratum == s])
@@ -138,32 +139,44 @@ for (s in strata) {
 }
 cat("PASS: every stratum is covered exactly once, at every units/task tried.\n")
 
-# (5) GLOBAL task ids must be unique ACROSS the two strata's separate arrays,
-#     because both write task_NNNNNN.rds into ONE shared scratch dir. A collision
-#     would silently overwrite one stratum's results with the other's.
+# (5) GLOBAL task ids must be unique ACROSS every stratum's separate array,
+#     because all of them write task_NNNNNN.rds into ONE shared scratch dir. A
+#     collision would silently overwrite one stratum's results with another's.
+#     Generalized over `strata` (not hardcoded to two names) so a future
+#     stratum_of() change is exercised here automatically.
 cat("\n=== cross-stratum global task-id uniqueness ===\n")
-for (rpj_l in c(1L, 20L, 64L)) for (rpj_s in c(1L, 31L, 160L)) {
+xstrata_cand <- lapply(strata, function(s) {
+  want_n <- sum(ut$stratum == s)
+  cand <- if (!is.null(rpj_grid[[s]])) rpj_grid[[s]] else c(1L, 7L, want_n)
+  cand <- unique(cand[cand >= 1L & cand <= want_n])
+  if (length(cand) > 3L) cand <- unique(c(cand[1L], cand[ceiling(length(cand) / 2L)], cand[length(cand)]))
+  cand
+})
+names(xstrata_cand) <- strata
+combos <- expand.grid(xstrata_cand, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
+for (ci in seq_len(nrow(combos))) {
   base <- 0L
   all_units <- integer(0); all_tasks <- integer(0); plan <- character(0)
   for (s in strata) {
-    rpj <- if (s == "large_n") rpj_l else rpj_s
+    rpj <- combos[[s]][ci]
     r <- slice_stratum(s, rpj, task_base = base)
     all_units <- c(all_units, r$units)
     all_tasks <- c(all_tasks, r$task_ids)
-    plan <- c(plan, sprintf("%s:%d tasks(base %d)", s, r$n_tasks, base))
+    plan <- c(plan, sprintf("%s:rpj=%d,%dtasks(base %d)", s, rpj, r$n_tasks, base))
     base <- base + r$n_tasks
   }
   # Each global task id maps to exactly one stratum's block...
   tasks_unique <- length(unique(all_tasks)) == length(unique(paste(all_tasks)))
   per_task_strata <- tapply(all_units, all_tasks, function(u) length(unique(ut$stratum[ut$unit %in% u])))
   stopifnot(all(per_task_strata == 1L))
-  # ...and the union over all tasks is the full 1120-unit set, exactly once.
+  # ...and the union over all tasks is the full unit set, exactly once.
   stopifnot(identical(sort(all_units), ut$unit))
   stopifnot(!any(duplicated(all_units)))
-  stopifnot(identical(base, sum(vapply(strata, function(s)
-    as.integer(ceiling(sum(ut$stratum == s) / (if (s == "large_n") rpj_l else rpj_s))), integer(1)))))
-  cat(sprintf("  large_n rpj %3d, small_n rpj %3d -> %2d tasks total [%s] | full coverage TRUE | no task spans 2 strata\n",
-              rpj_l, rpj_s, base, paste(plan, collapse = ", ")))
+  expected_base <- sum(vapply(strata, function(s)
+    as.integer(ceiling(sum(ut$stratum == s) / combos[[s]][ci])), integer(1)))
+  stopifnot(identical(base, expected_base))
+  cat(sprintf("  %s -> %2d tasks total | full coverage TRUE | no task spans >1 stratum\n",
+              paste(plan, collapse = ", "), base))
   stopifnot(tasks_unique)
 }
 cat("PASS: global task ids are contiguous, unique across strata, and each covers one stratum.\n")
@@ -182,9 +195,11 @@ for (s in strata) {
   cat(sprintf("stratum %s: %d probe rows\n", s, nrow(p)))
   print(p, row.names = FALSE)
   # Both methods must be present, or the IW-vs-AIPW timing question cannot be
-  # answered from the probe; and every dgp in the stratum must appear.
+  # answered from the probe; every dgp AND every n in the stratum must appear
+  # too, since a stratum can now span multiple n (small_n covers 250/500/2000).
   stopifnot(setequal(unique(p$method), c("importance_weighting", "aipw")))
   stopifnot(setequal(unique(p$dgp), unique(target$dgp)))
+  stopifnot(setequal(unique(p$n), unique(target$n)))
   stopifnot(all(p$rep_id == 1L))
   stopifnot(!anyDuplicated(p$unit))
 }
