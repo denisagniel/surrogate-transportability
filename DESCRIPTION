@@ -1,7 +1,7 @@
 Package: surrogateTransportability
 Type: Package
 Title: Evaluating Surrogate Transportability via Local Geometric Analysis
-Version: 0.4.0
+Version: 0.4.1
 Authors@R: person("Denis", "Agniel", email = "dagniel@rand.org", role = c("aut", "cre"))
 Description: Evaluates surrogate marker transportability from a single study by
     modeling hypothetical future studies as random probability measures within a

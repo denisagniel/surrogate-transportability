@@ -9,8 +9,14 @@
 #' @param M_start Initial number of future studies (default: 300)
 #' @param M_increment How much to increase M each iteration (default: 300)
 #' @param M_max Maximum M to try (default: 5000)
-#' @param tolerance Convergence tolerance (default: 0.01)
-#' @param n_stable Number of consecutive stable iterations required (default: 3)
+#' @param mc_tolerance Monte Carlo precision target for the stopping rule
+#'   (default: 0.02). The loop stops once the plug-in Monte Carlo standard error
+#'   of the across-study correlation, `se_mc = (1 - rho^2) / sqrt(M)`, falls
+#'   below this value.
+#' @param tolerance **Deprecated / unused.** Retained only for backward-compatible
+#'   call signatures (see Details).
+#' @param n_stable **Deprecated / unused.** Retained only for backward-compatible
+#'   call signatures (see Details).
 #' @param burn_in MCMC burn-in
 #' @param thin MCMC thinning
 #' @param alpha Significance level
@@ -36,7 +42,9 @@
 #' @param method_mu Method for outcome regression in cross-fitting mode (if e_hat is NULL)
 #' @param n_folds Number of cross-fitting folds (default: 5)
 #'
-#' @return List with rho_hat, se, ci_lower, ci_upper, IF_vals, and convergence info.
+#' @return List with rho_hat, se, ci_lower, ci_upper, IF_vals, se_mc, and
+#'   convergence info. `se_mc` is the plug-in Monte Carlo standard error at the
+#'   final M and is always returned (converged or not).
 #'   If jackknife = TRUE, also returns rho_jk, jk_bias, ci_lower_jk, ci_upper_jk.
 #'   If debiased = TRUE, also returns rho_os, os_bias_correction.
 #'   The se and CI fields always target the conditional estimand Theta(mu_hat_M).
@@ -45,15 +53,29 @@
 #' The algorithm:
 #' 1. Start with M = M_start
 #' 2. Compute ρ̂(M)
-#' 3. Increase M by M_increment
-#' 4. Compute ρ̂(M + M_increment)
-#' 5. Check convergence: ALL of the following must hold:
-#'    - Each consecutive change |rho_t - rho_(t-1)| < tolerance
-#'    - Overall change |rho_t - rho_(t-n_stable)| < tolerance
-#'    - This must hold for n_stable consecutive iterations
-#' 6. If converged, stop. Otherwise, repeat from step 3 (up to M_max)
+#' 3. Compute the Monte Carlo standard error se_mc = (1 - ρ̂(M)^2) / sqrt(M)
+#' 4. If se_mc < mc_tolerance, stop; otherwise increase M by M_increment and
+#'    repeat from step 2 (up to M_max)
 #'
-#' This prevents both premature convergence and consistent drift.
+#' **Why a Monte Carlo precision rule.** The Q draws are nested: `Q_samples_all`
+#' is pre-sampled once at `M_max` and ρ̂ is recomputed on the growing cumulative
+#' subset. For a correlation over M draws the sampling sd is
+#' `(1 - rho^2) / sqrt(M)`, so the *magnitude* of successive differences in ρ̂ is
+#' itself a function of |rho|. The former rule — a sliding window of `n_stable + 1`
+#' raw ρ̂ values all changing by less than `tolerance` — was therefore confounded
+#' with the estimand: near |rho| = 1 the differences are minuscule and the rule
+#' passed at M_start regardless of precision, while near rho ≈ 0.7 the fixed
+#' 0.01 threshold sits roughly 20x below the actual Monte Carlo error floor and
+#' the rule essentially never passed, even at M = 1500. Empirically, on a
+#' completed 1120-unit simulation run, `se_mc` was at most 18.5% (median 5.3%) of
+#' the influence-function SE for *every* unit — converged or not — i.e. the old
+#' `converged` flag carried no information about Monte Carlo adequacy. Testing
+#' `se_mc` directly makes the flag mean what it claims to mean.
+#'
+#' `tolerance` and `n_stable` are superseded by `mc_tolerance` and are no longer
+#' used by the stopping logic. They remain in the signature (and are echoed back
+#' in the return value) so that existing named calls in the simulation studies
+#' continue to work unchanged.
 #'
 #' @export
 tv_ball_correlation_IF_adaptive <- function(data,
@@ -63,6 +85,7 @@ tv_ball_correlation_IF_adaptive <- function(data,
                                            M_max = 5000,
                                            tolerance = 0.01,
                                            n_stable = 3,
+                                           mc_tolerance = 0.02,
                                            burn_in = 500,
                                            thin = 5,
                                            alpha = 0.05,
@@ -141,7 +164,7 @@ tv_ball_correlation_IF_adaptive <- function(data,
     message(sprintf("Method: %s", method_name))
     message(sprintf("n = %d, λ = %.3f", n, lambda))
     message(sprintf("M_start = %d, M_increment = %d, M_max = %d", M_start, M_increment, M_max))
-    message(sprintf("Tolerance = %.4f, n_stable = %d\n", tolerance, n_stable))
+    message(sprintf("MC tolerance = %.4f (se_mc = (1 - ρ̂²)/√M)\n", mc_tolerance))
   }
 
   # Get X distribution
@@ -152,6 +175,14 @@ tv_ball_correlation_IF_adaptive <- function(data,
   for (k in seq_len(K)) {
     P0_categorical[k] <- mean(data$X == X_unique[k])
   }
+
+  # Cell index of every observation, computed ONCE. Previously each of the seven
+  # weight constructions below did `which(X_unique == data$X[i])` inside a loop
+  # over i nested inside a loop over m, i.e. O(n * M * K) linear searches where
+  # O(n) suffices. Same idiom as .jackknife_rho_iw() below.
+  k_idx <- match(data$X, X_unique)
+  # p0 of each observation's own cell (used by every importance weight).
+  P0_obs <- P0_categorical[k_idx]
 
   if (verbose) {
     message(sprintf("K = %d categories", K))
@@ -230,11 +261,7 @@ tv_ball_correlation_IF_adaptive <- function(data,
 
       if (method == "bootstrap") {
         # Map Q_m to observation probabilities
-        obs_probs <- numeric(n)
-        for (i in seq_len(n)) {
-          k_i <- which(X_unique == data$X[i])
-          obs_probs[i] <- Q_m[k_i]
-        }
+        obs_probs <- Q_m[k_idx]
 
         # Resample with replacement
         resample_idx <- sample(seq_len(n), size = n, replace = TRUE, prob = obs_probs)
@@ -248,11 +275,7 @@ tv_ball_correlation_IF_adaptive <- function(data,
 
       } else if (method == "importance_weighting") {
         # Compute importance weights
-        w_i <- numeric(n)
-        for (i in seq_len(n)) {
-          k_i <- which(X_unique == data$X[i])
-          w_i[i] <- Q_m[k_i] / P0_categorical[k_i]
-        }
+        w_i <- Q_m[k_idx] / P0_obs
 
         # Weighted group means
         w1 <- w_i * data$A
@@ -278,11 +301,7 @@ tv_ball_correlation_IF_adaptive <- function(data,
         } else {
           # MODE 2: Cross-fit nuisances specific to this Q_m
           # Compute observation weights from Q_m
-          obs_weights <- numeric(n)
-          for (i in seq_len(n)) {
-            k_i <- which(X_unique == data$X[i])
-            obs_weights[i] <- Q_m[k_i]
-          }
+          obs_weights <- Q_m[k_idx]
           obs_weights <- obs_weights / sum(obs_weights)
 
           # Initialize nuisance vectors for this Q_m
@@ -368,11 +387,7 @@ tv_ball_correlation_IF_adaptive <- function(data,
         }
 
         # Compute importance weights
-        w_i <- numeric(n)
-        for (i in seq_len(n)) {
-          k_i <- which(X_unique == data$X[i])
-          w_i[i] <- Q_m[k_i] / P0_categorical[k_i]
-        }
+        w_i <- Q_m[k_idx] / P0_obs
 
         # AIPW estimator: IPW + outcome regression correction
         aipw_S <- w_i * (
@@ -424,49 +439,30 @@ tv_ball_correlation_IF_adaptive <- function(data,
       message(sprintf("  ρ̂ = %.4f", rho_new))
     }
 
-    # Check convergence (requires sliding window of n_stable + 1 values)
-    if (length(rho_history) >= n_stable + 1) {
-      # Get last n_stable + 1 values
-      window <- rho_history[(length(rho_history) - n_stable):length(rho_history)]
+    # Stopping rule: direct Monte Carlo precision test. sd(rho_hat) for a
+    # correlation computed over M draws is (1 - rho^2)/sqrt(M); stop once that
+    # is below mc_tolerance. Unlike the superseded difference-window rule this
+    # is not confounded with |rho| (see @details).
+    se_mc <- (1 - rho_new^2) / sqrt(M_target)
 
-      # Check all consecutive changes in window
-      consecutive_changes <- abs(diff(window))
-      all_small <- all(consecutive_changes < tolerance)
-
-      # Check cumulative change from start to end of window
-      cumulative_change <- abs(window[length(window)] - window[1])
-
+    if (se_mc < mc_tolerance) {
+      converged <- TRUE
       if (verbose) {
-        message(sprintf("  Window changes: [%s]",
-                       paste(sprintf("%.4f", consecutive_changes), collapse = ", ")))
-        message(sprintf("  Cumulative change (t to t+%d): %.4f", n_stable, cumulative_change))
+        message(sprintf("  ✓ Converged! (se_mc = %.5f < mc_tolerance = %.5f)\n",
+                        se_mc, mc_tolerance))
       }
-
-      if (all_small && cumulative_change < tolerance) {
-        converged <- TRUE
-        if (verbose) {
-          message(sprintf("  ✓ Converged! (All changes < %.4f, cumulative < %.4f)\n",
-                         tolerance, tolerance))
-        }
-      }
-    } else {
-      # Not enough history yet
-      if (verbose && length(rho_history) > 1) {
-        change <- abs(rho_history[length(rho_history)] - rho_history[length(rho_history) - 1])
-        message(sprintf("  Change from previous: %.4f (need %d more iterations)",
-                       change, n_stable + 1 - length(rho_history)))
-      }
+    } else if (verbose) {
+      message(sprintf("  se_mc = %.5f (need < %.5f)", se_mc, mc_tolerance))
     }
 
     # Update for next iteration
-    rho_old <- rho_new
     M_current <- M_target
     M_target <- min(M_current + M_increment, M_max)
   }
 
   if (!converged && verbose) {
     message(sprintf("\n⚠ Did not converge within M_max = %d", M_max))
-    message(sprintf("  Final change: %.4f (tolerance: %.4f)", abs(rho_history[length(rho_history)] - rho_history[length(rho_history) - 1]), tolerance))
+    message(sprintf("  Final se_mc: %.5f (mc_tolerance: %.5f)", se_mc, mc_tolerance))
   }
 
   # Use final M
@@ -493,6 +489,7 @@ tv_ball_correlation_IF_adaptive <- function(data,
       ci_lower = NA_real_,
       ci_upper = NA_real_,
       IF_vals = rep(NA_real_, n),
+      se_mc = se_mc,
       M_final = M_final,
       M_history = M_history,
       rho_history = rho_history,
@@ -514,11 +511,7 @@ tv_ball_correlation_IF_adaptive <- function(data,
     Q_m <- Q_samples_final[m, ]
 
     if (method == "bootstrap") {
-      obs_weights <- numeric(n)
-      for (i in seq_len(n)) {
-        k_i <- which(X_unique == data$X[i])
-        obs_weights[i] <- Q_m[k_i]
-      }
+      obs_weights <- Q_m[k_idx]
 
       obs_weights <- obs_weights / sum(obs_weights)
 
@@ -552,11 +545,7 @@ tv_ball_correlation_IF_adaptive <- function(data,
       )
 
     } else if (method == "importance_weighting") {
-      w_i <- numeric(n)
-      for (i in seq_len(n)) {
-        k_i <- which(X_unique == data$X[i])
-        w_i[i] <- Q_m[k_i] / P0_categorical[k_i]
-      }
+      w_i <- Q_m[k_idx] / P0_obs
 
       mean_S1_m <- mean_S1_vec[m]
       mean_S0_m <- mean_S0_vec[m]
@@ -599,11 +588,7 @@ tv_ball_correlation_IF_adaptive <- function(data,
       }
 
       # Compute importance weights for this Q_m
-      w_i <- numeric(n)
-      for (i in seq_len(n)) {
-        k_i <- which(X_unique == data$X[i])
-        w_i[i] <- Q_m[k_i] / P0_categorical[k_i]
-      }
+      w_i <- Q_m[k_idx] / P0_obs
 
       # Clip propensity away from 0/1 before dividing (external-nuisance mode is
       # only validated in (0,1); cross-fit mode already clips upstream).
@@ -704,7 +689,8 @@ tv_ball_correlation_IF_adaptive <- function(data,
       message(sprintf("ρ̂_os = %.4f (one-step correction: %.4f)",
                       os_result$rho_os, os_result$os_bias_correction))
     }
-    message(sprintf("Converged: %s (M = %d)", ifelse(converged, "YES", "NO"), M_final))
+    message(sprintf("Converged: %s (M = %d, se_mc = %.5f)",
+                    ifelse(converged, "YES", "NO"), M_final, se_mc))
   }
 
   out <- list(
@@ -713,14 +699,16 @@ tv_ball_correlation_IF_adaptive <- function(data,
     ci_lower     = ci_lower,
     ci_upper     = ci_upper,
     IF_vals      = psi_Theta,
+    se_mc        = se_mc,
     Delta_S      = Delta_S,
     Delta_Y      = Delta_Y,
     M_final      = M_final,
     M_history    = M_history,
     rho_history  = rho_history,
     converged    = converged,
-    tolerance    = tolerance,
-    n_stable     = n_stable,
+    mc_tolerance = mc_tolerance,
+    tolerance    = tolerance,   # unused by the stopping rule; echoed for compatibility
+    n_stable     = n_stable,    # unused by the stopping rule; echoed for compatibility
     method       = method,
     se_type      = "conditional"  # SE is conditional on μ̂_M (see §4 of derivation)
   )

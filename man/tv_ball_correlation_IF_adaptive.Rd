@@ -12,6 +12,7 @@ tv_ball_correlation_IF_adaptive(
   M_max = 5000,
   tolerance = 0.01,
   n_stable = 3,
+  mc_tolerance = 0.02,
   burn_in = 500,
   thin = 5,
   alpha = 0.05,
@@ -41,9 +42,16 @@ tv_ball_correlation_IF_adaptive(
 
 \item{M_max}{Maximum M to try (default: 5000)}
 
-\item{tolerance}{Convergence tolerance (default: 0.01)}
+\item{tolerance}{**Deprecated / unused.** Retained only for backward-compatible
+call signatures (see Details).}
 
-\item{n_stable}{Number of consecutive stable iterations required (default: 3)}
+\item{n_stable}{**Deprecated / unused.** Retained only for backward-compatible
+call signatures (see Details).}
+
+\item{mc_tolerance}{Monte Carlo precision target for the stopping rule
+(default: 0.02). The loop stops once the plug-in Monte Carlo standard error
+of the across-study correlation, `se_mc = (1 - rho^2) / sqrt(M)`, falls
+below this value.}
 
 \item{burn_in}{MCMC burn-in}
 
@@ -86,7 +94,9 @@ fields: rho_os, os_bias_correction. Default FALSE.}
 \item{n_folds}{Number of cross-fitting folds (default: 5)}
 }
 \value{
-List with rho_hat, se, ci_lower, ci_upper, IF_vals, and convergence info.
+List with rho_hat, se, ci_lower, ci_upper, IF_vals, se_mc, and
+  convergence info. `se_mc` is the plug-in Monte Carlo standard error at the
+  final M and is always returned (converged or not).
   If jackknife = TRUE, also returns rho_jk, jk_bias, ci_lower_jk, ci_upper_jk.
   If debiased = TRUE, also returns rho_os, os_bias_correction.
   The se and CI fields always target the conditional estimand Theta(mu_hat_M).
@@ -100,13 +110,27 @@ correction for the finite-sample attenuation bias of the plug-in estimator.
 The algorithm:
 1. Start with M = M_start
 2. Compute ρ̂(M)
-3. Increase M by M_increment
-4. Compute ρ̂(M + M_increment)
-5. Check convergence: ALL of the following must hold:
-   - Each consecutive change |rho_t - rho_(t-1)| < tolerance
-   - Overall change |rho_t - rho_(t-n_stable)| < tolerance
-   - This must hold for n_stable consecutive iterations
-6. If converged, stop. Otherwise, repeat from step 3 (up to M_max)
+3. Compute the Monte Carlo standard error se_mc = (1 - ρ̂(M)^2) / sqrt(M)
+4. If se_mc < mc_tolerance, stop; otherwise increase M by M_increment and
+   repeat from step 2 (up to M_max)
 
-This prevents both premature convergence and consistent drift.
+**Why a Monte Carlo precision rule.** The Q draws are nested: `Q_samples_all`
+is pre-sampled once at `M_max` and ρ̂ is recomputed on the growing cumulative
+subset. For a correlation over M draws the sampling sd is
+`(1 - rho^2) / sqrt(M)`, so the *magnitude* of successive differences in ρ̂ is
+itself a function of |rho|. The former rule — a sliding window of `n_stable + 1`
+raw ρ̂ values all changing by less than `tolerance` — was therefore confounded
+with the estimand: near |rho| = 1 the differences are minuscule and the rule
+passed at M_start regardless of precision, while near rho ≈ 0.7 the fixed
+0.01 threshold sits roughly 20x below the actual Monte Carlo error floor and
+the rule essentially never passed, even at M = 1500. Empirically, on a
+completed 1120-unit simulation run, `se_mc` was at most 18.5% (median 5.3%) of
+the influence-function SE for *every* unit — converged or not — i.e. the old
+`converged` flag carried no information about Monte Carlo adequacy. Testing
+`se_mc` directly makes the flag mean what it claims to mean.
+
+`tolerance` and `n_stable` are superseded by `mc_tolerance` and are no longer
+used by the stopping logic. They remain in the signature (and are echoed back
+in the return value) so that existing named calls in the simulation studies
+continue to work unchanged.
 }
