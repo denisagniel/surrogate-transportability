@@ -13,13 +13,26 @@
 #               essentially unchanged, Phase 0).
 #
 # The jackknife is VECTORIZED: build the M x n importance-weight matrix ONCE from
-# the fixed pre-sampled Q draws, then each delete-block rho is a Hajek weighted
-# correlation over a column subset -- no MCMC, no refit. Uses the SAME Q draws as
-# the raw estimator (re-derived from its seed) so raw and jackknife are coherent.
+# its OWN fixed pre-sampled Q draws (a separate, deterministic-per-unit draw from
+# the raw estimator's -- see .jackknife_rho below), then each delete-block rho is
+# a Hajek weighted correlation over a column subset -- no MCMC, no refit.
+# Measured 2026-09-28 on 6 canonical/n=2000 units: the gap between the raw
+# estimator's rho_hat and the jackknife's own rho_full is 0.01-0.09x the raw
+# estimator's IF SE -- negligible relative to statistical uncertainty, so the
+# two independent M-draw samples are practically interchangeable for this
+# correction even though they are not literally the same draws.
 # =============================================================================
 
 .EST_SETTINGS <- list(
-  M_start = 300L, M_increment = 300L, M_max = 5000L,
+  # M_max lowered 5000 -> 1500 2026-09-28 (Oracle-flagged latent OOM risk: the
+  # jackknife's M x n weight matrix W is sized to M_final, and at n=40000 with
+  # M=5000 that is ~1.6 GB just for W, before the ~5 similarly-sized matrices
+  # tv_ball_correlation_IF_adaptive() itself allocates at M_max -- see
+  # confounded-aipw's MANIFEST.md for the same fix applied and validated: at
+  # this study's least favorable observed rho, required M for the v0.4.1
+  # MC-precision stopping rule's default tolerance is ~676, comfortably under
+  # 1500 even at n=40000, since se_mc depends on rho and M, not on n).
+  M_start = 300L, M_increment = 300L, M_max = 1500L,
   tolerance = 0.01, n_stable = 3L, burn_in = 500L, thin = 5L, alpha = 0.05
 )
 
@@ -46,9 +59,11 @@ estimate <- function(data, config) {
     thin = s$thin, alpha = s$alpha, verbose = FALSE
   )
 
-  # Jackknife bias correction, conditioned on M_final Q-draws. Re-sample the same
-  # Q's the estimator used (its RNG is set inside; we reproduce with a fixed seed
-  # tied to the unit so raw and jackknife share draws). Then delete-block.
+  # Jackknife bias correction, using the same M as the raw estimator converged
+  # to but its OWN independently-seeded Q draws (deterministic per unit via
+  # `seed_offset + config$seed %% 1e6`, NOT literally the raw estimator's
+  # internal draws -- see the file header's 2026-09-28 measurement note on why
+  # this is fine in practice). Then delete-block.
   jk <- .jackknife_rho(data, config, M = res$M_final,
                        burn_in = s$burn_in, thin = s$thin, G = .JK_GROUPS)
 
