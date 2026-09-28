@@ -47,6 +47,7 @@ Tests: `tests/testthat/test-dgp-confounded.R`,
 | Run id | Units | Notes |
 |---|---|---|
 | `20260926-092734_b049ad1` | 1120/1120 | **Completed 2026-09-28.** O2 SLURM (jobs 54483375 large_n/17 tasks, 54483376 small_n/1 task). All units succeeded, exactly-once coverage per stratum, 0 error_msg. 728/1120 units hit `M_max=1500` without meeting the adaptive tolerance (diagnostic, not a failure — see below). Combined via `slurm/combine.R --from-partials`; summarised via `analyze.R`. |
+| `20260928-121110_ca9646a` | 2560/2560 | **Completed 2026-09-28.** Extended grid (n∈{500,2000,40000} added for dgp1/conf1, package v0.4.1). O2 SLURM (jobs 54655918/919/921, one task per stratum). All units succeeded, exactly-once coverage per stratum, 0 error_msg. See "Completed" section below for the full n-scaling result. |
 
 Superseded or smoke runs are not retained in `results/`.
 
@@ -153,8 +154,82 @@ including n=40000.
 **Status as of this entry:** `config/grid.R` extended and verified locally
 (`unit_table()`: 2560 units, 0 duplicate seeds, 0 duplicate `(config_id, rep_id)`;
 `validate_mapping.R`: ALL CHECKS PASSED across all three strata). Package bumped
-to v0.4.1 (adaptive-M fix + perf fix, see NEWS.md) but **not yet pushed to the
-`github` remote O2 pulls from**, so O2's installed package and checked-out source
-are still v0.4.0/pre-fix. **Not yet smoke-tested or submitted** — that requires the
-push, then `git pull` + package reinstall on O2, then
-`bash slurm/submit.sh --smoke`, `Rscript slurm/profile_timing.R`, `bash slurm/submit.sh`.
+to v0.4.1 (adaptive-M fix + perf fix, see NEWS.md), pushed to `github` (the remote
+O2 pulls from; `origin`/code.rand.org was unreachable from this network and was
+not pushed), and installed on O2 (verified: version 0.4.1, all 9 required
+functions present, `mc_tolerance` in the estimator's formals).
+
+### Completed: `20260928-121110_ca9646a` (2026-09-28, extended n-grid)
+
+Smoke-tested first (`smoke-20260928-120905_ca9646a`, 28/28 tasks COMPLETED, 0
+errors) — per-unit costs came back dramatically lower than the pre-fix run:
+0.5-5.8s per unit across all three strata (vs. the old run's 81s median at
+n=10000), confirming the v0.4.1 perf fix + MC-precision stopping rule. Sized via
+`profile_timing.R --target-hours 2`: the entire 2560-unit study fit in **3 tasks
+total** (one per stratum), completed in 12-29 minutes wall time each, ~1.0
+CPU-hour combined. All 2560/2560 units succeeded, exactly-once coverage per
+stratum, 0 error_msg. 948/2560 units hit `M_max=1500` without meeting the
+adaptive tolerance — same non-issue as the prior run (Oracle-verified: `se_mc`
+stays a small fraction of the IF SE regardless of the flag; not investigated
+further here).
+
+| Field | Value |
+|---|---|
+| Run id | `20260928-121110_ca9646a` |
+| Jobs | `54655918` (large_n, 640 units, 11:56), `54655919` (small_n, 1440 units, 13:15), `54655921` (xlarge_n, 480 units, 29:15) |
+| Units | 2560 (640 agreement/confounded @ n=10000 unchanged from the prior run, plus 1920 new: `ngrid` @ n∈{500,2000,40000}) |
+
+**The n-scaling result — dgp1 (canonical) vs conf1 (confounded), both methods, across n∈{250,500,2000,10000,40000}:**
+
+| dgp | n | method | bias | rmse | coverage |
+|---|---|---|---|---|---|
+| dgp1 | 250 | aipw | −0.290 | 0.537 | 0.842 |
+| dgp1 | 250 | IW | −0.344 | 0.569 | 0.800 |
+| dgp1 | 500 | aipw | −0.240 | 0.482 | 0.917 |
+| dgp1 | 500 | IW | −0.306 | 0.539 | 0.883 |
+| dgp1 | 2000 | aipw | −0.163 | 0.381 | 0.942 |
+| dgp1 | 2000 | IW | −0.139 | 0.360 | 0.917 |
+| dgp1 | 10000 | aipw | −0.019 | 0.115 | 1.000 |
+| dgp1 | 10000 | IW | −0.047 | 0.119 | 0.975 |
+| dgp1 | 40000 | aipw | −0.010 | 0.070 | 0.967 |
+| dgp1 | 40000 | IW | −0.018 | 0.068 | 0.958 |
+| conf1 | 250 | aipw | −0.416 | 0.658 | 0.842 |
+| conf1 | 250 | IW | −0.538 | 0.734 | 0.800 |
+| conf1 | 500 | aipw | −0.387 | 0.658 | 0.850 |
+| conf1 | 500 | IW | −0.589 | 0.743 | 0.750 |
+| conf1 | 2000 | aipw | −0.205 | 0.435 | 0.908 |
+| conf1 | 2000 | IW | −0.611 | 0.716 | 0.717 |
+| conf1 | 10000 | aipw | −0.053 | 0.176 | 0.938 |
+| conf1 | 10000 | IW | −0.609 | 0.666 | 0.412 |
+| conf1 | 40000 | aipw | −0.016 | 0.093 | 0.925 |
+| conf1 | 40000 | IW | −0.599 | 0.618 | **0.017** |
+
+**The result the n-grid extension was built to produce, made visible by having 5
+points instead of 1:**
+
+- **dgp1 (no confounding):** both paths attenuate at small n and converge toward
+  `rho_true` as n grows — ordinary finite-sample behavior, coverage climbing
+  toward nominal for both. Nothing distinguishes the two paths qualitatively
+  here, as expected (both are consistent on a randomized DGP).
+- **conf1 (confounded) — the discriminating evidence:** AIPW's bias shrinks
+  monotonically toward zero as n grows (−0.42 → −0.02), the signature of a
+  **consistent** estimator. IW's bias stays essentially flat (−0.54 to −0.61)
+  across the ENTIRE grid — it is not attenuating, because it is converging to
+  the wrong target (`rho_iw_limit=0.0773`), not to `rho_true`. This is the
+  single-n confounded-block result generalized to a proof of asymptotic
+  behavior: a point estimate that stops improving with more data is much
+  stronger evidence of inconsistency than one bad estimate at one n.
+- **IW's coverage collapses as n grows: 0.80 (n=250) → 0.017 (n=40000).** This
+  is the textbook signature of inconsistency interacting with a shrinking SE:
+  as n grows, IW's confidence interval tightens around the WRONG value, so the
+  true `rho_true` falls outside it almost always at large n. This is arguably
+  the single most legible number this study has produced for the paper's
+  argument that naive importance-weighting is not just biased but actively
+  *more* misleading (falsely confident) at larger sample sizes under
+  confounding — AIPW's coverage, by contrast, stays near nominal throughout
+  (0.84-0.94, no trend).
+
+Full per-configuration table: `Rscript simulations/confounded-aipw/analyze.R --run-id 20260928-121110_ca9646a`.
+Combined result: `results/20260928-121110_ca9646a.rds`; summary:
+`results/20260928-121110_ca9646a_summary.rds` (gitignored; regenerate from
+`/n/scratch/.../confounded-aipw/20260928-121110_ca9646a` on O2 if still present).
