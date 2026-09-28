@@ -37,8 +37,10 @@ source(file.path(study_dir, "R", "dgp.R"))
 source(file.path(study_dir, "config", "grid.R"))
 
 cat("=== grid shape ===\n")
-cat(sprintf("configs %d | block sizes: %s\n", nrow(GRID),
-            paste(sprintf("%s=%d", names(table(GRID$block)), table(GRID$block)), collapse = " ")))
+cat(sprintf("configs %d\n", nrow(GRID)))
+if ("dgp_kind" %in% names(GRID)) {
+  cat("dgp_kind:", paste(sprintf("%s=%d", names(table(GRID$dgp_kind)), table(GRID$dgp_kind)), collapse = " "), "\n")
+}
 cat(sprintf("TOTAL_REPS %d | n_units() %d\n", TOTAL_REPS, n_units()))
 
 ut <- unit_table()
@@ -85,23 +87,30 @@ cat(sprintf("PASS: rho_true present (non-NA) for all %d units across %d configs.
 # (3) THE MAPPING. Reimplement run_replication.R's single-global-array slice for
 #     a range of reps_per_job, including the degenerate ends (1 unit/task, and
 #     one task for the whole grid) and values that do not divide the unit count.
+#     Pre-allocates rather than growing a vector with c() inside the loop --
+#     at reps_per_job=1 this is nrow(ut) tasks, and repeated c() growth there is
+#     O(n^2), not O(n) (measured: this alone made an early version of this
+#     script visibly hang on the real 49500-unit grid).
 cat("\n=== task -> unit mapping (single global array, no stratification) ===\n")
 slice_all <- function(reps_per_job) {
   n_tasks <- as.integer(ceiling(nrow(ut) / reps_per_job))
-  out <- list(units = integer(0), task_ids = integer(0))
+  units    <- integer(nrow(ut))
+  task_ids <- integer(nrow(ut))
+  pos <- 0L
   for (task_id in seq_len(n_tasks)) {
     start <- (task_id - 1L) * reps_per_job + 1L
     end   <- min(task_id * reps_per_job, nrow(ut))
     if (start > nrow(ut)) next
-    out$units <- c(out$units, ut$unit[start:end])
-    out$task_ids <- c(out$task_ids, rep(task_id, end - start + 1L))
+    len <- end - start + 1L
+    units[(pos + 1L):(pos + len)] <- ut$unit[start:end]
+    task_ids[(pos + 1L):(pos + len)] <- task_id
+    pos <- pos + len
   }
-  out$n_tasks <- n_tasks
-  out
+  list(units = units[seq_len(pos)], task_ids = task_ids[seq_len(pos)], n_tasks = n_tasks)
 }
 
-cand <- unique(c(1L, 24L, 103L, 500L, 1000L,
-                 as.integer(ceiling(nrow(ut) / c(2, 5, 10, 51, 103))), nrow(ut)))
+cand <- unique(c(1L, 24L, 99L, 500L, 1000L,
+                 as.integer(ceiling(nrow(ut) / c(2, 5, 10, 51, 99))), nrow(ut)))
 cand <- sort(cand[cand >= 1L & cand <= nrow(ut)])
 for (rpj in cand) {
   r <- slice_all(rpj)
