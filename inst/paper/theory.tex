@@ -958,6 +958,193 @@ this reference-measure convention, held fixed across $d$, is what makes the
 comparison below a theorem about $(d,\mu)$ pairs rather than an artifact of also
 changing what ``uniform'' means.
 
+\subsection{A general weighted geometry}
+
+Notation: write $W:=\mathrm{diag}(w_1,\dots,w_K)$ for weights $0<w_k<\infty$,
+$k=1,\dots,K$, and $Z_W:=\mathbf1^\top W^{-1}\mathbf1=\sum_kw_k^{-1}$. Let
+$P_W(k):=w_k^{-1}/Z_W$ denote the probability vector on $\{1,\dots,K\}$ induced by the
+inverse weights; $P_W$ has full support whenever every $w_k<\infty$. The $\chi^2$
+geometry of \eqref{eq:chisq-def} is the case $W=D^{-1}$, for which $P_W=\PP_0$ exactly
+(Proposition~\ref{prop:interior-chisq} below); the case $W=I_K$ is the ordinary
+Euclidean ($L^2$) geometry, for which $P_W$ is uniform on $\{1,\dots,K\}$
+(Corollary~\ref{cor:interior-l2} below). Both turn out to be instances of one closed
+form.
+
+\begin{definition}[$W$-quadratic interior regime]\label{def:interior-W}
+Let $W=\mathrm{diag}(w_1,\dots,w_K)$, $0<w_k<\infty$, and write
+$d_W(\Q,\PP_0)^2:=(\Q-\PP_0)^\top W(\Q-\PP_0)$ for the associated distance, so that
+$\lambda$ below is on the same squared-radius scale as \eqref{eq:chisq-def}'s $\lambda$
+($d_W$, not $d_W^2$, is the norm of $\Q-\PP_0$). The $W$-ball $U(\PP_0,\lambda;d_W)$ is
+in the \emph{interior regime} if the nonnegativity constraint does not bind:
+$\{V\in H:V^\top WV\le\lambda\}\subseteq\{V:\PP_0+V\ge0\}$, paralleling
+Definition~\ref{def:interior} for TV. As throughout, $\mu_\lambda$ is uniform w.r.t.\
+Lebesgue measure on $H$, restricted to $U(\PP_0,\lambda;d_W)$.
+\end{definition}
+
+\begin{proposition}[$W$-ball interior-regime closed form]\label{prop:interior-W}
+Assume $\PP_0$ has full support and $\Var_{\PP_0}(\tau_S),\Var_{\PP_0}(\tau_Y)>0$
+(Assumption~\ref{ass:nondegeneracy}). For any $\lambda>0$ in the interior regime of
+Definition~\ref{def:interior-W},
+\begin{equation}\label{eq:interior-W}
+    \Sigma=\Cov_{\mu_\lambda}(V)
+    = \frac\lambda{K+1}\Big(W^{-1}-\frac{W^{-1}\mathbf1\mathbf1^\top W^{-1}}{\mathbf1^\top W^{-1}\mathbf1}\Big)
+    = \frac{\lambda Z_W}{K+1}\big(\mathrm{diag}(P_W)-P_WP_W^\top\big),
+\end{equation}
+hence $\Theta_{ab}=\frac{\lambda Z_W}{K+1}\Cov_{P_W}(\tau_a,\tau_b)$ and
+\begin{equation}\label{eq:interior-W-theta}
+    \Theta(\PP_0,\lambda) = \Corr_{P_W}(\tau_S,\tau_Y)
+    := \frac{\Cov_{P_W}(\tau_S,\tau_Y)}{\sqrt{\Var_{P_W}(\tau_S)\Var_{P_W}(\tau_Y)}}.
+\end{equation}
+In particular $\Theta(\PP_0,\lambda)$ does not depend on $\lambda$, does not depend on
+the overall scale of $W$, and depends on $\PP_0$ only through which cells have
+$p_0(k)>0$ (not on $\PP_0$'s composition): $P_W$ alone determines
+\eqref{eq:interior-W-theta}.
+\end{proposition}
+
+\begin{proof}
+\emph{Proof strategy:} whiten by $W^{1/2}$, use the resulting body's invariance under
+rotations fixing the whitened constraint vector to pin down $\Cov(G)$ up to a scalar,
+then un-whiten and form the scale-free ratio $\Theta_{SY}/\sqrt{\Theta_{SS}\Theta_{YY}}$.
+Substitute $G=W^{1/2}V$ ($W\succ0$ by assumption). This is a linear bijection between
+the $(K-1)$-dimensional subspaces $H$ and $H':=\{G:\langle u,G\rangle=0\}$,
+$u:=W^{-1/2}\mathbf1/\sqrt{Z_W}$ (using $\mathbf1^\top V=\mathbf1^\top
+W^{-1/2}G=\sqrt{Z_W}\langle u,G\rangle$), with $\|u\|=1$ by construction. Being linear
+and bijective, it scales $(K-1)$-dimensional Hausdorff measure by a constant Jacobian
+factor (computed in orthonormal bases of $H,H'$), hence carries the uniform law on any
+body in $H$ to the uniform law on its image in $H'$. The constraint becomes
+$V^\top WV=\|G\|_2^2\le\lambda$: in the interior regime the feasible body for $G$ is
+exactly the Euclidean ball $\{G\in H':\|G\|_2\le\sqrt\lambda\}$, invariant under the
+stabilizer of $u$ in $O(K)$, which acts on $H'$ as the full orthogonal group $O(K-1)$.
+By this invariance, $\Cov(G)=c(I_K-uu^\top)$ for a scalar $c$; the standard fact that
+uniform measure on a $d$-dimensional ball of radius $r$ has covariance
+$\frac{r^2}{d+2}I_d$ (here $d=K-1$, $r=\sqrt\lambda$) gives $c=\lambda/(K+1)$.
+Un-whitening with $W^{-1/2}u=W^{-1}\mathbf1/\sqrt{Z_W}$,
+\[
+    \Sigma=\Cov(V)=W^{-1/2}\Cov(G)W^{-1/2}
+    =\frac\lambda{K+1}\Big(W^{-1}-(W^{-1/2}u)(W^{-1/2}u)^\top\Big)
+    =\frac\lambda{K+1}\Big(W^{-1}-\frac{W^{-1}\mathbf1\mathbf1^\top W^{-1}}{Z_W}\Big),
+\]
+which is \eqref{eq:interior-W}'s first form; since $W^{-1}=Z_W\,\mathrm{diag}(P_W)$ and
+$W^{-1}\mathbf1=Z_WP_W$, this equals $\frac{\lambda Z_W}{K+1}(\mathrm{diag}(P_W)-P_WP_W^\top)$,
+i.e.\ $\lambda Z_W/(K+1)$ times the covariance matrix of one multinomial trial with cell
+probabilities $P_W$ (a consistency check: $\Sigma\mathbf1=0$, required since
+$\mathbf1^\top V=0$ almost surely, and $\Sigma\succeq0$ with rank $K-1$). Substituting
+into $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ gives
+$\Theta_{ab}=\frac{\lambda Z_W}{K+1}\Cov_{P_W}(\tau_a,\tau_b)$; forming the ratio
+$\Theta_{SY}/\sqrt{\Theta_{SS}\Theta_{YY}}$ cancels $\lambda Z_W/(K+1)$ exactly, giving
+\eqref{eq:interior-W-theta} --- the same degree-zero-homogeneity cancellation as
+Proposition~\ref{prop:interior}'s $a(\lambda)$. Nondegeneracy transfers from $\PP_0$ to
+$P_W$: both have full support ($p_0(k)>0$ for all $k$ by assumption, and $w_k<\infty$
+makes $P_W(k)=w_k^{-1}/Z_W>0$), so $\Var_{P_W}(\tau_a)>0$ iff $\tau_a$ is non-constant
+across cells iff $\Var_{\PP_0}(\tau_a)>0$; Assumption~\ref{ass:nondegeneracy} needs no
+restatement for $P_W$.
+\end{proof}
+
+\begin{lemma}[Sharp $W$-ball interior threshold]\label{lem:interior-W-threshold}
+Under full support ($p_0(k)>0$ for all $k$) and $0<w_k<\infty$, the interior regime of
+Definition~\ref{def:interior-W} holds iff
+\begin{equation}\label{eq:threshold-W}
+    \lambda\le\lambda^*_W:=\min_kc_W(k),\qquad
+    c_W(k):=p_0(k)^2\Big(w_k+\frac1{Z_W-w_k^{-1}}\Big)
+    =\frac{p_0(k)^2}{Z_W\,P_W(k)(1-P_W(k))},
+\end{equation}
+and the threshold is attained, not merely sufficient. The minimizing cell
+$k^*_W\in\arg\min_kc_W(k)$ need not equal $\arg\min_kp_0(k)$ for general $W$
+(Remark~\ref{rem:w-threshold-cell}).
+\end{lemma}
+
+\begin{proof}
+\emph{Proof strategy:} for each cell $k$, compute the minimal $W$-cost of driving
+$q_k=p_0(k)+V_k$ to exactly $0$ subject to $\mathbf1^\top V=0$, by Cauchy--Schwarz; the
+threshold is the smallest such cost over $k$. Fix $k$ and $t\le-p_0(k)$, and minimize
+$\sum_{j\ne k}w_jV_j^2$ subject to $V_k=t$, $\sum_{j\ne k}V_j=-t$. By Cauchy--Schwarz,
+\[
+    t^2=\Big(\sum_{j\ne k}\sqrt{w_j}V_j\cdot w_j^{-1/2}\Big)^2
+    \le\Big(\sum_{j\ne k}w_jV_j^2\Big)\Big(\sum_{j\ne k}w_j^{-1}\Big),
+\]
+with equality iff $V_j\propto w_j^{-1}$ for $j\ne k$; hence
+$\min\sum_{j\ne k}w_jV_j^2=t^2/(Z_W-w_k^{-1})$, attained at
+$V_j=-t\,w_j^{-1}/(Z_W-w_k^{-1})$ --- redistribution proportional to the \emph{inverse}
+weights (which reduces to redistribution $\propto p_0(j)$ exactly when $W=D^{-1}$,
+recovering the proof of Lemma~\ref{lem:interior-chisq-threshold}). The total cost
+$w_kt^2+t^2/(Z_W-w_k^{-1})=t^2c_W(k)/p_0(k)^2$ is increasing in $t^2$, so it is
+minimized at $t=-p_0(k)$, giving cost $c_W(k)$. At $\lambda=c_W(k)$ the minimizer $V^*$
+has $q_k=0$ and, for $j\ne k$, $q_j=p_0(j)+V^*_j>p_0(j)>0$ (since $-t=p_0(k)>0$), so
+$V^*$ is feasible and the interior regime still holds at $\lambda=c_W(k)$; for
+$\lambda>c_W(k)$, rescaling $V^*$ by $1+\delta$ with $(1+\delta)^2c_W(k)\le\lambda$
+drives $q_k<0$ within budget $\lambda$. Minimizing $c_W(k)$ over $k$ gives the first
+binding event, $\lambda^*_W$; the second expression for $c_W(k)$ follows from
+$w_k=1/(Z_WP_W(k))$ and $Z_W-w_k^{-1}=Z_W(1-P_W(k))$.
+\end{proof}
+
+\begin{corollary}[$W$-instance of Lemma~\ref{lem:saturation-general}]\label{cor:saturation-W}
+Suppose $p_0(k)>0$ for all $k$ and $w_k<\infty$ for all $k$. The map $V\mapsto V^\top WV$
+is strictly convex (since $W\succ0$), so its maximum over the simplex $\Delta_{K-1}$ is
+attained at a vertex $\delta_k$, where $V=\delta_k-\PP_0$ costs
+$w_k(1-p_0(k))^2+\sum_{j\ne k}w_jp_0(j)^2$. Hence
+\begin{equation}\label{eq:saturation-W}
+    U(\PP_0,\lambda;d_W)=\Delta_{K-1}
+    \iff
+    \lambda\ge\lambda^{\mathrm{sat}}_W:=\|\PP_0\|_W^2+\max_kw_k(1-2p_0(k)),
+    \qquad\|\PP_0\|_W^2:=\sum_jw_jp_0(j)^2,
+\end{equation}
+and by Lemma~\ref{lem:saturation-general}, $\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$
+there. With every $w_k<\infty$, the $W$-ball always saturates at a finite $\lambda$;
+$\chi^2$'s failure to saturate without full support (Corollary~\ref{cor:saturation-chisq}
+below) is exactly the $w_k=\infty$ boundary case of \eqref{eq:saturation-W}. There is no
+general identity linking $\lambda^*_W$ and $\lambda^{\mathrm{sat}}_W$ across geometries:
+TV's $\lambda^*+\lambda_{\mathrm{sat}}=1$ (complementary probabilities) and $\chi^2$'s
+$\lambda^*\cdot\lambda_{\mathrm{sat}}=1$ (reciprocal odds) are geometry-specific
+accidents, not instances of one general fact --- for $L^2$/DGP1, numerically
+$\lambda^*_{L^2}+\lambda^{\mathrm{sat}}_{L^2}=1.193$ and
+$\lambda^*_{L^2}\cdot\lambda^{\mathrm{sat}}_{L^2}=0.0037$, neither equal to $1$.
+\end{corollary}
+
+\begin{remark}[The closed form needs no diagonality]\label{rem:W-general-form}
+Proposition~\ref{prop:interior-W} holds verbatim for any symmetric $W\succ0$ (not only
+diagonal $W$), with
+\[
+    \Theta(\PP_0,\lambda)=\frac{\tau_S^\top M\tau_Y}{\sqrt{(\tau_S^\top M\tau_S)(\tau_Y^\top M\tau_Y)}},
+    \qquad M:=W^{-1}-\frac{W^{-1}\mathbf1\mathbf1^\top W^{-1}}{\mathbf1^\top W^{-1}\mathbf1},
+\]
+a correlation in the $W^{-1}$-inner product after projecting out $W^{-1}\mathbf1$. It is
+a weighted Pearson correlation of the cell CATEs, as in \eqref{eq:interior-W-theta},
+precisely when $W$ is diagonal, because only then is $M$ (up to scale) the covariance
+matrix of a probability measure on $\{1,\dots,K\}$.
+\end{remark}
+
+\begin{remark}[A second route, for constant weights]\label{rem:l2-tv-symmetry}
+When $w_k\equiv w$ (the $L^2$ case of Corollary~\ref{cor:interior-l2} below), the body
+$\{V\in H:V^\top WV\le\lambda\}$ is permutation-invariant, exactly as TV's own
+$\{V\in H:\|V\|_1\le2\lambda\}$ is. So Proposition~\ref{prop:interior}'s own
+commutant/symmetry argument for TV also forces
+$\Sigma=a(\lambda)(I_K-\tfrac1K\mathbf1\mathbf1^\top)$ here, and yields
+$\Corr_K(\tau_S,\tau_Y)$ directly, independently of Proposition~\ref{prop:interior-W}.
+The two routes agree, a consistency check on both.
+\end{remark}
+
+\begin{remark}[The threshold-minimizing cell depends on $W$, not only $\PP_0$]\label{rem:w-threshold-cell}
+By \eqref{eq:threshold-W}, $c_W(k)\propto p_0(k)^2/(P_W(k)(1-P_W(k)))$ trades off
+$\PP_0$'s composition against $W$'s. It reduces to $\arg\min_kp_0(k)$ in both named
+cases below (for $\chi^2$ because $P_W=\PP_0$ makes $c_W$ monotone in $p_0(k)$; for
+$L^2$ because $P_W$ is constant across $k$), but not in general. For a concrete
+counterexample, take $K=3$, $p_0=(0.1,0.2,0.7)$, $w=(10^6,1,1)$: then
+$c_W\approx(10^4,0.08,0.98)$, so $k^*_W=2\ne1=\arg\min_kp_0(k)$.
+Lemma~\ref{lem:interior-chisq-threshold}'s $k^*=\arg\min_kp_0(k)$ is thus a
+\emph{consequence} of $W=D^{-1}$, not a feature of the family.
+\end{remark}
+
+\begin{remark}[Scope: finite $K$ only]\label{rem:w-scope-limit}
+Lemma~\ref{lem:interior-chisq-threshold}'s continuous-$X$ emptiness statement is
+genuinely $\chi^2$-specific in its \emph{formulation}, though not in its conclusion:
+$V^\top D^{-1}V=\|d\Q/d\PP_0-1\|^2_{L^2(\PP_0)}$ is reference-measure-free, whereas
+$V^\top WV$ for a generic diagonal $W$ presupposes a choice of dominating measure on
+$\cX$ (for $L^2$: $\|q-p_0\|^2_{L^2(\mathrm{Leb})}$, not invariant under reparametrizing
+the covariate space). Definition~\ref{def:interior-W}, Proposition~\ref{prop:interior-W},
+and Lemma~\ref{lem:interior-W-threshold} are therefore stated, and should be used, for
+finite $K$ only: no continuous-$X$ analogue is claimed outside $W=D^{-1}$.
+\end{remark}
+
 \subsection{The $\chi^2$-ball interior closed form}
 
 \begin{definition}[$\chi^2$ interior regime]\label{def:interior-chisq}
@@ -982,36 +1169,14 @@ $\Theta(\PP_0,\lambda)$ does not depend on $\lambda$.
 \end{proposition}
 
 \begin{proof}
-Substitute $G=D^{-1/2}V$, i.e.\ $V=D^{1/2}G$ ($D$ is positive definite by the
-standing full-support assumption). Since this is a linear bijection between the
-$(K-1)$-dimensional subspaces $H$ and $H':=\{G:\langle\nu,G\rangle=0\}$,
-$\nu:=D^{1/2}\mathbf1=(\sqrt{p_0(k)})_k$ (using
-$\mathbf1^\top V=\mathbf1^\top D^{1/2}G=\langle\nu,G\rangle$), it scales
-$(K-1)$-dimensional Hausdorff measure by a constant Jacobian factor (computed in
-orthonormal bases of $H$ and $H'$), hence carries the uniform law on any body in
-$H$ to the uniform law on its image in $H'$; $\nu$ is a \emph{unit} vector, since
-$\|\nu\|^2=\sum_kp_0(k)=1$. The quadratic constraint becomes
-$V^\top D^{-1}V=G^\top D^{1/2}D^{-1}D^{1/2}G=\|G\|_2^2\le\lambda$: in the interior
-regime the feasible body for $G$ is exactly the Euclidean ball
-$\{G\in H':\|G\|_2\le\sqrt\lambda\}$, invariant under the stabilizer of $\nu$ in
-$O(K)$, which acts on $H'$ as the full orthogonal group $O(K-1)$. By this
-invariance, $\Cov(G)$ restricted to $H'$ is a scalar multiple of the identity there,
-$\Cov(G)=c(I_K-\nu\nu^\top)$; the standard fact that uniform measure on a
-$d$-dimensional ball of radius $r$ has covariance $\frac{r^2}{d+2}I_d$ (here
-$d=K-1$, $r=\sqrt\lambda$) gives $c=\lambda/(K+1)$, so
-$\Cov(G)=\frac\lambda{K+1}(I_K-\nu\nu^\top)$ as a $K\times K$ matrix. Un-whitening with $D^{1/2}\nu=D\mathbf1=p_0$ (the vector of cell
-probabilities),
-\[
-    \Sigma=\Cov(V)=D^{1/2}\Cov(G)D^{1/2}
-    =\frac\lambda{K+1}\big(D-(D^{1/2}\nu)(D^{1/2}\nu)^\top\big)
-    =\frac\lambda{K+1}\big(D-p_0p_0^\top\big).
-\]
-Substituting into $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$,
-$\Theta_{ab}=\frac\lambda{K+1}\big(\tau_a^\top D\tau_b-(\tau_a^\top p_0)(\tau_b^\top
-p_0)\big)=\frac\lambda{K+1}\Cov_{\PP_0}(\tau_a,\tau_b)$; forming the ratio
-$\Theta_{SY}/\sqrt{\Theta_{SS}\Theta_{YY}}$ cancels $\lambda/(K+1)$ exactly, giving
-\eqref{eq:interior-chisq} --- the same degree-zero-homogeneity cancellation as
-Proposition~\ref{prop:interior}'s $a(\lambda)$.
+This is the $W=D^{-1}$ instance of Proposition~\ref{prop:interior-W}: $D^{-1}\succ0$ by
+the standing full-support assumption, $Z_{D^{-1}}=\mathbf1^\top D\mathbf1=\sum_kp_0(k)=1$,
+and $P_{D^{-1}}(k)=w_k^{-1}/Z_{D^{-1}}=p_0(k)$, i.e.\ $P_{D^{-1}}=\PP_0$ exactly (the
+inverse weights $w_k^{-1}=p_0(k)$ already sum to $1$, so no renormalization changes
+anything). Substituting into \eqref{eq:interior-W-theta} gives
+$\Theta(\PP_0,\lambda)=\Corr_{\PP_0}(\tau_S,\tau_Y)$, \eqref{eq:interior-chisq}; the
+scalar prefactor in \eqref{eq:interior-W} is $\lambda Z_{D^{-1}}/(K+1)=\lambda/(K+1)$,
+matching the direct $\chi^2$ computation this specializes.
 \end{proof}
 
 \begin{lemma}[Sharp $\chi^2$ interior threshold]\label{lem:interior-chisq-threshold}
@@ -1026,17 +1191,17 @@ small-mass event can still be driven arbitrarily close to zero probability at
 arbitrarily small $\chi^2$ cost.
 \end{lemma}
 
-\begin{proof}[Proof sketch]
-For fixed $k$, minimizing $V^\top D^{-1}V=\sum_jV_j^2/p_0(j)$ subject to
-$V_k=-p_0(k)$ and $\sum_jV_j=0$ (i.e.\ $\sum_{j\ne k}V_j=p_0(k)$) is, by Lagrange
-multipliers, solved by $V_j=p_0(j)p_0(k)/(1-p_0(k))$ for $j\ne k$ (proportional
-redistribution minimizes a $D$-weighted sum of squares under a linear constraint),
-giving minimum cost $\sum_{j\ne k}V_j^2/p_0(j)+V_k^2/p_0(k)=p_0(k)^2/(1-p_0(k))+p_0(k)
-=p_0(k)/(1-p_0(k))$: cell $k$'s odds. Since $x\mapsto x/(1-x)$ is increasing on
-$[0,1)$, the overall threshold --- the smallest cost at which \emph{any} cell's
-constraint first binds --- is $\min_kp_0(k)/(1-p_0(k))=p_{\min}/(1-p_{\min})$, and
-this is exactly attained (not merely a bound), by the same argument
-Lemma~\ref{lem:interior-atomic} uses for TV. For the continuous-$X$ failure, mirror
+\begin{proof}
+The finite-$K$ threshold is the $W=D^{-1}$ instance of
+Lemma~\ref{lem:interior-W-threshold}: since $P_{D^{-1}}=\PP_0$ and $Z_{D^{-1}}=1$
+(Proposition~\ref{prop:interior-chisq}'s proof), \eqref{eq:threshold-W} reduces to
+$c_{D^{-1}}(k)=p_0(k)^2/(p_0(k)(1-p_0(k)))=p_0(k)/(1-p_0(k))$, cell $k$'s odds, and
+since $x\mapsto x/(1-x)$ is increasing on $[0,1)$,
+$\lambda^*_{D^{-1}}=\min_kp_0(k)/(1-p_0(k))=p_{\min}/(1-p_{\min})$; the redistribution
+proportional to inverse weights $w_j^{-1}=p_0(j)$ in that lemma's proof is exactly
+redistribution proportional to $p_0(j)$. The continuous-$X$ failure is $\chi^2$-specific
+(Remark~\ref{rem:w-scope-limit}) and is not covered by Lemma~\ref{lem:interior-W-threshold},
+which is stated for finite $K$ only; it is proved by mirroring
 Lemma~\ref{lem:interior-atomic}'s ($\Rightarrow$) direction exactly: for any
 $\lambda>0$, choose $A$ with $0<\PP_0(A)=\varepsilon$ small enough that
 $\varepsilon/(1-\varepsilon)<\lambda$ (possible since the left side $\to0$ as
@@ -1053,38 +1218,144 @@ infinitely many atoms.
 \end{proof}
 
 
-\subsection{The $\chi^2$ instance of saturation}
+\subsection{The $L^2$-ball interior closed form}
+
+\begin{corollary}[$L^2$ interior-regime closed form]\label{cor:interior-l2}
+Let $W=I_K$, so $d_W$ is Euclidean distance ($d_W(\Q,\PP_0)=\|\Q-\PP_0\|_2$), and write
+$r:=\sqrt\lambda$ for the metric radius. Then $Z_{I_K}=K$, $P_{I_K}=\mathrm{Uniform}\{1,\dots,K\}$,
+and for any $\lambda>0$ (equivalently $r>0$) in the interior regime of
+Definition~\ref{def:interior-W},
+\begin{equation}\label{eq:interior-l2}
+    \Theta(\PP_0,\lambda) = \Corr_K(\tau_S,\tau_Y),
+\end{equation}
+the ordinary \emph{unweighted} Pearson correlation of the $K$ cell CATEs --- the same
+value Proposition~\ref{prop:interior} gives for TV's interior regime, and the same
+value Lemma~\ref{lem:saturation-general} gives at saturation for \emph{every} geometry
+in this family (Corollary~\ref{cor:saturation-l2} below): the $L^2$ interior value
+coincides with these, even though the $L^2$ ball is a genuinely different body from
+both the TV polytope and the $\chi^2$ ellipsoid (Section~\ref{sec:chisq-l2-coincide}).
+\end{corollary}
+
+\begin{proof}
+The $W=I_K$ instance of Proposition~\ref{prop:interior-W}: $P_{I_K}(k)=1/K$ for all
+$k$, so $\Corr_{P_{I_K}}=\Corr_K$ by definition. Remark~\ref{rem:l2-tv-symmetry}'s
+TV-symmetry argument gives the same conclusion by an independent route.
+\end{proof}
+
+\begin{corollary}[Sharp $L^2$ interior threshold]\label{cor:interior-l2-threshold}
+The $L^2$-ball's interior regime holds for
+\begin{equation}\label{eq:threshold-l2}
+    \lambda\le\lambda^*_{L^2}:=\frac K{K-1}p_{\min}^2,
+    \qquad\text{equivalently}\qquad
+    r\le r^*_{L^2}:=p_{\min}\sqrt{\frac K{K-1}},
+\end{equation}
+and this threshold is sharp, attained at $V_{k^*}=-p_{\min}$, $V_j=p_{\min}/(K-1)$ for
+$j\ne k^*$, $k^*=\arg\min_kp_0(k)$.
+\end{corollary}
+
+\begin{proof}
+The $W=I_K$ instance of Lemma~\ref{lem:interior-W-threshold}: $Z_{I_K}=K$,
+$P_{I_K}(k)=1/K$, so $c_{I_K}(k)=p_0(k)^2/(K\cdot\frac1K(1-\frac1K))
+=\frac K{K-1}p_0(k)^2$, minimized at $k^*=\arg\min_kp_0(k)$ since $x\mapsto x^2$ is
+increasing on $[0,\infty)$; taking square roots gives the radius form.
+\end{proof}
+
+\begin{remark}[Sampler-validation targets for $L^2$]\label{rem:l2-sampler-validation}
+As with $\chi^2$'s closed form, which validates the hit-and-run sampler's uniformity
+against \eqref{eq:interior-chisq}, \eqref{eq:interior-l2} and
+Corollary~\ref{cor:interior-l2-threshold} give sharper, moment-level targets for the
+$L^2$ ball, not merely the ratio $\Theta$: for $r\le r^*_{L^2}$, writing $V=\Q-\PP_0$,
+Proposition~\ref{prop:interior-W}'s proof gives
+\begin{align}
+    \E_\mu[V]&=0, &
+    \Var(V_k)&=\frac{r^2}{K+1}\cdot\frac{K-1}K, &
+    \Cov(V_k,V_j)&=-\frac{r^2}{K(K+1)}\ (k\ne j),\notag\\
+    \E_\mu[\Delta_a(\Q)]&=\sum_kp_0(k)\tau_a(k), &
+    \Cov_\mu\{\Delta_S,\Delta_Y\}&=\frac{r^2K}{K+1}\cdot\frac1K\sum_k(\tau_S(k)-\bar\tau_S)(\tau_Y(k)-\bar\tau_Y). &&
+\end{align}
+For the paper's DGP1 ($K=5$, $p_0=(0.05,0.25,0.40,0.25,0.05)$, so $p_{\min}=0.05$ and
+$\sum_jp_0(j)^2=0.29$), Table~\ref{tab:l2-dgp1} reports these targets numerically,
+directly analogous to the existing $\chi^2$-based validation of the sampler.
+\end{remark}
+
+\begin{table}[ht]
+\centering
+\caption{$L^2$-ball closed form for DGP1 ($K=5$, $p_{\min}=0.05$,
+$\sum_jp_0(j)^2=0.29$).}\label{tab:l2-dgp1}
+\begin{tabular}{@{}lc@{}}
+\toprule
+Quantity & Value \\
+\midrule
+$\Theta$ in interior regime, $=\Corr_5(\tau_S,\tau_Y)$ & $0.6455$ \\
+$\lambda^*_{L^2}=\frac54(0.05)^2$ & $0.003125$ \\
+$r^*_{L^2}=0.05\sqrt{1.25}$ & $0.055902$ \\
+$\lambda^{\mathrm{sat}}_{L^2}$ (Corollary~\ref{cor:saturation-l2}) & $1.19$ \\
+$r^{\mathrm{sat}}_{L^2}$ & $1.09087$ \\
+$\Theta$ at saturation & $0.6455$ (same) \\
+$\Var(V_k)$ at $r=0.05$ & $3.333\times10^{-4}$ \\
+$\Cov(V_k,V_j)$, $k\ne j$, at $r=0.05$ & $-8.333\times10^{-5}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+An $L^2$ hit-and-run sampler at any $r\le0.0559$ should reproduce $0.6455$ --- the
+\emph{same} number the TV interior form gives --- not $0.6411$ ($\chi^2$'s interior
+value): the two named geometries' interior regimes are numerically distinguishable at
+DGP1, a clean discriminating test of a sampler's correctness. Neither number is
+$\Theta$ evaluated at DGP1's validated $\lambda=0.3$: $\Theta=0.6907$ there
+(Example~\ref{ex:binding}) lies outside all three geometries' interior regimes, since
+$\lambda=0.3\gg\lambda^*_{L^2}=0.003125$ just as it exceeds
+$\lambda^*_{\mathrm{TV}}=0.05$ and $\lambda^*_{\chi^2}=0.0526$.
+
+
+\subsection{Saturation for weighted-quadratic geometries}
 
 Lemma~\ref{lem:saturation-general} (Section~\ref{sec:saturated}) already settles
-saturation for \emph{any} distance, including $\chi^2$; what remains is to compute
-the $\chi^2$-specific radius at which $U(\PP_0,\lambda;\chi^2)$ reaches the whole
-simplex.
+saturation for \emph{any} distance, including every $d_W$ of
+Definition~\ref{def:interior-W}; Corollary~\ref{cor:saturation-W} computes the
+$W$-specific saturation radius, and $\chi^2$, $L^2$, and TV are recorded as its named
+instances.
 
 \begin{corollary}[$\chi^2$ instance of Lemma~\ref{lem:saturation-general}]\label{cor:saturation-chisq}
-Suppose $p_0(k)>0$ for all $k$ (full support). Then $\chi^2(\cdot,\PP_0)$ is a
-positive-definite quadratic form in $\Q-\PP_0$ (from \eqref{eq:chisq-def},
-$D^{-1}\succ0$), hence strictly convex in $\Q$, so its maximum over $\Delta_{K-1}$
-is attained at a vertex $\delta_{k^*}$:
-$\chi^2(\delta_{k^*},\PP_0)=\frac{(1-p_0(k^*))^2}{p_0(k^*)}+(1-p_0(k^*))
-=\frac{1-p_0(k^*)}{p_0(k^*)}$, maximized (since $(1-x)/x$ is decreasing) at
-$k^*=\arg\min_kp_0(k)$: $U(\PP_0,\lambda;\chi^2)=\Delta_{K-1}$ for
+Suppose $p_0(k)>0$ for all $k$ (full support). This is the $W=D^{-1}$ instance of
+Corollary~\ref{cor:saturation-W}: $\|\PP_0\|_{D^{-1}}^2=\sum_jp_0(j)^2/p_0(j)=1$ and
+$w_k(1-2p_0(k))=(1-2p_0(k))/p_0(k)$, so
+$\lambda^{\mathrm{sat}}_{D^{-1}}(k)=1+(1-2p_0(k))/p_0(k)=(1-p_0(k))/p_0(k)$; since
+$x\mapsto(1-x)/x$ is decreasing on $(0,1]$, the maximizing vertex is
+$k^*=\arg\min_kp_0(k)$, giving $U(\PP_0,\lambda;\chi^2)=\Delta_{K-1}$ for
 $\lambda\ge(1-p_{\min})/p_{\min}$, the exact reciprocal of
-Lemma~\ref{lem:interior-chisq-threshold}'s interior threshold. By
-Lemma~\ref{lem:saturation-general}, $\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$
-there --- the same value Corollary~\ref{cor:saturation-tv} below gives for TV, even
-though the two geometries' \emph{interior} values differ
-(Remark~\ref{rem:tv-chisq-comparison}). If $\PP_0$ has any cell with $p_0(k)=0$,
-$\chi^2(\delta_k,\PP_0)=\infty$ for that $k$ and the $\chi^2$ ball never saturates ---
-unlike TV, which always saturates by Lemma~\ref{lem:saturation} regardless of
-$\PP_0$'s support. (The reverse convention $\sum_k(p_0(k)-q_k)^2/q_k$ is likewise
-$+\infty$ at every vertex and never saturates; \eqref{eq:chisq-def}'s convention,
-with $\PP_0$ in the denominator, is the one used throughout.)
+Lemma~\ref{lem:interior-chisq-threshold}'s interior threshold, with
+$\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$ there --- the same value
+Corollary~\ref{cor:saturation-tv} below gives for TV, even though the two geometries'
+\emph{interior} values differ (Remark~\ref{rem:tv-chisq-comparison}). If $\PP_0$ has
+any cell with $p_0(k)=0$, $\chi^2(\delta_k,\PP_0)=\infty$ for that $k$ and the $\chi^2$
+ball never saturates --- unlike TV, which always saturates by Lemma~\ref{lem:saturation}
+regardless of $\PP_0$'s support (the $w_k\to\infty$ boundary of
+Corollary~\ref{cor:saturation-W}). (The reverse convention
+$\sum_k(p_0(k)-q_k)^2/q_k$ is likewise $+\infty$ at every vertex and never saturates;
+\eqref{eq:chisq-def}'s convention, with $\PP_0$ in the denominator, is the one used
+throughout.)
+\end{corollary}
+
+\begin{corollary}[$L^2$ instance of Lemma~\ref{lem:saturation-general}]\label{cor:saturation-l2}
+This is the $W=I_K$ instance of Corollary~\ref{cor:saturation-W}: $w_k\equiv1$ gives
+$\lambda^{\mathrm{sat}}_{L^2}=\sum_jp_0(j)^2+\max_k(1-2p_0(k))=\sum_jp_0(j)^2+1-2p_{\min}$
+(the maximum occurs at $k=\arg\min_kp_0(k)$, since $1-2p_0(k)$ is decreasing in
+$p_0(k)$), with $r^{\mathrm{sat}}_{L^2}=\sqrt{\lambda^{\mathrm{sat}}_{L^2}}$ and
+$\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$ there --- the same value
+Corollary~\ref{cor:interior-l2} already gives in the $L^2$ interior regime, so, unlike
+$\chi^2$, the $L^2$ radius carries no information about which of two named estimands is
+being approached: both endpoints coincide, exactly as for TV. For DGP1,
+$\lambda^{\mathrm{sat}}_{L^2}=0.29+1-2(0.05)=1.19$.
 \end{corollary}
 
 \begin{corollary}[TV instance, restated]\label{cor:saturation-tv}
 Lemma~\ref{lem:saturation} and Proposition~\ref{prop:saturated} are the
-$d=d_{\mathrm{TV}}$ instance of Lemma~\ref{lem:saturation-general}: saturation at
-$\lambda\ge1-p_{\min}$, with $\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$ there.
+$d=d_{\mathrm{TV}}$ instance of Lemma~\ref{lem:saturation-general} (TV is not a
+weighted-quadratic geometry in the sense of Definition~\ref{def:interior-W}, so it is
+not itself an instance of Corollary~\ref{cor:saturation-W}, but the underlying
+distance-free saturation mechanism is the same): saturation at $\lambda\ge1-p_{\min}$,
+with $\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$ there.
 \end{corollary}
 
 \begin{remark}[Two geometries, compared]\label{rem:tv-chisq-comparison}
@@ -1136,6 +1407,109 @@ regimes ($\lambda^*_{\chi^2}=0.05/0.95\approx0.053$, $\lambda^*_{\mathrm{TV}}=0.
 \eqref{eq:interior-chisq} identifies what the $0.6411$ \emph{is}, not a new
 computation at $\lambda=0.3$.
 \end{remark}
+
+
+\subsection{Which geometry yields which estimand}
+
+\begin{corollary}[Characterization of $\Corr_{\PP_0}$ and $\Corr_K$ within the family]\label{cor:W-characterization}
+Let $K\ge3$. As functionals of $(\tau_S,\tau_Y)$ ranging over non-constant CATE pairs,
+$\Theta(\PP_0,\lambda)=\Corr_{\PP_0}(\tau_S,\tau_Y)$ for every interior $\lambda$
+(Proposition~\ref{prop:interior-W}) if and only if $W\propto D^{-1}$, and
+$\Theta(\PP_0,\lambda)=\Corr_K(\tau_S,\tau_Y)$ if and only if $W\propto I_K$.
+\end{corollary}
+
+\begin{proof}
+The ``if'' direction is Proposition~\ref{prop:interior-W}, since $\Theta$ depends on
+$W$ only through $P_W$, and $P_{cW}=P_W$ for every $c>0$. For ``only if,'' suppose
+$\Corr_{P_W}\equiv\Corr_{P_{W'}}$ as functionals of $(\tau_S,\tau_Y)$. Evaluate at
+$\tau_S=\mathbf1\{k=i\}$, $\tau_Y=\mathbf1\{k=j\}$, $i\ne j$: direct computation gives
+$\Corr_{P_W}(\tau_S,\tau_Y)=-\sqrt{o_i(W)o_j(W)}$, where
+$o_i(W):=P_W(i)/(1-P_W(i))$ is cell $i$'s $P_W$-odds. For $K\ge3$, choosing a third
+index $l\ne i,j$,
+\[
+    o_i(W)^2=\frac{\big(o_i(W)o_j(W)\big)\big(o_i(W)o_l(W)\big)}{o_j(W)o_l(W)}
+\]
+recovers $o_i(W)$, hence $P_W(i)$, from the values of $\Corr_{P_W}$ alone; repeating
+over $i$ recovers all of $P_W$. So $\Corr_{P_W}\equiv\Corr_{P_{W'}}$ forces
+$P_W=P_{W'}$, and by Proposition~\ref{prop:interior-chisq}'s proof and
+Corollary~\ref{cor:interior-l2}'s proof, $P_W=\PP_0$ iff $W\propto D^{-1}$ and
+$P_W=\mathrm{Uniform}\{1,\dots,K\}$ iff $W\propto I_K$.
+\end{proof}
+
+$\chi^2$ is thus the \emph{unique} geometry in this family (up to scale) whose interior
+value is the $\PP_0$-weighted correlation, and $L^2$ the unique one giving the
+unweighted correlation: the relationship $DW=I$ underlying
+Proposition~\ref{prop:interior-chisq} is exactly what pins $P_W=\PP_0$, a
+characterization rather than a proof dependency. This sharpens
+Remark~\ref{rem:tv-chisq-comparison}'s observation that $\chi^2$'s $\lambda$
+interpolates between two distinct estimands: that property holds if and only if
+$W\not\propto I_K$; under $L^2$, both endpoints are $\Corr_K$
+(Corollary~\ref{cor:saturation-l2}), so the $L^2$ radius carries no information about
+which estimand is being approached, exactly like TV.
+
+\subsection{When $\chi^2$ and $L^2$ balls coincide as sets}\label{sec:chisq-l2-coincide}
+
+\begin{proposition}[Coincidence iff uniform, for $K\ge3$]\label{prop:chisq-l2-coincide}
+Let $K\ge3$. The following are equivalent: (i) there exist
+$\lambda_{\chi^2},\lambda_{L^2}>0$ such that $U(\PP_0,\lambda_{\chi^2};\chi^2)
+=U(\PP_0,\lambda_{L^2};L^2)$ as sets in $H$; (ii) $D^{-1}$ and $I_K$ are proportional
+as quadratic forms on $H$; (iii) $\PP_0$ is uniform, $p_0(k)=1/K$ for every $k$ (in
+which case $\lambda_{\chi^2}=K\lambda_{L^2}$). More generally, for $K\ge3$, two
+diagonal geometries $W_1,W_2$ coincide as sets up to reparametrizing $\lambda$ if and
+only if $W_1=cW_2$ for some $c>0$, if and only if $P_{W_1}=P_{W_2}$ --- so equal
+bodies imply equal $\Theta$, as they must (Proposition~\ref{prop:interior-W}).
+\end{proposition}
+
+\begin{proof}
+Two ellipsoids centered at $0$ in $H$ are equal as sets, up to rescaling, iff their
+defining quadratic forms are proportional on $H$. Put $a_k:=1/p_0(k)-c$ for a
+constant $c$; proportionality of $D^{-1}$ and $cI_K$ on $H$ means
+$\sum_ka_kV_k^2=0$ for every $V\in H$. Testing $V=e_i-e_j\in H$ gives $a_i+a_j=0$ for
+every $i\ne j$; with $K\ge3$, considering the three such equations over a triple
+$\{i,j,l\}$ ($a_i+a_j=0$, $a_j+a_l=0$, $a_i+a_l=0$) forces $a_i=a_j=a_l=0$, hence
+$1/p_0(k)=c$ for every $k$, i.e.\ $p_0$ uniform $=1/K$ and $c=K$. The converse,
+(iii)$\Rightarrow$(ii)$\Rightarrow$(i), is direct substitution. The general
+$W_1,W_2$ statement is identical with $a_k:=w_{1k}-cw_{2k}$.
+\end{proof}
+
+\begin{remark}[$K=2$ is degenerate]\label{rem:k2-coincide-degenerate}
+For $K=2$, Proposition~\ref{prop:chisq-l2-coincide} fails structurally: $H$ is
+one-dimensional, so the $\chi^2$-cost and $L^2$-cost of any $V\in H$ are automatically
+proportional (any two quadratic forms on a $1$-dimensional space are proportional),
+and the two balls coincide up to reparametrization for \emph{every} $\PP_0$, not only
+the uniform one. This is consistent with $K=2$'s existing degeneracy elsewhere in
+this paper ($\Theta=\pm1$ identically at $K=2$): no geometry distinguishes
+$\Corr_{\PP_0}$ from $\Corr_K$ there either, since both correlations of a two-point
+CATE pair are automatically $\pm1$.
+\end{remark}
+
+\begin{remark}[Away from uniform $\PP_0$: genuinely different bodies, generically
+different $\Theta$]\label{rem:chisq-l2-shape}
+For $K\ge3$ and $\PP_0$ non-uniform, $\chi^2$ and $L^2$ balls are genuinely different
+bodies with generically different interior values. \emph{Shape:} the $L^2$ ball is
+isotropic (a Euclidean ball in $H$), while the $\chi^2$ ball is an ellipsoid with
+ambient semi-axes $\sqrt{\lambda p_0(k)}$, elongated along high-mass cells. Since
+$\|V\|_2^2/p_{\max}\le V^\top D^{-1}V\le\|V\|_2^2/p_{\min}$ on $H$
+($p_{\max}:=\max_kp_0(k)$),
+\begin{equation}\label{eq:sandwich-l2-chisq}
+    \{V\in H:\|V\|_2^2\le\lambda p_{\min}\}
+    \subseteq\{V\in H:V^\top D^{-1}V\le\lambda\}
+    \subseteq\{V\in H:\|V\|_2^2\le\lambda p_{\max}\},
+\end{equation}
+both inclusions strict unless $p_{\min}=p_{\max}$: an eccentricity factor
+$\sqrt{p_{\max}/p_{\min}}$, which for DGP1 is $\sqrt{0.40/0.05}=2.83$. This is a
+genuine two-sided bracket, distinct from the one-directional Cauchy--Schwarz
+containment Remark~\ref{rem:tv-chisq-comparison} states between TV and $\chi^2$.
+\emph{Value:} by Corollary~\ref{cor:W-characterization},
+$\Corr_{\PP_0}(\tau_S,\tau_Y)\ne\Corr_K(\tau_S,\tau_Y)$ generically whenever $\PP_0$ is
+non-uniform and $K\ge3$; DGP1 exhibits this directly, $0.6411$ versus $0.6455$.
+\emph{Thresholds:} $\lambda^*_{\chi^2}=p_{\min}/(1-p_{\min})$ is scale-free in $K$,
+while $\lambda^*_{L^2}=\frac K{K-1}p_{\min}^2$ is $O(p_{\min}^2)$ and $K$-dependent;
+for DGP1, $0.0526$ versus $0.003125$, a $17$-fold gap on the squared-radius scale, so
+the two interior regimes are not operationally interchangeable even though the two
+bodies are within a factor $2.83$ of each other in shape.
+\end{remark}
+
 
 \begin{remark}[Scope: an exact result for two geometries, an asymptotic one for the
 rest]\label{rem:chisq-general}
