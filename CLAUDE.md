@@ -23,7 +23,7 @@ A complete R project for evaluating surrogate transportability from a single stu
 **Current Stage:** Canonical realignment in progress (July 2026); aligning package, manuscript, and simulations to the May 2026 presentation (`inst/presentation/slides.qmd`, the source of truth).
 
 **Key Components:**
-- **R Package:** surrogateTransportability v0.4.0 (MIT License) - 8 R files, 13 exports (post-realignment)
+- **R Package:** surrogateTransportability v0.4.1 (MIT License) - 8 R files, 13 exports (post-realignment)
 - **Simulations:** O2 cluster study at `simulations/canonical-validation/` (4 DGPs, fixed estimator)
 - **Methods Paper:** `inst/paper/main.tex` (realigned) + `proof_asymptotic_normality.tex`
 - **Primary functional:** correlation of treatment effects across future studies
@@ -149,10 +149,10 @@ surrogate-transportability/
 ## Current Project State
 
 - **Stage:** Canonical realignment (July 2026) — aligning everything to the May 2026 slides.
-- **Package:** surrogateTransportability v0.4.0 — 8 R files, 13 exports, tests passing.
-- **Simulations:** O2 study `simulations/canonical-validation/` (4 DGPs, fixed estimator); awaiting cluster re-validation.
-- **Paper:** `inst/paper/main.tex` realigned (compiles; Table 2 + figures pending cluster output).
-- **Next Steps:** run cluster re-validation; fill Table 2/figures; preprint.
+- **Package:** surrogateTransportability v0.4.1 — 8 R files, 13 exports, tests passing.
+- **Simulations:** O2 study `simulations/canonical-validation/` (4 DGPs, fixed estimator); re-validation complete.
+- **Paper:** `inst/paper/main.tex` realigned (compiles; Table 2 filled with canonical-validation results).
+- **Next Steps:** preprint submission; optional: extend to adaptive estimator.
 
 ---
 

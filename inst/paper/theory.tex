@@ -312,6 +312,21 @@ $\mathrm{supp}(\mu)$ is compact, and the hit-and-run sampler generating
 $\{\Q_1,\dots,\Q_M\}$ is geometrically ergodic with stationary distribution $\mu$.
 \end{assumption}
 
+For the finite-support total-variation ball the ergodicity clause is not an extra
+hypothesis on the sampler but a theorem about the kernel it idealizes.
+Lemma~\ref{lem:uniform-ergodicity} shows that the hit-and-run kernel is reversible with
+respect to $\mu$ and satisfies a minorization condition at \emph{every} state, so the
+whole of its state space is a single small set; the chain is therefore uniformly --- a
+fortiori geometrically --- ergodic, at a rate $(1-\beta)^t$ whose constant $\beta$ is
+given in closed form by the ball's dimension, an inscribed radius, and a circumradius.
+What Assumption~\ref{ass:geometry} still carries is the compactness of
+$\mathrm{supp}(\mu)$ and, for the general geometries of Section~\ref{sec:layer2},
+ergodicity beyond the finite-support total-variation case, as well as the passage from
+the idealized kernel to the implemented one (Remark~\ref{rem:har-implementation}). The discharge is
+qualitative, not quantitative: $\beta$ is exponentially small in $K$, so it certifies
+the rate's existence without calibrating any sampler setting
+(Remark~\ref{rem:beta-magnitude}).
+
 \begin{convention}[Conditioning on the geometry]\label{conv:geometry}
 Throughout, inference is conditional on the sampled geometry $\{\Q_1,\dots,\Q_M\}$
 (equivalently on the empirical kernel it induces). This is the convention flagged in
@@ -1806,6 +1821,67 @@ finiteness of $\cX$ per se) is what removes the elbow, which is why
 Section~\ref{sec:layer1} never states Assumption~\ref{ass:elbow}.
 \end{remark}
 
+One further assumption completes the ledger. It plays no part in
+Theorem~\ref{thm:general}, which is asymptotic and makes do with rates; it is what the
+finite-sample bound of Section~\ref{sec:finite-n} needs in order to name a constant at
+every step, and it is stated only for the finite-$\cX$ interior regime that result is
+confined to.
+
+\begin{assumption}[A9: finite-sample boundedness and confinement]\label{ass:finite-n}
+Let $V\in\{S,Y\}$ index the two outcomes (written $a$ where it labels a treatment effect
+$\tau_a$ or a bilinear score $\chi_{ab}$), $t\in\{0,1\}$ the treatment arm, and
+$j=1,\dots,J$ the cross-fitting folds. In addition to
+Assumptions~\ref{ass:iid}--\ref{ass:geometry}, assume:
+\begin{enumerate}[label=(\alph*)]
+    \item \textbf{Bounded outcomes.} $\|S\|_\infty\vee\|Y\|_\infty\le B<\infty$ almost
+    surely under $\PP_0$.
+    \item \textbf{Strong positivity, true and realized.} $e(x)\in[c,1-c]$ for all
+    $x\in\cX$ with $c\in(0,1/2]$ (Assumption~\ref{ass:causal}), and every fold's fitted
+    propensity satisfies $\hat e_j(x)\in[c,1-c]$ for all $x\in\cX$ and all $j$.
+    \item \textbf{Bounded weights.}
+    $\sup_{\Q\in\mathrm{supp}(\mu)}\sup_xw(x;\Q)\le C_w<\infty$
+    (Assumption~\ref{ass:moments}), and the same bound holds for the realized importance
+    weights $\hat w_i(\Q_m)$.
+    \item \textbf{Realized-nuisance confinement.} $\|\hat\mu^V_{t,j}\|_\infty\le B$ for
+    every $V,t,j$. This is enforced by construction, not assumed of the data: fitted
+    values are clipped into $[-B,B]$, and $\hat e_j$ into $[c,1-c]$ per (b). Clipping
+    onto a convex set containing the truth is pointwise non-expansive, so it can only
+    decrease $\|\hat\mu^V_{t,j}-\mu^V_t\|$ and $\|\hat e_j-e\|$ in any norm; (b) and (d)
+    are therefore statistically free.
+    \item \textbf{Cell-mass floor.} $\cX=\{1,\dots,K\}$ is finite with
+    $\min_kp_0(k)\ge p_{\min}>0$; consequently $K\le1/p_{\min}$. The floor is required
+    because the per-cell CATE influence function
+    $\IF_{\tau_a}(O;k)=\frac{\mathbf1\{X=k\}}{p_0(k)}(\mathrm{score}_a(O)-\tau_a(k))$ of
+    Corollary~\ref{cor:interior-eif} carries $1/p_0(X)$, so no bound on $\chi_{ab}$ is
+    available without it.
+    \item \textbf{Score non-degeneracy.}
+    $\sigma^2:=\Var_{\PP_0}\{\psi_\Theta(O)\}\ge\sigma^2_{\min}>0$, with $\psi_\Theta$ as
+    in \eqref{eq:psi-theta-general} (equivalently \eqref{eq:interior-eif} in the interior
+    regime).
+\end{enumerate}
+\end{assumption}
+
+\begin{remark}[A9(f) is not implied by Assumption~\ref{ass:nondegeneracy}, and A9
+supersedes Assumption~\ref{ass:moments}]\label{rem:a9-independence}
+Clause (f) is a lower bound on the variance of the influence function under $\PP_0$ ---
+dispersion across \emph{sampling units} --- and is a distinct object from
+Assumption~\ref{ass:nondegeneracy}'s $\Var_\mu\{\Delta_S(\Q)\},\Var_\mu\{\Delta_Y(\Q)\}\ge c_0$,
+which bounds dispersion across \emph{future studies} $\Q\sim\mu$ at fixed $\PP_0$.
+Neither implies the other, and the failure of the implication we need is explicit: by the
+two-sided degeneracy of Remark~\ref{rem:interior-eif-scope}, as
+$|\Corr_K(\tau_S,\tau_Y)|\to1$ the bracket in $\partial\Corr_K/\partial\tau_S(k)$
+vanishes for every $k$, so $\psi_\Theta\to0$ and $\sigma^2\to0$, \emph{while}
+$\Var_\mu\Delta_S$ and $\Var_\mu\Delta_Y$ remain bounded below by $c_0$.
+Assumption~\ref{ass:nondegeneracy} controls the $1/(Ks_a)$ blow-up at the opposite
+boundary $s_a\to0$; it says nothing at the $|\Corr_K|\to1$ boundary, which is precisely
+where $\sigma^2$ degenerates. Since $\sigma$ appears in the denominator of every term of
+Theorem~\ref{thm:finite-n}'s bound (and as $\sigma^3$ in the Berry--Esseen term),
+clause (f) is load-bearing rather than cosmetic. Clauses (a) and (c) strengthen
+Assumption~\ref{ass:moments}'s $\E_{\PP_0}[S^2+Y^2]<\infty$ to a uniform bound; where A9
+is in force it supersedes Assumption~\ref{ass:moments}, and the two are not to be read
+as an inconsistent pair.
+\end{remark}
+
 \subsection{Effective rank of the reweighting-covariance kernel}\label{sec:rank}
 
 Assumption~\ref{ass:elbow}'s elbow is a property of the kernel $C$, not of $\cX$ per
@@ -2085,6 +2161,264 @@ i.i.d.\ CLT conditional on the geometry, and the Markov-chain CLT for the Monte 
 term (Lemma~\ref{lem:mcmc-error}) --- the same four-step structure as
 Theorem~\ref{thm:main}, generalized from the matrix $\Sigma$ to the operator $C$.
 
+\subsection{A finite-sample Berry--Esseen bound}\label{sec:finite-n}
+
+Theorem~\ref{thm:general} is a limit law: it says that the sampling distribution of
+$\hat\Theta$ becomes normal, without saying how far from normal it is at any particular
+$n$. In the finite-$\cX$ interior regime of Corollary~\ref{cor:interior-eif} the same
+decomposition can be carried through with an explicit constant at every step, because
+three of the four obstructions to doing so are absent there: the kernel matrix $\Sigma$
+is known geometry rather than an estimated operator, $\psi_\Theta$ is a fixed non-random
+function, and the Monte Carlo layer is unused. The two lemmas below supply what an
+explicit bound needs and a limit law does not --- a uniform sup-norm bound on the
+bilinear scores, and an exact, remainder-free von Mises decomposition of the
+cross-fitted estimator whose empirical-process term admits a Bernstein bound ---
+after which Theorem~\ref{thm:finite-n} assembles them.
+
+\begin{lemma}[Uniform boundedness of the bilinear scores]\label{lem:chi-bounded}
+Assume A9 (Assumption~\ref{ass:finite-n}) and the interior regime of
+Corollary~\ref{cor:interior-eif}, so that $\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ with the
+\emph{known} kernel matrix $\Sigma=a(\lambda)(I_K-\mathbf1\mathbf1^\top/K)$,
+$\|\Sigma\|_{op}=a(\lambda)$. Then for every $ab\in\{SS,SY,YY\}$ and every fold $j$, the
+population bilinear score $\chi_{ab}$ of \eqref{eq:chi-ab-discrete} and
+\eqref{eq:interior-chi-ab} and its fold-$j$ realized version $\hat\chi_{ab,j}$ are
+uniformly bounded:
+\begin{equation}\label{eq:chi-bounded}
+    \|\chi_{ab}\|_\infty\;\vee\;\max_{1\le j\le J}\|\hat\chi_{ab,j}\|_\infty\;\le\;B_\chi:=\frac{128\,a(\lambda)\,B^2}{c^2\,p_{\min}}\;<\;\infty .
+\end{equation}
+\end{lemma}
+
+The proof is in Appendix~\ref{app:proof-chi-bounded}; it bounds
+\eqref{eq:interior-chi-ab}'s three factors separately under A9(a), (b), (d) and (e).
+
+\begin{remark}[Two things this lemma is not]\label{rem:chi-bounded-scope}
+First, \eqref{eq:chi-bounded} does \emph{not} follow from a bound
+$\|\psi_\Theta\|_\infty\le B_\psi$ on the composed score. By
+\eqref{eq:psi-theta-general}, $\psi_\Theta=\nabla\Psi(m)^\top\psi_m$ is a linear image
+of the stacked scores, and a bounded linear image does not bound its components; the
+bilinear scores must be bounded on their own terms, which is what
+Lemma~\ref{lem:chi-bounded} does. Second, the $a(\lambda)$ appearing in $B_\chi$ does not
+survive to the final bound: $\Theta$ is homogeneous of degree $0$ in $a(\lambda)$
+(Corollary~\ref{cor:interior-eif}), so $a(\lambda)$ cancels in the composition with
+$\nabla\Psi$, and $B_\chi$ enters Theorem~\ref{thm:finite-n} only through the products
+$C_\Psi B_\chi/\sigma$ and $C^{(2)}_\Psi B_\chi^2/\sigma$, in both of which the
+cancellation has already occurred. The constant is
+nonetheless large --- it scales as $1/(c^2p_{\min})$, and $c=0.01$ in the reference
+implementation --- and should be read as explicit and finite, not as practically tight at
+small $n$.
+\end{remark}
+
+\begin{lemma}[Exact von Mises decomposition and a Bernstein bound for the cross-fit
+empirical process]\label{lem:D2-bernstein}
+Assume A9 (Assumption~\ref{ass:finite-n}) and the interior regime of
+Corollary~\ref{cor:interior-eif}, so that $\Sigma$ is the known kernel matrix of
+Lemma~\ref{lem:chi-bounded}. Partition $\{1,\dots,n\}$ into $J\ge2$ folds
+$I_1,\dots,I_J$ with $|I_j|=n/J$, let $\mathcal T_j$ denote the observations outside
+$I_j$, and let $(\hat\tau_{a,j},\hat e_j,\hat\mu^V_{t,j})$ be fitted on $\mathcal T_j$
+only. Define the \emph{fold-matched} one-step estimator
+\begin{equation}\label{eq:onestep-foldmatched}
+    \hat\Theta_{ab}\;=\;\frac1J\sum_{j=1}^J\hat\Theta^{(j)}_{ab},\qquad
+    \hat\Theta^{(j)}_{ab}\;=\;\hat\tau_{a,j}^\top\Sigma\,\hat\tau_{b,j}\;+\;\frac{J}{n}\sum_{i\in I_j}\hat\chi_{ab,j}(O_i),
+\end{equation}
+where
+$\hat\chi_{ab,j}(O)=(\Sigma\hat\tau_{b,j})^\top\widehat{\mathbf{IF}}_{\tau_a,j}(O)+(\Sigma\hat\tau_{a,j})^\top\widehat{\mathbf{IF}}_{\tau_b,j}(O)$
+is \eqref{eq:chi-ab-discrete} evaluated at fold-$j$ nuisances, with
+$\widehat{\mathbf{IF}}_{\tau_a,j}(O;k)=\frac{\mathbf1\{X=k\}}{p_0(k)}(\widehat{\mathrm{score}}_{a,j}(O)-\hat\tau_{a,j}(k))$.
+The denominator here is the fixed cell mass $p_0(k)$, not an estimate $\hat p_0(k)=n_k/n$:
+that the correction in \eqref{eq:onestep-foldmatched} uses the true cell probability is a
+standing hypothesis of this lemma in its own right, and it is what makes part~(i) below an
+identity rather than an approximation. The general one-step estimator \eqref{eq:onestep} is
+written with a single
+generic correction $\hat\chi_{ab}$ and so does not by itself fix how folds are paired;
+\eqref{eq:onestep-foldmatched} is its fold-matched reading, and the pairing is used
+essentially in part~(i). Write $\delta_{a,j}:=\hat\tau_{a,j}-\tau_a$ and
+\begin{equation}\label{eq:dr-bias}
+    \Delta^{\mathrm{dr}}_{a,j}(k)\;:=\;\frac{(\hat e_j(k)-e(k))(\hat\mu^a_{1,j}(k)-\mu^a_1(k))}{\hat e_j(k)}\;+\;\frac{(\hat e_j(k)-e(k))(\hat\mu^a_{0,j}(k)-\mu^a_0(k))}{1-\hat e_j(k)} .
+\end{equation}
+Then:
+\begin{enumerate}[label=(\roman*)]
+    \item \textbf{Exact decomposition.} For every fold $j$ and every $ab$, the following
+    is an algebraic identity with no remainder and no $o_P(\cdot)$ term:
+    \begin{equation}\label{eq:vonmises-exact}
+        \hat\Theta^{(j)}_{ab}-\Theta_{ab}\;=\;\frac{J}{n}\sum_{i\in I_j}\chi_{ab}(O_i)\;+\;\frac{J}{n}\sum_{i\in I_j}\xi^{ab}_{j,i}\;+\;R^{(j)}_{ab},
+    \end{equation}
+    where the centered empirical-process summands and the exact remainder are
+    \begin{align}
+        \xi^{ab}_{j,i}&:=\big(\hat\chi_{ab,j}-\chi_{ab}\big)(O_i)\;-\;\E_{\PP_0}\big[\hat\chi_{ab,j}(O)-\chi_{ab}(O)\,\big|\,\mathcal T_j\big],\label{eq:xi-def}\\
+        R^{(j)}_{ab}&:=-\,\delta_{a,j}^\top\Sigma\,\delta_{b,j}\;+\;(\Sigma\hat\tau_{b,j})^\top\Delta^{\mathrm{dr}}_{a,j}\;+\;(\Sigma\hat\tau_{a,j})^\top\Delta^{\mathrm{dr}}_{b,j}.\label{eq:R-exact}
+    \end{align}
+    Every term of \eqref{eq:R-exact} is a product of two nuisance errors;
+    \eqref{eq:R-exact} is \eqref{eq:remainder} specialized to the interior regime, up to
+    the sign convention (this document's \eqref{eq:remainder} carries the opposite sign
+    on the leading term; since \eqref{eq:CS-remainder} is a modulus bound, this does not
+    affect anything downstream). Its leading term
+    $-\delta_{a,j}^\top\Sigma\,\delta_{b,j}$ obeys the Cauchy--Schwarz bound
+    \eqref{eq:CS-remainder}; the two double-robustness terms carry a different error
+    product and are bounded separately, in Step~3 of the proof of
+    Theorem~\ref{thm:finite-n} (Appendix~\ref{app:proof-finite-n}).
+    \item \textbf{Bernstein bound.} Let $s_n$ satisfy
+    $\max_j\max_{ab}\|\hat\chi_{ab,j}-\chi_{ab}\|_{L^2(\PP_0)}\le s_n$ on an event of
+    probability at least $1-\delta_1$. Fix $\delta_2\in(0,1)$ and set
+    $L:=\log(6J/\delta_2)$. Then with probability at least $1-\delta_1-\delta_2$,
+    \begin{equation}\label{eq:eps2}
+        \max_{ab}\Big|\frac{1}{\sqrt n}\sum_{j=1}^J\sum_{i\in I_j}\xi^{ab}_{j,i}\Big|
+        \;\le\;\varepsilon_2\;:=\;s_n\sqrt{2JL}\;+\;\frac{8\,J\,B_\chi\,L}{3\sqrt n},
+    \end{equation}
+    with $B_\chi$ from Lemma~\ref{lem:chi-bounded}.
+\end{enumerate}
+\end{lemma}
+
+The proof is in Appendix~\ref{app:proof-D2-bernstein}. Part~(i) is the double-robustness
+computation of \eqref{eq:dr-bias} followed by an exact cancellation against the plug-in
+bias; part~(ii) is Bernstein's inequality applied conditionally on each training set.
+
+\begin{remark}[Where the conditional-bias term went, and why the rate is
+unaffected]\label{rem:bk-routing}
+Lemma~\ref{lem:if-meanzero} supplies mean-zero-ness at the true nuisance value only; it
+does not give $\E_{\PP_0}[\hat\chi_{ab,j}-\chi_{ab}\mid\mathcal T_j]=0$, and that
+conditional bias $b^{(j)}_{ab}$ of \eqref{eq:bk} is genuinely first-order in the CATE
+errors, so $\sqrt n\,b^{(j)}_{ab}$ diverges at standard nuisance rates. The resolution is
+structural rather than probabilistic: $b^{(j)}_{ab}$ is not bounded separately but
+cancelled identically against the fold-$j$ plug-in bias (Step~3 of
+Appendix~\ref{app:proof-D2-bernstein}), the sum being exactly
+the second-order remainder $R^{(j)}_{ab}$, whose leading term \eqref{eq:CS-remainder}
+already governs and whose two double-robustness terms are bounded directly in Step~3 of
+Theorem~\ref{thm:finite-n}'s proof (Appendix~\ref{app:proof-finite-n}).
+Consequently the accounting in Theorem~\ref{thm:finite-n} acquires no new term and no
+slower rate. Two bookkeeping consequences are worth stating. First, because
+\eqref{eq:onestep-foldmatched} averages folds rather than summing them,
+$|\frac1J\sum_jR^{(j)}_{ab}|\le\max_j|R^{(j)}_{ab}|$, so the remainder term inherits no
+factor of $J$; the fold count enters only \eqref{eq:eps2}, as $\sqrt J$ on the
+sub-Gaussian branch and $J$ on the Poisson branch. Second, $R^{(j)}_{ab}$ is evaluated at
+nuisances trained on $n(J-1)/J$ observations, which inflates the rate constant by a
+factor depending on $J/(J-1)$ only and is absorbed into $r_n$ below.
+\end{remark}
+
+\begin{theorem}[Finite-sample Berry--Esseen bound, interior regime]\label{thm:finite-n}
+Assume A9 (Assumption~\ref{ass:finite-n}) and the interior regime of
+Corollary~\ref{cor:interior-eif} with $\lambda<\min_kp_0(k)$ strictly and $K\ge3$, and
+let $\hat\Theta=\Psi(\hat m)$ be formed from the fold-matched one-step moment estimators
+\eqref{eq:onestep-foldmatched} for $\hat m=(\hat\Theta_{SS},\hat\Theta_{SY},\hat\Theta_{YY})$.
+Let $C_\Psi:=\sup\|\nabla\Psi\|_1$ and $C_{\Psi}^{(2)}:=\sup\|\nabla^2\Psi\|_{op}$ over
+the non-degenerate region $\{\Var_\mu\Delta_S,\Var_\mu\Delta_Y\ge c_0\}$
+(Assumption~\ref{ass:nondegeneracy}), and let $B_\psi:=\|\psi_\Theta\|_\infty<\infty$,
+finite by Lemma~\ref{lem:chi-bounded} and boundedness of $\nabla\Psi$. Fix
+$\delta_1,\delta_2,\delta_3\in(0,1)$ and suppose that on an event $\mathcal E_1$ with
+$\PP(\mathcal E_1)\ge1-\delta_1$,
+\[
+    \max_{j\le J}\Big\{\max_{a\in\{S,Y\}}\|\hat\tau_{a,j}-\tau_a\|_\infty\;\vee\;\|\hat e_j-e\|_\infty\;\vee\;\max_{V,t}\|\hat\mu^V_{t,j}-\mu^V_t\|_\infty\Big\}\;\le\;r_n .
+\]
+Set $T_n:=\sqrt n(\hat\Theta-\Theta(\Qhat,\lambda))/\sigma$, $L:=\log(6J/\delta_2)$,
+$L_3:=\log(1/\delta_3)$, and
+\begin{align}
+    s_n&:=\frac{\kappa_s\,a(\lambda)\,B}{c\,p_{\min}}\,r_n, &
+    \varepsilon_1&:=\frac{C_\Psi\,C_R\,a(\lambda)}{p_{\min}}\,\sqrt n\,r_n^2, &
+    \varepsilon_2&:=s_n\sqrt{2JL}+\frac{8JB_\chi L}{3\sqrt n},\label{eq:eps-defs}
+\end{align}
+with $C_R:=1+16B/c^2$ and $\kappa_s$ an absolute constant obtained by expanding
+\eqref{eq:interior-chi-ab} factor by factor under A9(a)--(e). Then
+\begin{equation}\label{eq:finite-n-bound}
+    \Delta_n\;:=\;\sup_{t\in\R}\big|\PP(T_n\le t)-\Phi(t)\big|
+    \;\le\;\underbrace{\frac{0.4690\,B_\psi^3}{\sigma_{\min}^3\sqrt n}}_{Z_n}
+    \;+\;\underbrace{\frac{\varepsilon_1}{\sigma_{\min}\sqrt{2\pi}}}_{D_1}
+    \;+\;\underbrace{\frac{3\,C_\Psi\,\varepsilon_2}{\sigma_{\min}\sqrt{2\pi}}}_{D_2}
+    \;+\;\underbrace{\frac{C^{(2)}_\Psi B_\chi^2\,L_3}{2\,\sigma_{\min}\sqrt n}}_{D_3}
+    \;+\;\delta_1+\delta_2+\delta_3 ,
+\end{equation}
+where the Berry--Esseen constant $0.4690$ is \citet{Shevtsova2011}'s, and the Monte Carlo
+term of \eqref{eq:thm-general} is absent because in the interior regime
+$\Thetahat_n\to\Corr_K(\hat\tau_S,\hat\tau_Y)$ exactly and the MCMC construction of
+Section~\ref{sec:layer1} is not used (Corollary~\ref{cor:interior-eif}).
+
+On finite $\cX$ with $p_0(k)\ge p_{\min}$, cell-wise bounded averages give
+$r_n\le\Lambda\sqrt{\log(6JK/\delta_1)/(n\,p_{\min})}$ for an explicit
+$\Lambda=\Lambda(B,c)$, by Bernstein within each cell and a union bound over $K$ cells,
+$J$ folds, and the finitely many nuisances. Calibrating $\delta_1=\delta_2=\delta_3=n^{-1/2}$,
+so that $L,L_3\asymp\tfrac12\log n$ and $r_n,s_n=O(\sqrt{\log n/n})$, each bracketed term
+is $O(n^{-1/2}\log n)$ --- $Z_n$ is $O(n^{-1/2})$; $D_1$ is $\sqrt n\cdot O(\log n/n)$;
+$D_2$'s sub-Gaussian branch is $O(\sqrt{\log n/n}\cdot\sqrt{\log n})$ and its Poisson
+branch $O(\log n/\sqrt n)$; $D_3$ is $O(\log n/\sqrt n)$ --- whence
+\begin{equation}\label{eq:final-rate}
+    \Delta_n\;=\;O\big(n^{-1/2}\log n\big).
+\end{equation}
+\end{theorem}
+
+The proof is in Appendix~\ref{app:proof-finite-n}.
+
+\begin{remark}[Bound constants are worst-case, not sample-size guidance]\label{rem:finite-n-constants}
+The constants in Theorem~\ref{thm:finite-n}'s bound, particularly the $1/c^2$ propensity-clip amplification in $B_\chi$ and $C_R$ (with $c=0.01$ in the reference implementation), are worst-case and not intended as a literal sample-size calculator. For empirical coverage behavior at varying $n$, see the validation study in \texttt{simulations/confounded-aipw/}.
+\end{remark}
+
+\begin{remark}[The $\log n$ is intrinsic to this route]\label{rem:log-intrinsic}
+\eqref{eq:final-rate} cannot be improved to $O(n^{-1/2}\sqrt{\log n})$ by re-optimizing
+the confidence levels. Both $D_2$'s Poisson branch $JB_\chi L/\sqrt n$ and $D_3$'s
+delta-method term $L_3/\sqrt n$ are linear in $\log(1/\delta)$, so any polynomially small
+$\delta$ gives $L\asymp\log n$, while pushing $\delta$ to $e^{-\sqrt n}$ inflates
+$\varepsilon_2$ to $O(1)$. The optimum over $\delta$ is $\Theta(\log n/\sqrt n)$.
+\end{remark}
+
+\begin{remark}[Bounds on nuisance errors are converted to Kolmogorov distance by
+Gaussian anti-concentration]\label{rem:anticoncentration}
+Each of $\varepsilon_1,\varepsilon_2$ and $D_3$'s scale bounds a perturbation of
+$T_n$ on a high-probability event; the passage to $\Delta_n$ applies
+$\sup_t|\Phi(t+\eta)-\Phi(t)|\le\eta/\sqrt{2\pi}$ once, to the summed perturbation
+$\eta=\eta_1+\eta_2+\eta_3$, together with
+$\PP(T_n\le t)\le\PP(T_n^\circ\le t+\eta)+\PP(\mathcal E^c)$ on the intersection
+$\mathcal E$ of the three events, which is why each
+perturbation contributes its own $\delta$ additively in \eqref{eq:finite-n-bound}. The
+factor $3$ on $\varepsilon_2$ collects the three moments $SS,SY,YY$ through
+$\|\nabla\Psi\|_1$.
+\end{remark}
+
+\begin{remark}[Scope: outside the interior regime the binding term is $D_1$, not
+$D_2$]\label{rem:finite-n-scope}
+Theorem~\ref{thm:finite-n} is stated for the finite-$\cX$ interior regime, and that
+scoping is forced by the remainder term $D_1$ rather than chosen for convenience. On a
+general continuous $\cX\subseteq\R^d$ the CATE estimators attain nonparametric rates
+$\|\hat\tau_a-\tau_a\|_{L^2(\PP_0)}=O_P(n^{-s_a/(2s_a+d)})$, so the remainder
+\eqref{eq:R-exact}, whose leading term \eqref{eq:CS-remainder} bounds, contributes, under
+balanced smoothness $s_S=s_Y=s$,
+\begin{equation}\label{eq:D1-nonparametric}
+    \sqrt n\,r_{n,S}\,r_{n,Y}\;=\;O\big(n^{(d-2s)/(2(2s+d))}\big),
+\end{equation}
+which is $o(1)$ precisely when $s>d/2$ and, for any finite smoothness, never attains
+$n^{-1/2}$. The threshold in \eqref{eq:D1-nonparametric} is the naive one-step
+Cauchy--Schwarz threshold $\min(s_S,s_Y)>d/2$ of \eqref{eq:elbow-naive}, discussed in
+Remark~\ref{rem:elbow-gap} --- not Assumption~\ref{ass:elbow}'s sharper minimax boundary
+$\min(s_S,s_Y)>d/4$, which is attained only by the higher-order-influence-function or
+undersmoothed constructions of \citet{Robins2008HOIF,Robins2017Minimax} that this
+document does not reproduce. Theorem~\ref{thm:finite-n}'s proof bounds all three terms of
+\eqref{eq:R-exact} directly, with the explicit constant $C_R=1+16B/c^2$ of
+\eqref{eq:eps-defs} (Step~3 of Appendix~\ref{app:proof-finite-n}); of those three, only
+the leading term $-\delta_{a,j}^\top\Sigma\,\delta_{b,j}$ coincides with what
+\eqref{eq:CS-remainder} covers in the general, non-interior setting, and it is that term
+which carries \eqref{eq:elbow-naive}'s requirement into \eqref{eq:D1-nonparametric}: at
+the stated elbow $s>d/4$ the right-hand side of \eqref{eq:D1-nonparametric} diverges, and
+the argument given here yields no finite-sample normal approximation there. Outside the
+interior regime the two double-robustness terms additionally require the standard
+product-rate condition $\|\hat e-e\|\cdot\|\hat\mu-\mu\|=o(n^{-1/2})$; this leaves the
+binding threshold at $s>d/2$, the leading Cauchy--Schwarz term remaining the binding
+constraint, and is simply a further condition the general case needs for full rigor. This
+is a limitation of the estimator analyzed, not of the estimand, and mirrors exactly the
+asymptotic gap already recorded in Remark~\ref{rem:elbow-gap}.
+
+No concentration inequality can repair \eqref{eq:D1-nonparametric}: $D_1$ is a
+deterministic second-order bias given the nuisance estimates, not a fluctuation. What the
+interior regime buys is that all four obstructions dissolve together --- the cell-wise
+CATE estimators attain the parametric rate $r_n=O(\sqrt{\log n/(np_{\min})})$, so
+$\sqrt n\,r_n^2=O(n^{-1/2}\log n)$; the kernel matrix $\Sigma$ is known geometry, so
+\eqref{eq:vonmises-exact} is exact with no $\hat C-C$ term; $\psi_\Theta$ is a fixed
+(non-random) function, so Berry--Esseen applies directly rather than conditionally; and
+the Monte Carlo term is absent. Retaining the MCMC layer of Section~\ref{sec:layer1}
+would reinstate the $O_P((n/M)^{1/2})$ term of \eqref{eq:thm-general} and require
+$M\gtrsim n^2/\log^2n$ draws to keep it at the rate of \eqref{eq:final-rate}.
+Lemma~\ref{lem:D2-bernstein}'s fixed-$p_0(k)$ hypothesis is a separate matter and costs
+less: were the out-of-fold estimate $\hat p_0(k)=n_k/n$ used in the correction's
+denominator instead, the extra term would be a product of the $\hat p_0-p_0$ error with
+the nuisance errors already present in \eqref{eq:R-exact}, hence itself second-order and
+absorbable into $R^{(j)}_{ab}$ without changing \eqref{eq:final-rate}.
+\end{remark}
+
 % ===========================================================================
 \section{Recovery: the finite-support theorem as a special case}\label{sec:recovery}
 % ===========================================================================
@@ -2225,6 +2559,129 @@ Under Assumption~\ref{ass:moments}, $\|w\|_{L^2(\PP_0)}\le C_w$ and, for any bou
 $g$ with $\|g\|_\infty\le B$, $\|w\cdot g\|_{L^2(\PP_0)}\le C_w B$.
 \end{lemma}
 
+\begin{lemma}[Explicit uniform ergodicity of the hit-and-run kernel on the
+total-variation ball]\label{lem:uniform-ergodicity}
+Let $K\ge2$ and $\lambda\in(0,1]$, let $p_0=(p_0(1),\dots,p_0(K))^\top$ be the cell
+probabilities of $\PP_0$ on $\cX=\{1,\dots,K\}$, and assume $p_{\min}:=\min_kp_0(k)>0$.
+Write
+\begin{equation}\label{eq:polytope}
+    \cS := \big\{q\in\R^K:\ q\ge0,\ \mathbf1^\top q=1,\ \tfrac12\|q-p_0\|_1\le\lambda\big\}
+\end{equation}
+for the total-variation ball $U(\PP_0,\lambda;d_{\mathrm{TV}})$ in cell-probability
+coordinates: a compact convex polytope contained in the affine hyperplane $p_0+H$, where
+$H=\{V\in\R^K:\mathbf1^\top V=0\}$ is the zero-sum hyperplane of
+\eqref{eq:signed-measure}. Put $\nu:=K-1$ for its dimension, let $\mathrm{vol}_\nu$ be
+$\nu$-dimensional Lebesgue measure on $p_0+H$, and let $\mu$ be the uniform distribution
+on $\cS$ with respect to $\mathrm{vol}_\nu$. Let $P$ be the transition kernel of the
+\emph{idealized} hit-and-run chain on $\cS$: from $q\in\cS$, draw a direction $d$
+uniformly on the unit sphere $\{d\in H:\|d\|_2=1\}$, then move to a point drawn uniformly
+on the chord $\cS\cap\{q+td:t\in\R\}$. Set
+\begin{equation}\label{eq:radii}
+    r := \min\Big(p_{\min},\ \frac{2\lambda}{\sqrt K}\Big)>0, \qquad
+    R := \min\big(2\lambda,\ \sqrt2\big),
+\end{equation}
+and define
+\[
+    \beta := \frac{2\,\mathrm{vol}_\nu(\cS)}{\sigma_{\nu-1}\,D_\cS^{\,\nu}},
+    \qquad D_\cS := \mathrm{diam}(\cS),
+    \qquad \sigma_{\nu-1} := \frac{2\pi^{\nu/2}}{\Gamma(\nu/2)},
+\]
+$\sigma_{\nu-1}$ being the surface area of the unit sphere of $\R^\nu$. Then
+\begin{enumerate}[label=(\alph*)]
+\item $\mu$ is reversible, hence stationary, for $P$;
+\item the whole state space is a single small set: for every $q\in\cS$ and every Borel
+    $A\subseteq\cS$,
+    \begin{equation}\label{eq:minorization}
+        P(q,A)\ \ge\ \beta\,\mu(A),
+        \qquad\text{and}\qquad
+        1\ \ge\ \beta\ \ge\ \frac{2}{\nu}\Big(\frac{r}{2R}\Big)^{\nu}\ >\ 0;
+    \end{equation}
+\item consequently $P$ is uniformly ergodic, at the explicit rate
+    \begin{equation}\label{eq:unif-erg}
+        \sup_{q\in\cS}\big\|P^t(q,\cdot)-\mu\big\|_{\mathrm{TV}}\ \le\ (1-\beta)^t
+        \qquad\text{for every integer }t\ge0,
+    \end{equation}
+    where, consistently with $d_{\mathrm{TV}}(\Q,\PP_0)=\tfrac12\|V\|_1$ in
+    \eqref{eq:signed-measure}, $\|\eta\|_{\mathrm{TV}}:=\sup_A|\eta(A)|$ for a signed
+    measure $\eta$ with $\eta(\cS)=0$.
+\end{enumerate}
+Uniform ergodicity implies geometric ergodicity, so for this geometry the ergodicity
+clause of Assumption~\ref{ass:geometry} is a consequence of \eqref{eq:minorization}
+rather than a hypothesis. Remark~\ref{rem:beta-magnitude} records how small $\beta$
+is and why \eqref{eq:unif-erg} is not a burn-in prescription;
+Remark~\ref{rem:har-implementation} delimits what $P$ does and does not model. The
+proof is in Appendix~\ref{app:proof-uniform-ergodicity}.
+\end{lemma}
+
+\begin{remark}[The size of the minorization constant, and what the rate does not
+say]\label{rem:beta-magnitude}
+Take $\lambda=0.3$, $K=5$ and $p_{\min}=0.15$, so $\nu=4$. In \eqref{eq:radii},
+$2\lambda/\sqrt K=0.6/\sqrt5\approx0.268>0.15$, so $r=p_{\min}=0.15$, and
+$2\lambda=0.6<\sqrt2$, so $R=0.6$. Hence $r/(2R)=0.125$ and
+\[
+    \beta\ \ge\ \frac24\,(0.125)^4 = \tfrac12\cdot2.44\times10^{-4}
+    \approx 1.22\times10^{-4}.
+\]
+Since $(1-\beta)^t\le e^{-\beta t}$, \eqref{eq:unif-erg} certifies
+$\sup_{q}\|P^t(q,\cdot)-\mu\|_{\mathrm{TV}}\le\varepsilon$ as soon as
+$t\ge\log(1/\varepsilon)/\beta$, which at $\varepsilon=0.01$ requires
+$t\ge\log(100)/(1.22\times10^{-4})\approx3.8\times10^4$ --- some forty times the $1000$
+burn-in iterations taken by default in the accompanying implementation.
+
+That comparison is not an argument about the default, in either direction, and
+\eqref{eq:unif-erg} must not be read as calibrating it. The bound is a worst-case
+guarantee from an arbitrary starting state, and it is loose by construction. Even for a
+perfect Euclidean ball, where $r=R$ and both the volume and the diameter bounds of the
+proof's Step~6 hold with equality, \eqref{eq:minorization} yields only
+$\beta=2/(\nu2^\nu)$: this is $1/32$ at $\nu=4$ but $\approx9.5\times10^{-8}$ at
+$\nu=20$. The exponential decay in $\nu$ is therefore intrinsic to minorizing on the
+whole state space rather than a defect of this particular polytope --- the hit-and-run
+density \eqref{eq:har-density} decays like $\|y-q\|_2^{-(\nu-1)}$, and the proof's
+Step~4 replaces $\|y-q\|_2$ by the diameter for every pair of states simultaneously.
+Sharper bounds for hit-and-run on a convex body are available, polynomial in the
+dimension and in $R/r$, obtained from a warm start by conductance rather than
+minorization arguments \citep{lovasz1999hitandrun}. This lemma does not attempt to match
+them: its purpose is to discharge the ergodicity clause of
+Assumption~\ref{ass:geometry} with a constant that is explicit, not to choose a sampler
+setting.
+\end{remark}
+
+\begin{remark}[Scope: the idealized kernel, and where the implementation
+departs from it]\label{rem:har-implementation}
+Lemma~\ref{lem:uniform-ergodicity} governs $P$: an exactly uniform direction on the unit
+sphere of $H$, and an exactly uniform draw on the analytically computed chord. The
+implementation departs from $P$ in three places, each on a numerically small event.
+First, when the computed feasible segment has length below a fixed tolerance, the step is
+set to zero and the chain stays put (\texttt{find\_feasible\_range\_tv} returns a
+degenerate interval and \texttt{sample\_tv\_ball} then takes a zero step). Second, when a
+proposal's coordinates fail to sum to one within tolerance it is renormalized, which
+perturbs the exact chord point. Third, two guard branches discard the iteration outright
+when a proposal violates positivity or the total-variation constraint beyond tolerance,
+again leaving the chain where it was.
+
+Two of the three leave the chain at its current state. The degenerate-segment branch
+(zero step when the feasible segment is too short) has the form
+$\tilde P(q,\cdot)=\{1-\alpha(q)\}P(q,\cdot)+\alpha(q)\delta_q(\cdot)$ for some
+$\alpha(q)\in[0,1]$. The two guard branches (negative probability or total-variation
+violation) suppress both the movement and the recording: when a guard fires at what
+would have been a storage iteration, the sample is not stored, so the recorded sequence
+has fewer than the requested $M$ entries and is a subsequence of the $\tilde P$ trajectory
+rather than a lazily-thinned version of it.
+
+For the degenerate-segment branch alone, were $\alpha$ constant, $\tilde P$ would be a lazy
+version of $P$: still reversible with respect to $\mu$, still satisfying \eqref{eq:minorization} with
+$\beta$ replaced by $(1-\alpha)\beta$, and so still uniformly ergodic at rate
+$\{1-(1-\alpha)\beta\}^t$. It is not constant --- both branches trigger on conditions
+that depend on where the chain currently is --- so $\mu$ need not be exactly stationary
+for $\tilde P$, and \eqref{eq:unif-erg} does not transfer verbatim. This is the exact
+step at which the result stops describing the code. Closing it requires two bounds:
+(a) a bound on $\sup_{q\in\cS}\|\tilde P(q,\cdot)-P(q,\cdot)\|_{\mathrm{TV}}$ to propagate
+through \eqref{eq:unif-erg}, and (b) a bound on the probability that a guard fires at
+what would have been a storage iteration. Bound (a) alone is necessary but not sufficient;
+both are required to control the error from the implemented to the idealized chain. We do
+not pursue either here.
+\end{remark}
+
 \begin{lemma}[MCMC approximation error]\label{lem:mcmc-error}
 Under Assumption~\ref{ass:geometry}, for any bounded measurable
 $g:\mathrm{supp}(\mu)\to\R$ with $\|g\|_\infty\le1$,
@@ -2234,7 +2691,9 @@ $g:\mathrm{supp}(\mu)\to\R$ with $\|g\|_\infty\le1$,
 via the Markov chain central limit theorem for the geometrically ergodic hit-and-run
 sampler (not the i.i.d.\ CLT, since the $\Q_m$ are dependent draws): the asymptotic
 variance is inflated by the chain's integrated autocorrelation time, but the rate is
-unchanged from the independent case.
+unchanged from the independent case. For the finite-support total-variation ball,
+Lemma~\ref{lem:uniform-ergodicity} supplies the required ergodicity with an explicit
+rate.
 \end{lemma}
 
 \begin{lemma}[Mean-zero AIPW influence function]\label{lem:if-meanzero}
@@ -2248,6 +2707,232 @@ weight $w(X;\Q_m)$.
 % ===========================================================================
 \section{Proofs}\label{app:proofs}
 % ===========================================================================
+
+\subsection{Proof of Lemma~\ref{lem:uniform-ergodicity}}\label{app:proof-uniform-ergodicity}
+
+\begin{proof}
+\emph{Proof strategy.} Step~1 identifies the direction law the sampler actually uses as
+\emph{exactly} uniform on the unit sphere of $H$. Step~2 converts that into a closed-form
+lower bound on the transition kernel by a density. Step~3 records the symmetry of that
+density, which gives reversibility and hence part~(a). Step~4 bounds the density below
+\emph{uniformly over all pairs of states}, using nothing about $\cS$ beyond its diameter.
+Step~5 reads the bound as a Doeblin minorization whose small set is the whole of $\cS$ and
+converts it into the rate \eqref{eq:unif-erg}; because the minorization holds at every
+state, neither a drift condition nor an auxiliary small set is required. Step~6 computes
+the two geometric constants \eqref{eq:radii} for the polytope \eqref{eq:polytope} and
+assembles the explicit bound on $\beta$ in \eqref{eq:minorization}.
+
+Throughout, $\nu=K-1\ge1$; $P_H:=I_K-\frac1K\mathbf1\mathbf1^\top$ is the orthogonal
+projection of $\R^K$ onto $H$; $\mathbb S:=\{d\in H:\|d\|_2=1\}$ is the unit sphere of
+$H$, carrying surface measure $\varsigma$ with total mass
+$\varsigma(\mathbb S)=\sigma_{\nu-1}$; and $\omega_\nu:=\pi^{\nu/2}/\Gamma(\nu/2+1)$ is
+the volume of the unit ball of $\R^\nu$.
+
+\emph{Step 1 (the sampled direction is exactly uniform on $\mathbb S$).} The sampler
+draws $g\sim N(0,I_K)$, subtracts the coordinate mean, and normalizes. Since
+$\frac1K\mathbf1\mathbf1^\top g=\bar g\,\mathbf1$ with $\bar g=K^{-1}\sum_kg_k$,
+subtracting the mean is exactly the action of $P_H$, so the returned direction is
+$d=P_Hg/\|P_Hg\|_2$ (well defined almost surely, since $P_Hg=0$ only on the
+$\PP$-null event $g\in\mathrm{span}(\mathbf1)$). Let $U\in\R^{K\times\nu}$ have
+orthonormal columns spanning $H$, so $U^\top U=I_\nu$ and $P_H=UU^\top$. Then
+$U^\top g\sim N(0,U^\top I_KU)=N(0,I_\nu)$ and
+\[
+    P_Hg = U(U^\top g), \qquad \|P_Hg\|_2 = \|U(U^\top g)\|_2 = \|U^\top g\|_2,
+\]
+the last equality because $U$ is a linear isometry of $\R^\nu$ onto $H$. A standard
+$\nu$-variate normal vector is almost surely nonzero and its law is invariant under every
+orthogonal transformation of $\R^\nu$; the law of $U^\top g/\|U^\top g\|_2$ is therefore a
+rotation-invariant probability measure on the unit sphere of $\R^\nu$, and the uniform law
+is the unique such measure. Applying the isometry $U$, $d$ is uniform on $\mathbb S$. This
+is an exact identification, not an approximation, and it is the only property of the
+direction step used below.
+
+\emph{Step 2 (a closed-form density bound for $P$).} Fix $q\in\cS$ and $d\in\mathbb S$.
+The set $T(q,d):=\{t\in\R:q+td\in\cS\}$ is the preimage of the compact convex set $\cS$
+under an affine map, hence a compact interval, and it contains $0$ because $q\in\cS$;
+write $\ell(q,d)$ for its length. (This interval is what the sampler computes: the
+intersection of $\{t:q+td\ge0\}$ with $\{t:\tfrac12\|q+td-p_0\|_1\le\lambda\}$, the
+second being an interval because $t\mapsto\tfrac12\|q+td-p_0\|_1$ is convex.) For
+$y\in\cS$ with $y\ne q$ put $d_{qy}:=(y-q)/\|y-q\|_2$, which lies in $H$ because
+$\mathbf1^\top(y-q)=1-1=0$, and $\ell(q,y):=\ell(q,d_{qy})$: the length of the chord of
+$\cS$ through $q$ and $y$. Convexity gives $[q,y]\subseteq\cS$ and hence
+\begin{equation}\label{eq:chord-lower}
+    \ell(q,y)\ \ge\ \|y-q\|_2\ >\ 0 \qquad\text{for every }y\in\cS\setminus\{q\},
+\end{equation}
+so no $y\in\cS$ is unreachable, however close $q$ lies to the boundary.
+
+Split $\mathbb S$ into $\mathbb S_q^+:=\{d:\ell(q,d)>0\}$ and its complement
+$\mathbb S_q^0$; on $\mathbb S_q^0$ the chord degenerates to $\{q\}$ and the uniform draw
+on it is $\delta_q$. By Step~1 and the construction of the chain, for Borel
+$B\subseteq\cS$,
+\begin{equation}\label{eq:har-kernel}
+    P(q,B) = \frac{\varsigma(\mathbb S_q^0)}{\sigma_{\nu-1}}\,\mathbf1\{q\in B\}
+    + \frac{1}{\sigma_{\nu-1}}\int_{\mathbb S_q^+}\frac{1}{\ell(q,d)}
+      \int_{T(q,d)}\mathbf1\{q+td\in B\}\,dt\ \varsigma(dd),
+\end{equation}
+where $\varsigma(\mathbb S_q^0)=0$ whenever $q$ lies in the relative interior of $\cS$
+(then $\ell(q,d)>0$ for every $d$). Discard the first, nonnegative, term of
+\eqref{eq:har-kernel} and split its inner integral at $t=0$. The antipodal map
+$d\mapsto-d$ is an isometry of $\mathbb S$, so
+preserves $\varsigma$; it satisfies $T(q,-d)=-T(q,d)$ and $\ell(q,-d)=\ell(q,d)$, since
+$d$ and $-d$ generate the same line and hence the same chord. The substitution
+$(t,d)\mapsto(-t,-d)$ therefore maps the $t<0$ half of the integral onto the $t>0$ half,
+and $\{t=0\}$ is Lebesgue-null, giving
+\begin{equation}\label{eq:har-folded}
+    P(q,B)\ \ge\ \frac{2}{\sigma_{\nu-1}}\int_{\mathbb S}\frac{1}{\ell(q,d)}
+    \int_0^\infty\mathbf1\{q+td\in B\}\,dt\ \varsigma(dd),
+\end{equation}
+where extending the outer integral from $\mathbb S_q^+$ to $\mathbb S$ changes nothing:
+for $d\in\mathbb S_q^0$ and $t>0$, $q+td\notin\cS\supseteq B$. Now apply the polar
+decomposition of $\mathrm{vol}_\nu$ about $q$ in the $\nu$-dimensional Euclidean space
+$q+H=p_0+H$: for every nonnegative Borel $f$,
+\begin{equation}\label{eq:polar}
+    \int f\,d\mathrm{vol}_\nu
+    = \int_{\mathbb S}\int_0^\infty f(q+td)\,t^{\nu-1}\,dt\ \varsigma(dd).
+\end{equation}
+Take $f(y)=\mathbf1\{y\in B\}\,p(q,y)$ with
+\begin{equation}\label{eq:har-density}
+    p(q,y) := \frac{2}{\sigma_{\nu-1}\,\ell(q,y)\,\|y-q\|_2^{\nu-1}},
+\end{equation}
+finite and strictly positive on $\cS\setminus\{q\}$ by \eqref{eq:chord-lower} and
+compactness. Since $\ell(q,q+td)=\ell(q,d)$ and $\|(q+td)-q\|_2=t$ for $t>0$, the factor
+$t^{\nu-1}$ in \eqref{eq:polar} cancels the factor $\|y-q\|_2^{\nu-1}$ in
+\eqref{eq:har-density} exactly, and the right-hand side of \eqref{eq:polar} becomes the
+right-hand side of \eqref{eq:har-folded}. Hence
+\begin{equation}\label{eq:har-density-bound}
+    P(q,B)\ \ge\ \int_B p(q,y)\,\mathrm{vol}_\nu(dy)
+    \qquad\text{for every }q\in\cS\text{ and Borel }B\subseteq\cS,
+\end{equation}
+with equality whenever $\varsigma(\mathbb S_q^0)=0$, in particular for every $q$ in the
+relative interior of $\cS$: there $P(q,\cdot)$ is absolutely continuous with density
+$p(q,\cdot)$. As a check on \eqref{eq:har-density} at $K=2$, so $\nu=1$: then
+$\sigma_0=2\pi^{1/2}/\Gamma(1/2)=2$ and $\|y-q\|_2^{\,0}=1$, so $p(q,y)=1/\ell(q,y)$ ---
+on a one-dimensional $\cS$ the chain draws uniformly from the whole feasible segment, as
+it must.
+
+\emph{Step 3 (reversibility, and part (a)).} The expression \eqref{eq:har-density} is
+symmetric, $p(q,y)=p(y,q)$: the chord of $\cS$ through $q$ and $y$ is the same set
+whichever endpoint it is read from, so $\ell(q,y)=\ell(y,q)$, and
+$\|y-q\|_2=\|q-y\|_2$. The relative boundary $\partial\cS$ is a finite union of faces,
+each contained in an affine subspace of dimension $\nu-1$, so
+$\mathrm{vol}_\nu(\partial\cS)=0$ and hence $\mu(\partial\cS)=0$: $\mu$-almost every $q$
+is relatively interior, where by Step~2 $P(q,\cdot)=p(q,\cdot)\,\mathrm{vol}_\nu$ exactly.
+Since $\mu$ has the constant density $1/\mathrm{vol}_\nu(\cS)$ on $\cS$, Tonelli's theorem
+and the symmetry of $p$ give, for all Borel $A,B\subseteq\cS$,
+\[
+    \int_A P(q,B)\,\mu(dq)
+    = \frac{1}{\mathrm{vol}_\nu(\cS)}\int_A\int_B p(q,y)\,\mathrm{vol}_\nu(dy)\,\mathrm{vol}_\nu(dq)
+    = \int_B P(y,A)\,\mu(dy),
+\]
+which is detailed balance; $\mu$ is reversible for $P$, and taking $A=\cS$ gives
+$\mu P=\mu$. This proves (a). Note what is \emph{not} assumed here: stationarity is
+derived from the sampler's construction, not posited as in
+Assumption~\ref{ass:geometry}.
+
+\emph{Step 4 (a lower bound uniform in both arguments).} Let
+$D_\cS=\mathrm{diam}(\cS)=\sup_{q,y\in\cS}\|q-y\|_2$, finite because $\cS$ is compact,
+and positive because $\cS$ is $\nu$-dimensional with $\nu\ge1$ (Step~6). For every
+$q\in\cS$ and every $y\in\cS\setminus\{q\}$: the chord through $q$ and $y$ is a segment
+contained in $\cS$, so $\ell(q,y)\le D_\cS$; and $\|y-q\|_2\le D_\cS$. Both quantities
+appear in the denominator of \eqref{eq:har-density} with nonnegative exponent ($1$ and
+$\nu-1\ge0$ respectively), so
+\begin{equation}\label{eq:density-floor}
+    p(q,y)\ \ge\ \frac{2}{\sigma_{\nu-1}\,D_\cS\cdot D_\cS^{\,\nu-1}}
+    = \frac{2}{\sigma_{\nu-1}D_\cS^{\,\nu}}
+    \qquad\text{for all }q\in\cS,\ y\in\cS\setminus\{q\}.
+\end{equation}
+Combining \eqref{eq:har-density-bound} with \eqref{eq:density-floor}, and using that
+$\mathrm{vol}_\nu(\{q\})=0$ for $\nu\ge1$, for every $q\in\cS$ and Borel $A\subseteq\cS$
+\[
+    P(q,A)\ \ge\ \int_{A\setminus\{q\}}p(q,y)\,\mathrm{vol}_\nu(dy)
+    \ \ge\ \frac{2\,\mathrm{vol}_\nu(A)}{\sigma_{\nu-1}D_\cS^{\,\nu}}
+    = \frac{2\,\mathrm{vol}_\nu(\cS)}{\sigma_{\nu-1}D_\cS^{\,\nu}}\,\mu(A)
+    = \beta\,\mu(A),
+\]
+which is the minorization in \eqref{eq:minorization}. Taking $A=\cS$ gives
+$1=P(q,\cS)\ge\beta\mu(\cS)=\beta$, so $\beta\in(0,1]$ once $\beta>0$ is established in
+Step~6.
+
+\emph{Step 5 (minorization on the whole space implies the rate \eqref{eq:unif-erg}).}
+The result invoked is the Doeblin criterion for uniform ergodicity in the form surveyed
+by \citet{roberts2004general}: if a minorization $P(q,\cdot)\ge\beta\,\mu(\cdot)$ holds
+for \emph{every} state $q$, with $\mu$ a probability measure that is stationary for $P$,
+then $\|P^t(q,\cdot)-\mu\|_{\mathrm{TV}}\le(1-\beta)^t$ for all $q$ and $t$. Its two
+hypotheses are exactly what Steps~3 and~4 supply: $\mu$ is a probability measure on
+$\cS$ (Step~6 gives $\mathrm{vol}_\nu(\cS)\in(0,\infty)$) and is stationary (Step~3), and
+the minorization holds at every $q\in\cS$ with no exceptional set (Step~4). No drift
+condition is needed, because the small set is the whole state space. For completeness,
+the argument in the present setting: if $\beta=1$ then $P(q,\cdot)=\mu$ for every $q$ and
+\eqref{eq:unif-erg} is immediate. If $\beta<1$, set
+\[
+    \check P(q,A) := \frac{P(q,A)-\beta\,\mu(A)}{1-\beta},
+\]
+which is nonnegative by \eqref{eq:minorization} and has $\check P(q,\cS)=1$, hence is a
+transition kernel, and $P=\beta\mu+(1-\beta)\check P$. Realize the chain by drawing, at
+each step, an independent $\mathrm{Bernoulli}(\beta)$ indicator: on a success (a
+``regeneration'') take the next state from $\mu$, independently of the past; otherwise
+take it from $\check P(q,\cdot)$. Run one copy from $q$ and one from $\mu$, sharing the
+indicators and the $\mu$-draws, and --- once the two copies coincide --- the residual-kernel
+transition thereafter. The second copy is stationary by Step~3, so its time-$t$
+marginal is $\mu$; the two copies are equal from the first regeneration onwards; and the
+probability that no regeneration occurs in steps $1,\dots,t$ is $(1-\beta)^t$. The
+coupling inequality then gives
+$\|P^t(q,\cdot)-\mu\|_{\mathrm{TV}}\le\PP(\text{copies differ at }t)\le(1-\beta)^t$,
+uniformly in $q$, which is \eqref{eq:unif-erg}. This proves (c) given (b).
+
+\emph{Step 6 (the two radii, and the explicit constant).} First the inscribed ball.
+Let $q\in p_0+H$ with $\|q-p_0\|_2\le r$, $r$ as in \eqref{eq:radii}. For each $k$,
+$|q_k-p_0(k)|\le\|q-p_0\|_2\le r\le p_{\min}\le p_0(k)$, so $q_k\ge p_0(k)-r\ge0$:
+positivity holds. For the total-variation constraint, Cauchy--Schwarz applied to
+$\mathbf1$ and $|q-p_0|$ gives
+$\|q-p_0\|_1=\langle\mathbf1,|q-p_0|\rangle\le\|\mathbf1\|_2\|q-p_0\|_2=\sqrt K\|q-p_0\|_2$,
+whence
+\[
+    \tfrac12\|q-p_0\|_1\ \le\ \tfrac12\sqrt K\,\|q-p_0\|_2
+    \ \le\ \tfrac12\sqrt K\cdot\frac{2\lambda}{\sqrt K} = \lambda .
+\]
+So $\{q\in p_0+H:\|q-p_0\|_2\le r\}\subseteq\cS$ by \eqref{eq:polytope}. Since
+$p_{\min}>0$ and $\lambda>0$ give $r>0$, this inscribed $\nu$-ball certifies that $\cS$
+has nonempty interior relative to $p_0+H$, so $\dim\cS=\nu$, $D_\cS>0$, and
+\begin{equation}\label{eq:vol-lower}
+    \mathrm{vol}_\nu(\cS)\ \ge\ \omega_\nu r^\nu\ >\ 0 .
+\end{equation}
+We claim no more for $r$ than this: it is a lower bound on the inradius of $\cS$, not
+necessarily the inradius itself, and only the lower bound is used.
+
+Next the circumradius. Let $q\in\cS$. From $\tfrac12\|q-p_0\|_1\le\lambda$ and
+$\|v\|_2\le\|v\|_1$, $\|q-p_0\|_2\le2\lambda$. Separately, $q$ and $p_0$ are both
+nonnegative with unit sum, so $\langle q,p_0\rangle\ge0$ and, for any such vector $v$,
+$\|v\|_2^2=\sum_kv_k^2\le(\max_kv_k)\sum_kv_k\le1$; hence
+\[
+    \|q-p_0\|_2^2 = \|q\|_2^2 - 2\langle q,p_0\rangle + \|p_0\|_2^2
+    \ \le\ \|q\|_2^2+\|p_0\|_2^2\ \le\ 2 .
+\]
+Both bounds together give $\|q-p_0\|_2\le R$ with $R$ as in \eqref{eq:radii}, and the
+triangle inequality through $p_0$ then gives, for all $q,y\in\cS$,
+$\|q-y\|_2\le\|q-p_0\|_2+\|p_0-y\|_2\le2R$, i.e.
+\begin{equation}\label{eq:diam-upper}
+    D_\cS\ \le\ 2R .
+\end{equation}
+Finally, substitute \eqref{eq:vol-lower} and \eqref{eq:diam-upper} into the definition of
+$\beta$:
+\[
+    \beta = \frac{2\,\mathrm{vol}_\nu(\cS)}{\sigma_{\nu-1}D_\cS^{\,\nu}}
+    \ \ge\ \frac{2\,\omega_\nu r^\nu}{\sigma_{\nu-1}(2R)^\nu}
+    = \frac{2\,\omega_\nu}{\sigma_{\nu-1}}\Big(\frac{r}{2R}\Big)^{\nu},
+\]
+and the ratio of the two constants is $1/\nu$, by the functional equation
+$\Gamma(z+1)=z\Gamma(z)$ at $z=\nu/2$:
+\[
+    \frac{\omega_\nu}{\sigma_{\nu-1}}
+    = \frac{\pi^{\nu/2}/\Gamma(\tfrac\nu2+1)}{2\pi^{\nu/2}/\Gamma(\tfrac\nu2)}
+    = \frac{\Gamma(\nu/2)}{2\,\Gamma(\nu/2+1)}
+    = \frac{\Gamma(\nu/2)}{2\cdot\tfrac\nu2\,\Gamma(\nu/2)}
+    = \frac1\nu .
+\]
+Hence $\beta\ge\frac2\nu(r/2R)^\nu>0$, completing \eqref{eq:minorization} and, with
+Step~5, the proof.
+\end{proof}
 
 \subsection{Proof of Proposition~\ref{prop:interior}}\label{app:proof-interior}
 
@@ -2790,6 +3475,328 @@ chain; scaling by $\sqrt n$ gives $O_P((n/M)^{1/2})$, which is $o_P(1)$ iff $n=o
 Combining Steps 1--4 gives \eqref{eq:thm-general}.
 \end{proof}
 
+\subsection{Proof of Lemma~\ref{lem:chi-bounded}}\label{app:proof-chi-bounded}
+
+\begin{proof}
+Write \eqref{eq:interior-chi-ab} as the sum of two symmetric terms; we bound the first,
+$a(\lambda)\,p_0(X)^{-1}(\tau_b(X)-\bar\tau_b)(\mathrm{score}_a(O)-\tau_a(X))$, and
+double.
+
+\emph{Step 1 (representer factor).} By A9(a), $|\mu^V_1(x)|\vee|\mu^V_0(x)|\le B$, hence
+$\|\tau_b\|_\infty\le2B$ and $|\tau_b(k)-\bar\tau_b|\le2\|\tau_b\|_\infty\le4B$. By A9(d)
+the same bound holds for $\hat\tau_{b,j}$ when
+$\hat\tau_{b,j}=\hat\mu^b_{1,j}-\hat\mu^b_{0,j}$, and when $\hat\tau_{b,j}$ is the
+cell-wise AIPW mean the bound of Step~2 gives $\|\hat\tau_{b,j}\|_\infty\le4B/c$, so
+$|\hat\tau_{b,j}(k)-\bar{\hat\tau}_{b,j}|\le8B/c$.
+
+\emph{Step 2 (residual factor).} In the interior regime
+Corollary~\ref{cor:interior-eif} shows $\mathrm{score}_a(O)-\tau_a(k)$ collapses exactly
+on cell $k$ to
+$\frac{A(V-\mu^a_1(k))}{e(X)}-\frac{(1-A)(V-\mu^a_0(k))}{1-e(X)}$. Exactly one of the two
+summands is nonzero for a given $A$; by A9(a) its numerator is at most $2B$ in absolute
+value and by A9(b) its denominator is at least $c$, so
+$\|\mathrm{score}_a-\tau_a\|_\infty\le2B/c$. For the realized version,
+$|\hat\mu^a_{1,j}-\hat\mu^a_{0,j}|\le2B$, the augmentation term is at most $2B/c$, and
+$|\hat\tau_{a,j}|\le4B/c$ by the same two bounds; summing,
+$\|\widehat{\mathrm{score}}_{a,j}-\hat\tau_{a,j}\|_\infty\le8B/c$.
+
+\emph{Step 3 (mass factor and assembly).} By A9(e), $p_0(X)^{-1}\le p_{\min}^{-1}$.
+Multiplying the three factors and doubling for the $(a\leftrightarrow b)$ term gives, in
+the worst (realized) case,
+$2\cdot a(\lambda)\cdot p_{\min}^{-1}\cdot(8B/c)\cdot(8B/c)=128a(\lambda)B^2/(c^2p_{\min})$,
+which is the $B_\chi$ of \eqref{eq:chi-bounded}.
+\end{proof}
+
+\subsection{Proof of Lemma~\ref{lem:D2-bernstein}}\label{app:proof-D2-bernstein}
+
+\begin{proof}
+\emph{Proof strategy.} Steps~1--2 compute the conditional mean of the realized cell
+influence function and read off the conditional bias $b^{(j)}_{ab}$ of the fold-$j$
+correction term, which is first-order in the CATE errors. Step~3 shows that this bias
+cancels identically against the fold-$j$ plug-in bias, leaving exactly the second-order
+remainder \eqref{eq:R-exact}, and Step~4 assembles part~(i). Steps~5--6 collect the
+conditional properties of the centered summands \eqref{eq:xi-def} and apply Bernstein's
+inequality fold by fold, with a union bound over folds and moments, giving part~(ii).
+
+\emph{Step 1: conditional mean of the realized cell influence function.} Fix $j,k$ and
+condition on $\mathcal T_j$, so $(\hat\tau_{a,j},\hat e_j,\hat\mu^V_{t,j})$ are fixed
+functions and $O\sim\PP_0$ is independent of them. Then
+\[
+    \E_{\PP_0}\big[\widehat{\mathbf{IF}}_{\tau_a,j}(O;k)\,\big|\,\mathcal T_j\big]
+    =\frac{\PP_0(X=k)}{p_0(k)}\,\E_{\PP_0}\big[\widehat{\mathrm{score}}_{a,j}(O)-\hat\tau_{a,j}(k)\,\big|\,X=k,\mathcal T_j\big].
+\]
+Expanding the AIPW bracket \eqref{eq:aipw-estimator} and using
+$Y(a),S(a)\perp A\mid X$ (Assumption~\ref{ass:causal}),
+\[
+    \E_{\PP_0}\big[\widehat{\mathrm{score}}_{a,j}\,\big|\,X=k\big]
+    =\hat\mu^a_{1,j}-\hat\mu^a_{0,j}+\frac{e}{\hat e_j}(\mu^a_1-\hat\mu^a_{1,j})-\frac{1-e}{1-\hat e_j}(\mu^a_0-\hat\mu^a_{0,j})
+    =\tau_a(k)+\Delta^{\mathrm{dr}}_{a,j}(k),
+\]
+all quantities evaluated at $k$, which is the standard double-robustness computation: the
+terms linear in $(\hat\mu-\mu)$ and in $(\hat e-e)$ cancel, leaving only the product
+\eqref{eq:dr-bias}. Hence
+\begin{equation}\label{eq:IF-conditional-mean}
+    \E_{\PP_0}\big[\widehat{\mathbf{IF}}_{\tau_a,j}(O;k)\,\big|\,\mathcal T_j\big]\;=\;-\,\delta_{a,j}(k)\;+\;\Delta^{\mathrm{dr}}_{a,j}(k).
+\end{equation}
+
+\emph{Step 2: the conditional bias of the correction term is first-order.} Since
+$\chi_{ab}$ is $\PP_0$-mean-zero (Lemma~\ref{lem:bilinear-eif}, and
+Lemma~\ref{lem:if-meanzero} for the AIPW component), applying
+\eqref{eq:IF-conditional-mean} termwise gives
+\begin{equation}\label{eq:bk}
+\begin{aligned}
+    b^{(j)}_{ab}&:=\E_{\PP_0}\big[\hat\chi_{ab,j}(O)-\chi_{ab}(O)\,\big|\,\mathcal T_j\big]
+    =\E_{\PP_0}\big[\hat\chi_{ab,j}(O)\,\big|\,\mathcal T_j\big]\\
+    &=-(\Sigma\hat\tau_{b,j})^\top\delta_{a,j}-(\Sigma\hat\tau_{a,j})^\top\delta_{b,j}
+    +(\Sigma\hat\tau_{b,j})^\top\Delta^{\mathrm{dr}}_{a,j}+(\Sigma\hat\tau_{a,j})^\top\Delta^{\mathrm{dr}}_{b,j}.
+\end{aligned}
+\end{equation}
+We record explicitly that $b^{(j)}_{ab}$ is \emph{first}-order in the CATE errors, of
+exact order $\|\delta_{a,j}\|+\|\delta_{b,j}\|$ and not
+$\|\delta_{a,j}\|\|\delta_{b,j}\|$; it is therefore not bounded by
+\eqref{eq:CS-remainder} and must not be estimated in isolation. It is cancelled, not
+bounded, in Step~3.
+
+\emph{Step 3: exact cancellation against the plug-in bias.} Because
+$\Theta_{ab}(\tau_a,\tau_b)=\tau_a^\top\Sigma\tau_b$ is exactly bilinear with $\Sigma$
+known and symmetric, the plug-in bias expands with no remainder:
+\[
+    \hat\tau_{a,j}^\top\Sigma\hat\tau_{b,j}-\tau_a^\top\Sigma\tau_b=\delta_{a,j}^\top\Sigma\tau_b+\tau_a^\top\Sigma\delta_{b,j}+\delta_{a,j}^\top\Sigma\delta_{b,j}.
+\]
+Substituting $\hat\tau_{b,j}=\tau_b+\delta_{b,j}$ and
+$\hat\tau_{a,j}=\tau_a+\delta_{a,j}$ into the first two terms of \eqref{eq:bk} and using
+symmetry of $\Sigma$,
+\[
+    (\Sigma\hat\tau_{b,j})^\top\delta_{a,j}=\delta_{a,j}^\top\Sigma\tau_b+\delta_{a,j}^\top\Sigma\delta_{b,j},\qquad
+    (\Sigma\hat\tau_{a,j})^\top\delta_{b,j}=\tau_a^\top\Sigma\delta_{b,j}+\delta_{a,j}^\top\Sigma\delta_{b,j}.
+\]
+Adding the plug-in bias and \eqref{eq:bk}, the four first-order terms cancel in pairs and
+one copy of $\delta_{a,j}^\top\Sigma\delta_{b,j}$ survives with a negative sign:
+\[
+    \big(\hat\tau_{a,j}^\top\Sigma\hat\tau_{b,j}-\tau_a^\top\Sigma\tau_b\big)+b^{(j)}_{ab}\;=\;R^{(j)}_{ab},
+\]
+with $R^{(j)}_{ab}$ exactly as in \eqref{eq:R-exact}. This is the finite-sample content of
+the Neyman orthogonality asserted in Lemma~\ref{lem:onestep}: the one-step correction
+removes the plug-in's first-order bias identically, not merely to first order. It is also
+where the fold-matched form \eqref{eq:onestep-foldmatched} is essential --- pairing a
+full-sample plug-in with fold-specific corrections leaves uncancelled first-order cross
+terms $\delta_{a,\text{full}}-\delta_{a,j}$.
+
+\emph{Step 4: assembly of \eqref{eq:vonmises-exact}.} Add and subtract
+$\frac Jn\sum_{i\in I_j}\{\chi_{ab}(O_i)+b^{(j)}_{ab}\}$ in
+\eqref{eq:onestep-foldmatched} and apply Step~3. Part~(i) follows. Note that
+$\PP_0\chi_{ab}=0$ is the only use made of Lemma~\ref{lem:if-meanzero}, and it is used in
+its marginal form, which is what that lemma states; no conditional mean-zero property of
+$\hat\chi_{ab,j}-\chi_{ab}$ is claimed or needed, because \eqref{eq:xi-def} centers by
+construction.
+
+\emph{Step 5: conditional properties of $\xi^{ab}_{j,i}$.} Fix $j$ and condition on
+$\mathcal T_j$. Since $\{O_i\}_{i\in I_j}$ are i.i.d.\ $\PP_0$ and independent of
+$\mathcal T_j$ (cross-fitting), the variables $\{\xi^{ab}_{j,i}\}_{i\in I_j}$ are
+conditionally i.i.d.; they are conditionally mean-zero by the definition
+\eqref{eq:xi-def}; by Lemma~\ref{lem:chi-bounded} and Jensen,
+$|\xi^{ab}_{j,i}|\le\|\hat\chi_{ab,j}\|_\infty+\|\chi_{ab}\|_\infty+|b^{(j)}_{ab}|\le4B_\chi$,
+so the Bernstein range parameter below is $M_\xi:=4B_\chi$, the bound just derived;
+finally $\E[(\xi^{ab}_{j,i})^2\mid\mathcal T_j]\le\|\hat\chi_{ab,j}-\chi_{ab}\|^2_{L^2(\PP_0)}\le s_n^2$
+on the event of part~(ii).
+
+\emph{Step 6: Bernstein and union.} By Bernstein's inequality for bounded i.i.d.\
+variables \citep[Thm.~2.10]{BoucheronLugosiMassart2013}, conditionally on
+$\mathcal T_j$, for $N=n/J$, $v=s_n^2$, $M_\xi=4B_\chi$,
+\[
+    \PP\Big(\Big|\sum_{i\in I_j}\xi^{ab}_{j,i}\Big|>t\,\Big|\,\mathcal T_j\Big)\le2\exp\Big(-\frac{t^2}{2\big(Nv+M_\xi t/3\big)}\Big).
+\]
+Setting $t_j=\sqrt{2NvL}+\tfrac{2M_\xi L}{3}=s_n\sqrt{2Ln/J}+\tfrac{8B_\chi L}{3}$ makes
+the exponent at least $L$: indeed
+$t_j^2-2NvL-\tfrac{2M_\xi L}{3}t_j=\tfrac{2M_\xi L}{3}\sqrt{2NvL}\ge0$. Hence the
+conditional probability is at most $2e^{-L}=\delta_2/(3J)$, and since the bound is uniform
+in $\mathcal T_j$ it holds unconditionally. A union bound over $J$ folds and the three
+moments $ab\in\{SS,SY,YY\}$ costs $\delta_2$ in total. On the resulting event,
+\[
+    \Big|\frac{1}{\sqrt n}\sum_{j}\sum_{i\in I_j}\xi^{ab}_{j,i}\Big|\le\frac{1}{\sqrt n}\sum_{j=1}^Jt_j=s_n\sqrt{2JL}+\frac{8JB_\chi L}{3\sqrt n},
+\]
+which is \eqref{eq:eps2}. Intersecting with the $\delta_1$-event on which $s_n$ is valid
+gives the stated probability.
+\end{proof}
+
+\subsection{Proof of Theorem~\ref{thm:finite-n}}\label{app:proof-finite-n}
+
+\begin{proof}
+\emph{Proof strategy.} Write $T_n$ as an oracle linear statistic plus three
+perturbations: the exact second-order remainder \eqref{eq:R-exact}, the cross-fit
+empirical process \eqref{eq:eps2}, and the second-order delta-method term. Step~0 records
+what the interior regime removes. Step~1 bounds the oracle statistic's Kolmogorov distance
+to $\Phi$ by Berry--Esseen. Steps~2--5 bound the three perturbations on
+high-probability events. Step~6 converts their sum into Kolmogorov distance by
+Gaussian anti-concentration and assembles \eqref{eq:finite-n-bound}. Step~7 calibrates
+$r_n$ on finite $\cX$ and reads off \eqref{eq:final-rate}.
+
+\emph{Step 0 (what the interior regime removes).} With $\lambda<\min_kp_0(k)$ strictly and
+$K\ge3$, Corollary~\ref{cor:interior-eif} applies: $\Theta=\Corr_K(\tau_S,\tau_Y)$,
+$\Theta_{ab}=\tau_a^\top\Sigma\tau_b$ with $\Sigma=a(\lambda)(I_K-\mathbf1\mathbf1^\top/K)$
+known and $\|\Sigma\|_{op}=a(\lambda)$, and $\psi_\Theta$ of \eqref{eq:interior-eif} is a
+fixed, non-random function of $O$ involving no estimated quantity. Three consequences are
+used below: the Berry--Esseen bound of Step~1 applies directly rather than conditionally
+on an estimated kernel; \eqref{eq:vonmises-exact} carries no $\hat C-C$ contribution, so
+the decomposition is exact; and $\sigma^2=\Var_{\PP_0}\{\psi_\Theta(O)\}$ is a fixed
+number, bounded below by $\sigma^2_{\min}$ by A9(f). Since
+$\Thetahat_n\to\Corr_K(\hat\tau_S,\hat\tau_Y)$ exactly in this regime, the MCMC
+construction of Section~\ref{sec:layer1} is not used and \eqref{eq:thm-general}'s
+$O_P((n/M)^{1/2})$ term is absent.
+
+\emph{Step 1 (Berry--Esseen for the oracle statistic).} Put
+$T_n^\circ:=(\sigma\sqrt n)^{-1}\sum_{i=1}^n\psi_\Theta(O_i)$. The summands are i.i.d.\
+(Assumption~\ref{ass:iid}), mean-zero (Lemma~\ref{lem:moment-eif} composed with
+Lemma~\ref{lem:bilinear-eif} and, for the AIPW component,
+Lemma~\ref{lem:if-meanzero}), and bounded by $B_\psi$, finite by
+Lemma~\ref{lem:chi-bounded} together with boundedness of $\nabla\Psi$ on the
+non-degenerate region (Assumption~\ref{ass:nondegeneracy}); hence
+$\E_{\PP_0}|\psi_\Theta|^3\le B_\psi^3$. A9(f) gives $\sigma\ge\sigma_{\min}>0$, so
+$T_n^\circ$ is well defined. The Berry--Esseen theorem for identically distributed
+summands, with the absolute constant $0.4690$ of \citet{Shevtsova2011}, gives
+\[
+    \sup_{t\in\R}\big|\PP(T_n^\circ\le t)-\Phi(t)\big|
+    \;\le\;\frac{0.4690\,\E_{\PP_0}|\psi_\Theta|^3}{\sigma^3\sqrt n}
+    \;\le\;\frac{0.4690\,B_\psi^3}{\sigma_{\min}^3\sqrt n}\;=\;Z_n .
+\]
+
+\emph{Step 2 (the score-perturbation scale $s_n$).} On $\mathcal E_1$ we verify
+Lemma~\ref{lem:D2-bernstein}(ii)'s hypothesis with the $s_n$ of \eqref{eq:eps-defs}. By
+\eqref{eq:interior-chi-ab}, $\chi_{ab}$ is a sum of two terms, each a product of four
+factors: $a(\lambda)$; the mass factor $p_0(X)^{-1}\le p_{\min}^{-1}$ (A9(e)); a centered
+representer factor bounded by $8B/c$ (Step~1 of Appendix~\ref{app:proof-chi-bounded}); and
+a residual factor bounded by $8B/c$ (Step~2 there). Replacing the population nuisances by
+their fold-$j$ fits perturbs the last two factors only. Under A9(a), (b) and (d) each such
+perturbation is at most an absolute multiple of $r_n/c$ --- the outcome-regression
+contributions are bounded by $r_n$ directly, and the propensity contribution uses
+$|1/\hat e_j-1/e|\le|\hat e_j-e|/c^2\le r_n/c^2$, both denominators being at least $c$ by
+A9(b). Expanding the product of perturbed factors and collecting terms, each of which
+carries at least one factor of $r_n$ and otherwise only the A9 constants, gives
+\[
+    \max_{j\le J}\max_{ab}\big\|\hat\chi_{ab,j}-\chi_{ab}\big\|_\infty
+    \;\le\;\frac{\kappa_s\,a(\lambda)\,B}{c\,p_{\min}}\,r_n\;=\;s_n
+\]
+for an absolute constant $\kappa_s$, which is the constant the theorem's statement
+declares and which we do not evaluate. Since $\|\cdot\|_{L^2(\PP_0)}\le\|\cdot\|_\infty$,
+the same bound holds in $L^2(\PP_0)$, so Lemma~\ref{lem:D2-bernstein}(ii) applies with
+this $s_n$ and this $\delta_1$.
+
+\emph{Step 3 (the remainder term, giving $\varepsilon_1$).} A9(e) gives $K\le1/p_{\min}$
+and hence $\|v\|_2\le\sqrt K\|v\|_\infty\le\|v\|_\infty/\sqrt{p_{\min}}$ for any
+$v\in\R^K$. On $\mathcal E_1$, bound the three terms of \eqref{eq:R-exact} separately.
+First, by Cauchy--Schwarz with $\|\Sigma\|_{op}=a(\lambda)$,
+$|\delta_{a,j}^\top\Sigma\delta_{b,j}|\le a(\lambda)\|\delta_{a,j}\|_2\|\delta_{b,j}\|_2\le a(\lambda)r_n^2/p_{\min}$.
+Second, in \eqref{eq:dr-bias} both numerator factors are bounded by $r_n$ and both
+denominators by $c$ from below (A9(b)), so
+$\|\Delta^{\mathrm{dr}}_{a,j}\|_\infty\le2r_n^2/c$. Third,
+$\|\hat\tau_{b,j}\|_\infty\le4B/c$ (Steps~1--2 of Appendix~\ref{app:proof-chi-bounded}),
+so
+\[
+    \big|(\Sigma\hat\tau_{b,j})^\top\Delta^{\mathrm{dr}}_{a,j}\big|
+    \le a(\lambda)\|\hat\tau_{b,j}\|_2\|\Delta^{\mathrm{dr}}_{a,j}\|_2
+    \le a(\lambda)\,K\,\frac{4B}{c}\,\frac{2r_n^2}{c}
+    \le \frac{8\,a(\lambda)\,B\,r_n^2}{c^2p_{\min}},
+\]
+and identically for the $(a\leftrightarrow b)$ term. Summing the three and using
+$C_R=1+16B/c^2$,
+\[
+    \max_{j\le J}\max_{ab}\big|R^{(j)}_{ab}\big|\;\le\;\frac{C_R\,a(\lambda)}{p_{\min}}\,r_n^2 .
+\]
+Because \eqref{eq:onestep-foldmatched} averages the folds rather than summing them,
+$\big|\tfrac1J\sum_jR^{(j)}_{ab}\big|\le\max_j\big|R^{(j)}_{ab}\big|$, so no factor of
+$J$ is incurred (Remark~\ref{rem:bk-routing}). Composing the three moments through
+$\nabla\Psi$ costs $\|\nabla\Psi\|_1\le C_\Psi$, so the remainder's contribution to
+$\sqrt n(\hat\Theta-\Theta(\Qhat,\lambda))$ is at most $\varepsilon_1$ of
+\eqref{eq:eps-defs} in absolute value on $\mathcal E_1$.
+
+\emph{Step 4 (the empirical-process term, giving $\varepsilon_2$).} Averaging
+\eqref{eq:vonmises-exact} over $j$ as in \eqref{eq:onestep-foldmatched} and multiplying by
+$\sqrt n$,
+\[
+    \sqrt n\big(\hat\Theta_{ab}-\Theta_{ab}\big)
+    =\frac1{\sqrt n}\sum_{i=1}^n\chi_{ab}(O_i)
+    +\frac1{\sqrt n}\sum_{j=1}^J\sum_{i\in I_j}\xi^{ab}_{j,i}
+    +\sqrt n\,\frac1J\sum_{j=1}^JR^{(j)}_{ab}.
+\]
+The first term is the oracle statistic of Step~1 after composition with $\nabla\Psi$; the
+third was bounded in Step~3. For the second, Lemma~\ref{lem:D2-bernstein}(ii) with
+Step~2's $s_n$ gives $\max_{ab}|\frac1{\sqrt n}\sum_j\sum_{i\in I_j}\xi^{ab}_{j,i}|\le\varepsilon_2$
+with probability at least $1-\delta_1-\delta_2$. Bounding each of the three moment
+coordinates separately and summing costs a factor $3$, so the composed contribution is at
+most $3C_\Psi\varepsilon_2$; this is conservative, since $C_\Psi$ is already an
+$\ell_1$ bound on $\nabla\Psi$ (Remark~\ref{rem:anticoncentration}).
+
+\emph{Step 5 (the second-order delta-method term, giving $D_3$).} $\Psi$ has bounded
+Hessian on the non-degenerate region (Assumption~\ref{ass:nondegeneracy}), so Taylor's
+theorem with $C^{(2)}_\Psi=\sup\|\nabla^2\Psi\|_{op}$ gives
+$|\Psi(\hat m)-\Psi(m)-\nabla\Psi(m)^\top(\hat m-m)|\le\tfrac12C^{(2)}_\Psi\|\hat m-m\|_2^2$.
+Each coordinate of $\hat m-m$ decomposes by \eqref{eq:vonmises-exact} with a leading term
+that is an average of $n$ i.i.d.\ mean-zero variables bounded by $B_\chi$
+(Lemma~\ref{lem:chi-bounded}), so Bernstein's inequality
+\citep[Thm.~2.10]{BoucheronLugosiMassart2013} with a union bound over the three moments
+gives $\|\hat m-m\|_2^2=O\big(B_\chi^2L_3/n\big)$ on an event of probability at least
+$1-\delta_3$. Multiplying by $\sqrt n\,C^{(2)}_\Psi/2$ and normalizing by
+$\sigma\ge\sigma_{\min}$ --- a single power of $\sigma$, since $T_n$ carries one factor
+$1/\sigma$ --- yields a perturbation of $T_n$ of order
+$C^{(2)}_\Psi B_\chi^2L_3/(2\sigma_{\min}\sqrt n)$, which is the displayed $D_3$; as with
+$\kappa_s$ in \eqref{eq:eps-defs}, the absolute numerical factor carried by the Bernstein
+step is absorbed into the stated constant rather than evaluated. What the argument
+establishes, and all that \eqref{eq:final-rate} and Remark~\ref{rem:log-intrinsic} use, is
+that this term is of order $L_3/\sqrt n$ and is linear in $\log(1/\delta_3)$.
+
+\emph{Step 6 (anti-concentration and assembly).} Let $T$ be any random variable,
+$\mathcal E$ an event with $\PP(\mathcal E^c)\le\delta$, and suppose
+$|T-T_n^\circ|\le\eta$ on $\mathcal E$. Then for every $t$,
+\[
+    \PP(T\le t)\le\PP(T_n^\circ\le t+\eta)+\delta\le\Phi(t+\eta)+Z_n+\delta\le\Phi(t)+\frac\eta{\sqrt{2\pi}}+Z_n+\delta,
+\]
+using Step~1 and $\sup_t|\Phi(t+\eta)-\Phi(t)|\le\eta\sup_u\phi(u)=\eta/\sqrt{2\pi}$ for
+the standard normal density $\phi$; the matching lower bound is symmetric. This display is
+applied once, to the three perturbations taken together. Set
+\[
+    \eta_1:=\frac{\varepsilon_1}{\sigma_{\min}},\qquad
+    \eta_2:=\frac{3C_\Psi\,\varepsilon_2}{\sigma_{\min}},\qquad
+    \eta_3:=\frac{C^{(2)}_\Psi B_\chi^2L_3}{2\sigma_{\min}\sqrt n},\qquad
+    \eta:=\eta_1+\eta_2+\eta_3,
+\]
+the three bounds of Steps~3, 4 and~5, and let $\mathcal E_2$ be the Bernstein event of
+Step~4 --- \eqref{eq:eps2}'s union bound, of probability at least $1-\delta_2$, the
+$\delta_1$ of Lemma~\ref{lem:D2-bernstein}(ii) being $\mathcal E_1$ itself --- and
+$\mathcal E_3$ the event of Step~5. On the intersection
+$\mathcal E:=\mathcal E_1\cap\mathcal E_2\cap\mathcal E_3$ all three bounds hold
+simultaneously, so $|T_n-T_n^\circ|\le\eta_1+\eta_2+\eta_3=\eta$ by the triangle
+inequality, while the union bound over the three complements gives
+\[
+    \PP(\mathcal E^c)\;\le\;\PP(\mathcal E_1^c)+\PP(\mathcal E_2^c)+\PP(\mathcal E_3^c)\;\le\;\delta_1+\delta_2+\delta_3 .
+\]
+Applying the display above once, with $T=T_n$, this $\eta$, and
+$\delta=\delta_1+\delta_2+\delta_3$, gives
+$\Delta_n\le Z_n+\eta/\sqrt{2\pi}+\delta_1+\delta_2+\delta_3$. Since
+$\eta_1/\sqrt{2\pi}=D_1$, $\eta_2/\sqrt{2\pi}=D_2$ and
+$\eta_3/\sqrt{2\pi}\le\eta_3=D_3$ --- the last discarding the factor $1/\sqrt{2\pi}$ in
+the conservative direction --- this is \eqref{eq:finite-n-bound}.
+
+\emph{Step 7 (calibrating $r_n$, and the rate).} On finite $\cX$ each nuisance is a
+cell-wise average of bounded variables: $\hat\mu^V_{t,j}(k)$ averages variables bounded by
+$B$ (A9(a), (d)) over the training observations in cell $k$ and arm $t$ outside fold $j$,
+$\hat e_j(k)$ averages variables in $[0,1]$, and $\hat\tau_{a,j}(k)$ is a bounded function
+of these with denominators at least $c$ (A9(b)). Bernstein's inequality within each cell
+\citep[Thm.~2.10]{BoucheronLugosiMassart2013} and a union bound over the $K$ cells, the
+$J$ folds, and the finitely many nuisances give, with probability at least $1-\delta_1$,
+$r_n\le\Lambda\sqrt{\log(6JK/\delta_1)/(n\,p_{\min})}$ for an explicit
+$\Lambda=\Lambda(B,c)$; the $p_{\min}$ in the denominator is the cell-mass floor of A9(e)
+converting the per-cell training size, which is at least of order $np_{\min}(J-1)/J$, into
+$n$, with the $J/(J-1)$ factor absorbed into $\Lambda$
+(Remark~\ref{rem:bk-routing}). Calibrating $\delta_1=\delta_2=\delta_3=n^{-1/2}$ gives
+$L=\log(6Jn^{1/2})$ and $L_3=\tfrac12\log n$, both $\asymp\tfrac12\log n$ at fixed $J$,
+and $r_n,s_n=O(\sqrt{\log n/n})$. Substituting into \eqref{eq:finite-n-bound}: $Z_n$ is
+$O(n^{-1/2})$; $D_1$ is $\sqrt n\cdot O(r_n^2)=\sqrt n\cdot O(\log n/n)=O(\log n/\sqrt n)$;
+$D_2$'s sub-Gaussian branch is $s_n\sqrt{2JL}=O(\sqrt{\log n/n}\cdot\sqrt{\log n})=O(\log n/\sqrt n)$
+and its Poisson branch is $8JB_\chi L/(3\sqrt n)=O(\log n/\sqrt n)$; $D_3$ is
+$O(\log n/\sqrt n)$ by Step~5; and $\delta_1+\delta_2+\delta_3=3n^{-1/2}$. Every term is
+$O(n^{-1/2}\log n)$, giving \eqref{eq:final-rate}.
+\end{proof}
+
 \subsection{Proof of Corollary~\ref{cor:recovery} and Corollary~\ref{cor:onestep-match}}\label{app:proof-recovery}
 
 \begin{proof}[Proof of Corollary~\ref{cor:recovery}]
@@ -2924,6 +3931,9 @@ the (weaker, insufficient) off-diagonal condition $s_S+s_Y>d/2$ alone.
 \bibitem[Birg\'e \& Massart(1995)]{BirgeMassart1995} Birg\'e, L. and Massart, P.
   (1995). Estimation of integral functionals of a density. \emph{Annals of
   Statistics} 23, 11--29.
+\bibitem[Boucheron et al.(2013)]{BoucheronLugosiMassart2013} Boucheron, S., Lugosi, G.
+  and Massart, P. (2013). \emph{Concentration Inequalities: A Nonasymptotic Theory of
+  Independence}. Oxford University Press, Oxford.
 \bibitem[Chernozhukov et al.(2018)]{chernozhukov2018} Chernozhukov, V., Chetverikov,
   D., Demirer, M., Duflo, E., Hansen, C., Newey, W. and Robins, J. (2018).
   Double/debiased machine learning for treatment and structural parameters.
@@ -2934,9 +3944,14 @@ the (weaker, insufficient) off-diagonal condition $s_S+s_Y>d/2$ alone.
 \bibitem[Kennedy et al.(2024)]{Kennedy2024Minimax} Kennedy, E. H., Balakrishnan, S.,
   Robins, J. M. and Wasserman, L. (2024). Minimax rates for heterogeneous causal
   effect estimation. \emph{Annals of Statistics} 52, 793--816.
+\bibitem[Lov\'asz(1999)]{lovasz1999hitandrun} Lov\'asz, L. (1999). Hit-and-run mixes
+  fast. \emph{Mathematical Programming} 86, 443--461.
 \bibitem[Postnikov(2009)]{Postnikov2009} Postnikov, A. (2009). Permutohedra,
   associahedra, and beyond. \emph{International Mathematics Research Notices} 2009,
   1026--1106.
+\bibitem[Roberts \& Rosenthal(2004)]{roberts2004general} Roberts, G. O. and Rosenthal,
+  J. S. (2004). General state space Markov chains and MCMC algorithms.
+  \emph{Probability Surveys} 1, 20--71.
 \bibitem[Robins et al.(2008)]{Robins2008HOIF} Robins, J., Li, L., Tchetgen, E. and van
   der Vaart, A. (2008). Higher order influence functions and minimax estimation of
   nonlinear functionals. \emph{Probability and Statistics: Essays in Honor of David
@@ -2945,6 +3960,9 @@ the (weaker, insufficient) off-diagonal condition $s_S+s_Y>d/2$ alone.
   Tchetgen Tchetgen, E. and van der Vaart, A. (2017). Minimax estimation of a
   functional on a structured high-dimensional model. \emph{Annals of Statistics} 45,
   1951--1987.
+\bibitem[Shevtsova(2011)]{Shevtsova2011} Shevtsova, I. G. (2011). On the absolute
+  constants in the Berry--Esseen type inequalities for identically distributed
+  summands. \emph{arXiv preprint} arXiv:1111.6554.
 \bibitem[Stone(1980)]{Stone1980} Stone, C. J. (1980). Optimal rates of convergence
   for nonparametric estimators. \emph{Annals of Statistics} 8, 1348--1360.
 \bibitem[Williams(1991)]{Williams1991} Williams, D. (1991). \emph{Probability with

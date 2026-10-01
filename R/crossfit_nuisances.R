@@ -20,12 +20,14 @@
 #' function's rate requirements rely on. The outcome regressions are fit
 #' arm-separately within each training fold.
 #'
-#' **Propensity clipping.** Returned `e_hat` is clipped to `[0.01, 0.99]`, matching
-#' the clipping [tv_ball_correlation_IF_adaptive()] applies internally, so passing
-#' this object into that function cannot trip its `(0, 1)` validation. A warning
-#' fires if clipping actually binds, because that means a covariate region is
-#' nearly deterministic in treatment and the AIPW estimate there rests on
-#' extrapolation rather than data.
+#' **Propensity and outcome clipping.** Returned `e_hat` is clipped to `[0.01, 0.99]`,
+#' and outcome-regression predictions are clipped to `[-B, B]` where `B` is derived
+#' from the observed range of the outcomes with a small margin, matching the clipping
+#' [tv_ball_correlation_IF_adaptive()] applies internally, so passing this object
+#' into that function cannot trip its `(0, 1)` validation for propensities or violate
+#' Assumption A9(d) for outcomes. Warnings fire if clipping actually binds, because
+#' that means a covariate region is nearly deterministic in treatment (propensity) or
+#' the fitted outcome regression is extrapolating beyond the observed range (outcome).
 #'
 #' Run time is roughly `n_folds` model fits of each of five models; for the
 #' canonical five-level `X` with `n = 10000` and `method_* = "linear"` this is well
@@ -129,8 +131,25 @@ crossfit_nuisances_once <- function(data,
   }
   e_hat <- pmin(pmax(e_hat, 0.01), 0.99)
 
-  list(e_hat = e_hat, mu_1_S = mu_1_S, mu_0_S = mu_0_S,
-       mu_1_Y = mu_1_Y, mu_0_Y = mu_0_Y)
+  # Compute outcome clipping bound B from observed range with small margin
+  B <- max(abs(range(data$S)), abs(range(data$Y))) * 1.1
+
+  # Clip outcome predictions to [-B, B]
+  mu_1_S_clipped <- pmin(pmax(mu_1_S, -B), B)
+  mu_0_S_clipped <- pmin(pmax(mu_0_S, -B), B)
+  mu_1_Y_clipped <- pmin(pmax(mu_1_Y, -B), B)
+  mu_0_Y_clipped <- pmin(pmax(mu_0_Y, -B), B)
+
+  n_clipped_mu <- sum(mu_1_S != mu_1_S_clipped | mu_0_S != mu_0_S_clipped |
+                      mu_1_Y != mu_1_Y_clipped | mu_0_Y != mu_0_Y_clipped)
+  if (n_clipped_mu > 0L) {
+    warning(n_clipped_mu, " of ", n, " outcome-regression predictions were clipped to ",
+            "[-", sprintf("%.3f", B), ", ", sprintf("%.3f", B), "]; the fitted ",
+            "outcome regressions are extrapolating beyond the observed range.")
+  }
+
+  list(e_hat = e_hat, mu_1_S = mu_1_S_clipped, mu_0_S = mu_0_S_clipped,
+       mu_1_Y = mu_1_Y_clipped, mu_0_Y = mu_0_Y_clipped)
 }
 
 

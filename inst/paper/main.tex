@@ -695,17 +695,143 @@ target for the finite-sample studies in Section~\ref{sec:sim-future}.
 
 The studies above fix $n = 10{,}000$ and $\lambda = 0.3$ and use the total-variation
 geometry, to validate the asymptotic theory in the regime where it is cleanest.
-Three extensions are planned and reported in the supplementary material as they
-complete. First, \textbf{finite-sample behavior at practical sample sizes}
-($n \in \{250, 500, 2{,}000, 10{,}000, 40{,}000\}$): at smaller $n$ the correlation
-estimate is attenuated and the normal approximation degrades, and we characterize
-the resulting coverage and compare the attenuation of the randomized
-(importance-weighting) and observational (AIPW) paths, which need not agree at a
-given $n$ even where both are consistent. Second, \textbf{alternative geometries}: repeating the validation
+Four extensions are planned; the first, third and fourth are complete and
+reported below, and the second is reported in the supplementary material as it
+completes. First,
+\textbf{finite-sample behavior at practical sample sizes and under confounding}
+($n \in \{250, 500, 2{,}000, 10{,}000, 40{,}000\}$): Table~\ref{tab:finite-sample}
+compares the randomized (importance-weighting) and observational (AIPW) paths
+under two scenarios, an unconfounded scenario in which treatment is randomized (so
+both paths target $\Theta = 0.691$) and a confounded scenario in which treatment
+assignment depends on covariates (so the two paths need not target the same
+quantity). At smaller $n$ both paths show attenuation toward zero and the
+normal-approximation intervals under-cover accordingly; in the unconfounded
+scenario this attenuation resolves by $n = 40{,}000$, where both methods have bias
+below $0.02$ and coverage near nominal.
+
+Confounding changes the comparison qualitatively, not just quantitatively. Applied
+to the confounded data, importance weighting does not target $\Theta$: as $n$
+grows its estimate stabilizes not at the true correlation ($0.688$) but at a
+propensity-tilted limit ($0.077$), and its bias fails to shrink with $n$---at
+$n = 40{,}000$ the bias is still $-0.599$ and coverage of the nominal interval has
+collapsed to $1.7\%$. AIPW, by contrast, remains consistent for $\Theta$ under
+confounding: its bias shrinks from $-0.416$ at $n = 250$ to $-0.016$ at
+$n = 40{,}000$, with coverage recovering to $92.5\%$. A more severely confounded
+scenario, whose propensity-tilted limit ($-0.471$) lies on the opposite side of
+zero from the truth, sharpens the same pattern at $n = 10{,}000$: importance
+weighting estimates $-0.386$ against a true correlation of $0.688$, a sign
+reversal, while AIPW estimates $0.579$. Confounding is therefore not merely a
+source of additional variance to average away; it changes what importance
+weighting estimates, and cross-fitted AIPW is required to recover $\Theta$ itself.
+
+\begin{table}[h]
+\centering
+\caption{Bias and empirical coverage of nominal 95\% confidence intervals for
+$\hat{\Theta}_n$ across sample size $n$ and estimation method, under an
+unconfounded scenario (DGP~1, $\Theta_{\mathrm{true}} = 0.691$) and a moderately
+confounded scenario ($\Theta_{\mathrm{true}} = 0.688$, importance-weighting limit
+$0.077$). 120 replications per cell, except $n = 10{,}000$ (40 replications
+unconfounded, 80 confounded).}
+\label{tab:finite-sample}
+\begin{tabular}{llcccc}
+\toprule
+& & \multicolumn{2}{c}{Unconfounded} & \multicolumn{2}{c}{Confounded} \\
+$n$ & Method & Bias & Coverage & Bias & Coverage \\
+\midrule
+250      & IW   & $-0.344$ & $0.871$ & $-0.539$ & $0.800$ \\
+         & AIPW & $-0.290$ & $0.904$ & $-0.416$ & $0.838$ \\
+500      & IW   & $-0.306$ & $0.883$ & $-0.589$ & $0.750$ \\
+         & AIPW & $-0.240$ & $0.917$ & $-0.387$ & $0.850$ \\
+2{,}000  & IW   & $-0.139$ & $0.917$ & $-0.611$ & $0.717$ \\
+         & AIPW & $-0.163$ & $0.942$ & $-0.205$ & $0.908$ \\
+10{,}000 & IW   & $-0.047$ & $0.963$ & $-0.609$ & $0.413$ \\
+         & AIPW & $-0.020$ & $1.000$ & $-0.054$ & $0.944$ \\
+40{,}000 & IW   & $-0.018$ & $0.958$ & $-0.599$ & $0.017$ \\
+         & AIPW & $-0.010$ & $0.967$ & $-0.016$ & $0.925$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Second, \textbf{alternative geometries}: repeating the validation
 under $\chi^2$ and $L_2$ balls to compare which distributional shifts each
-geometry emphasizes. Third, \textbf{sensitivity to $\lambda$}: reporting
-$\hat{\Theta}_n(\lambda)$ across a grid of $\lambda$ values, where a flat profile
-indicates robust transportability and a declining profile indicates fragility.
+geometry emphasizes.
+
+Third, \textbf{sensitivity to $\lambda$}. Figure~\ref{fig:lambda-profile} reports
+$\hat{\Theta}_n(\lambda)$ across a grid of nine $\lambda$ values straddling the
+interior-regime boundary $\min_k p_0(k) = 0.05$, for DGPs~1--2 ($n = 10{,}000$, 20
+paired replications per point; DGPs~3--4 are omitted as they sit at the
+degenerate $|\Theta| \approx 1$ boundary by construction and are flat throughout
+by the same argument as Table~\ref{tab:performance}). Within the interior
+region ($\lambda \le 0.05$), where $\Theta(\PP_0,\lambda)$ is constant by
+construction, both DGPs' estimates track the closed-form value to within Monte
+Carlo uncertainty (at 20 replications, roughly $\pm 0.075$ at the 95\% level for
+DGP~1), consistent with the theory but not, at this replication count, a tight
+confirmation of it. Past the boundary, both profiles are non-monotone rather
+than uniformly rising or falling, which is expected: the paper's first-order
+exit-from-interior diagnostic predicts only the local sign of
+$\partial^+_\lambda\Theta$ at $\lambda = \min_k p_0(k)$, not the global
+trajectory, precisely because it is a first-order statement local to the
+boundary. The signs realized just past the boundary are consistent with that
+local prediction for both DGPs, though the predicted first-order magnitude is
+small relative to the grid's resolution and replication count, so this is a
+directional check rather than a quantitative one; each profile subsequently
+turns toward its own $\lambda = 0.3$ reference value, which lies on the
+opposite side of the interior value from the local prediction for DGP~1 and on
+the same side for DGP~2. A flat profile would indicate transportability robust
+to distributional shift; a monotone profile would flag fragility in one
+direction; the non-monotone shape realized here says that both effects are
+present at different scales of $\lambda$, and that neither the local boundary
+behavior nor the $\lambda = 0.3$ endpoint alone characterizes the full profile.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{../../simulations/lambda-sweep/results/figures/lambda_profile.pdf}
+\caption{$\hat{\Theta}_n(\lambda)$ across the $\lambda$ grid for DGPs~1--2
+($n = 10{,}000$, 20 replications). Vertical dashed line: the interior-regime
+boundary $\lambda = \min_k p_0(k) = 0.05$. Horizontal dashed lines: the
+interior-regime closed-form value $\mathrm{Corr}_K(\tau_S, \tau_Y)$ for each
+DGP. Error bars: $\pm 1.96$ influence-function-based standard errors.}
+\label{fig:lambda-profile}
+\end{figure}
+
+Fourth, \textbf{generality across data-generating processes}. The four DGPs of
+Table~\ref{tab:dgps} are structural anchors, chosen to exhibit particular
+PTE--correlation configurations rather than drawn at random, so the results above
+do not by themselves establish that the estimator is calibrated across
+data-generating processes in general. We therefore repeat the validation over an
+ensemble of 56 randomly drawn DGPs, varying the size of the covariate support, the
+error law (Gaussian, $t$, heteroskedastic), the concentration of $p_0$, and the
+shape of the effect modification, with the ensemble selected so that the true
+correlation $\Theta$ is spread approximately uniformly over $[-1,1]$ rather than
+concentrating near the $|\Theta| \approx 1$ boundary where estimation is easiest.
+Each DGP is run for 500 replications at $n = 10{,}000$ and $\lambda = 0.3$ against
+its analytically computed $\Theta$. Bias is negligible throughout: across the 56
+DGPs the median absolute bias is $0.002$, the 90th percentile $0.007$, and the
+maximum $0.046$. Coverage of the nominal 95\% intervals is mildly but consistently
+below nominal---median $0.927$, interquartile range $0.904$ to $0.948$, with 43 of
+the 56 DGPs at or above $0.90$ and 5 below $0.85$. The shortfall is attributable to
+variance estimation rather than to bias: the mean influence-function standard error
+averages $0.939$ times the empirical standard deviation of $\hat{\Theta}_n$ across
+the ensemble, and it does not vary systematically with $|\Theta|$ or with the
+number of future studies sampled. Run under the same protocol, the four canonical
+DGPs reproduce the biases of Table~\ref{tab:performance} to within $0.004$ in every
+case.
+
+The same study documents the finite-sample attenuation directly. For DGP~1, as $n$
+runs through $500$, $2{,}000$, $10{,}000$ and $40{,}000$, the bias falls from
+$-0.315$ to $-0.124$, $-0.036$ and $-0.006$---faster than the $n^{-1/2}$
+rate---while coverage rises from $0.868$ to $0.894$, $0.918$ and $0.940$; across
+the ensemble the median absolute bias falls from $0.043$ at $n = 500$ to $0.001$ at
+$n = 40{,}000$. A
+grouped delete-block jackknife applied to the plug-in estimate removes most of what
+attenuation remains: for DGP~1 it cuts the bias to $36\%$ of its uncorrected value
+at $n = 2{,}000$ and to $13\%$ at $n = 10{,}000$, and it reduces the absolute bias
+for at least 10 of the 12 ensemble DGPs at every $n$ on the grid. It does not,
+however, repair coverage. Recentring the interval at the corrected estimate without
+rewidening it leaves coverage essentially unchanged at $n = 40{,}000$ ($0.948$
+against $0.940$) and lowers it at smaller $n$ ($0.834$ against $0.894$ at
+$n = 2{,}000$). The correction is therefore useful for reporting a point estimate
+at moderate $n$, while interval construction at small $n$ remains open.
 
 \section{Discussion}\label{sec:discussion}
 
@@ -769,9 +895,11 @@ package \texttt{surrogateTransportability}.
 
 \paragraph{Theoretical supplement.} All notation, assumptions, results, and proofs
 (the finite-support correlation theorem, its randomized-trial corollary, the
-interior-regime closed form, and the general bilinear-functional extension) are
-collected in the standalone theoretical companion \texttt{inst/paper/theory.tex},
-compiled separately as \texttt{theory.pdf}.
+interior-regime closed form, the general bilinear-functional extension, a
+uniform-ergodicity and mixing-time bound for the hit-and-run sampler, and a
+finite-sample Berry--Esseen bound for the interior regime) are collected in the
+standalone theoretical companion \texttt{inst/paper/theory.tex}, compiled
+separately as \texttt{theory.pdf}.
 
 \bibliography{refs}
 \bibliographystyle{plainnat}
